@@ -20,6 +20,7 @@ with this program. If not, see https://www.gnu.org/licenses/
 # Make Python's type definitions available
 from typing import *
 from numbers import *
+from pathlib import *
 
 from .time import datetime as DateTime, \
                   timedelta as TimeDelta
