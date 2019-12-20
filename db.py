@@ -96,19 +96,24 @@ class PostgreSQL:
     @contextmanager
     def cursor(self):
         """ Get a cursor context manager from the connection pool """
+        # TODO The below code is very similar to the above code!
+        failed = False
+
         try:
             conn = self._pool.getconn()
             conn.autocommit = False
 
-            # FIXME? I'm not convinced that the transaction will be
-            # committed/rolled back when the context manager is done
             yield conn.cursor()
 
         except psycopg2.Error:
+            failed = True
             conn.rollback()
             raise
 
         finally:
+            if not failed:
+                conn.commit()
+
             self._pool.putconn(conn)
 
     def execute_script(self, sql:Path) -> None:
