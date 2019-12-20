@@ -100,7 +100,13 @@ class PostgreSQL:
             conn = self._pool.getconn()
             conn.autocommit = False
 
+            # FIXME? I'm not convinced that the transaction will be
+            # committed/rolled back when the context manager is done
             yield conn.cursor()
+
+        except psycopg2.Error:
+            conn.rollback()
+            raise
 
         finally:
             self._pool.putconn(conn)
@@ -111,12 +117,17 @@ class PostgreSQL:
 
         @param  sql  Path to SQL script
         """
+        # TODO The below code is very similar to the above code!
         try:
             conn = self._pool.getconn()
             conn.autocommit = True
 
             with conn.cursor() as c:
                 c.execute(sql.read_text())
+
+        except psycopg2.Error:
+            conn.rollback()
+            raise
 
         finally:
             self._pool.putconn(conn)
