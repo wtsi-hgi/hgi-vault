@@ -48,22 +48,23 @@ class LockingMode(Enum):
 class _LockableNamedTupleCursor(NamedTupleCursor):
     """ NamedTupleCursor with a table locking context manager """
     @contextmanager
-    def lock(self, table:str, lock_mode:LockingMode = LockingMode.AccessExclusive):
+    def lock(self, *tables:str, lock_mode:LockingMode = LockingMode.AccessExclusive):
         """
-        Acquire a lock context manager on the given PostgreSQL table
+        Acquire a lock context manager on the given PostgreSQL tables
         with the specified locking mode
 
-        @param  table      PostgreSQL table
+        @param  tables     PostgreSQL tables
         @param  lock_mode  Locking mode (defaults to "access exclusive")
         """
-        # TODO Allow locking of multiple tables
         failed = False
 
         try:
-            _ = self.execute(SQL("""
+            to_lock = SQL(", ").join(Identifier(t) for t in tables)
+            self.execute(SQL("""
                 begin transaction;
-                lock table {table} in """ f"{lock_mode.value}" """ mode;
-            """).format(table=Identifier(table)))
+                lock table {tables} in """ f"{lock_mode.value}" """ mode;
+            """).format(tables=to_lock))
+
             yield self
 
         except psycopg2.Error:
