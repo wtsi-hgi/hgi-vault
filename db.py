@@ -57,6 +57,8 @@ class _LockableNamedTupleCursor(NamedTupleCursor):
         @param  lock_mode  Locking mode (defaults to "access exclusive")
         """
         # TODO Allow locking of multiple tables
+        failed = False
+
         try:
             _ = self.execute(SQL("""
                 begin transaction;
@@ -65,11 +67,13 @@ class _LockableNamedTupleCursor(NamedTupleCursor):
             yield self
 
         except psycopg2.Error:
-            # FIXME Is this the right place for this?...
+            failed = True
             self.connection.rollback()
+            raise
 
         finally:
-            self.connection.commit()
+            if not failed:
+                self.connection.commit()
 
 
 class PostgreSQL:
