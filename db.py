@@ -96,9 +96,10 @@ class PostgreSQL:
     @contextmanager
     def cursor(self):
         """ Get a cursor context manager from the connection pool """
-        conn = self._pool.getconn()
-
         try:
+            conn = self._pool.getconn()
+            conn.autocommit = False
+
             yield conn.cursor()
 
         finally:
@@ -108,12 +109,14 @@ class PostgreSQL:
         """
         Execute the given SQL script against the database
 
-        @param   sql  Path to SQL script
+        @param  sql  Path to SQL script
         """
-        conn = self._pool.getconn()
-        conn.autocommit = True
+        try:
+            conn = self._pool.getconn()
+            conn.autocommit = True
 
-        with conn.cursor() as c:
-            c.execute(sql.read_text())
+            with conn.cursor() as c:
+                c.execute(sql.read_text())
 
-        self._pool.putconn(conn)
+        finally:
+            self._pool.putconn(conn)
