@@ -22,6 +22,7 @@ from contextlib import contextmanager
 from enum import Enum
 from pathlib import Path
 
+import psycopg2
 from psycopg2.extras import NamedTupleCursor
 from psycopg2.pool import AbstractConnectionPool, ThreadedConnectionPool
 from psycopg2.sql import SQL, Identifier
@@ -55,12 +56,17 @@ class _LockableNamedTupleCursor(NamedTupleCursor):
         @param  table      PostgreSQL table
         @param  lock_mode  Locking mode (defaults to "access exclusive")
         """
+        # TODO Allow locking of multiple tables
         try:
             _ = self.execute(SQL("""
                 begin transaction;
                 lock table {table} in """ f"{lock_mode.value}" """ mode;
             """).format(table=Identifier(table)))
             yield self
+
+        except psycopg2.Error:
+            # FIXME Is this the right place for this?...
+            self.connection.rollback()
 
         finally:
             self.connection.commit()
