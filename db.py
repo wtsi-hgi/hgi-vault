@@ -56,6 +56,7 @@ class _LockableNamedTupleCursor(NamedTupleCursor):
         @param  tables     PostgreSQL tables
         @param  lock_mode  Locking mode (defaults to "access exclusive")
         """
+        # TODO This code is very similar to the transaction manager...
         failed = False
 
         try:
@@ -94,14 +95,13 @@ class PostgreSQL:
         self._pool.closeall()
 
     @contextmanager
-    def cursor(self):
-        """ Get a cursor context manager from the connection pool """
-        # TODO The below code is very similar to the above code!
+    def transaction(self, *, autocommit:bool = False):
+        """ Transaction context manager, using the connection pool """
         failed = False
 
         try:
             conn = self._pool.getconn()
-            conn.autocommit = False
+            conn.autocommit = autocommit
 
             yield conn.cursor()
 
@@ -111,7 +111,7 @@ class PostgreSQL:
             raise
 
         finally:
-            if not failed:
+            if not autocommit and not failed:
                 conn.commit()
 
             self._pool.putconn(conn)
@@ -122,17 +122,5 @@ class PostgreSQL:
 
         @param  sql  Path to SQL script
         """
-        # TODO The below code is very similar to the above code!
-        try:
-            conn = self._pool.getconn()
-            conn.autocommit = True
-
-            with conn.cursor() as c:
-                c.execute(sql.read_text())
-
-        except psycopg2.Error:
-            conn.rollback()
-            raise
-
-        finally:
-            self._pool.putconn(conn)
+        with self.transaction(autocommit=True) as c:
+            c.execute(sql.read_text())
