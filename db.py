@@ -1,5 +1,5 @@
 """
-Copyright (c) 2019 Genome Research Limited
+Copyright (c) 2019, 2020 Genome Research Limited
 
 Author: Christopher Harrison <ch12@sanger.ac.uk>
 
@@ -26,6 +26,10 @@ import psycopg2
 from psycopg2.extras import NamedTupleCursor
 from psycopg2.pool import AbstractConnectionPool, ThreadedConnectionPool
 from psycopg2.sql import SQL, Identifier
+
+from common.models.filesystem.types import BaseFilesystem
+from ..types import BaseStateProtocol
+from ..exceptions import NoFilesystemConvertor
 
 
 # Get connection pool size constraints from environment, if available
@@ -71,6 +75,8 @@ class _LockableNamedTupleCursor(NamedTupleCursor):
         except psycopg2.Error:
             failed = True
             self.connection.rollback()
+
+            # TODO Convert into our BackendException hierarchy
             raise
 
         finally:
@@ -78,7 +84,7 @@ class _LockableNamedTupleCursor(NamedTupleCursor):
                 self.connection.commit()
 
 
-class PostgreSQL:
+class PostgreSQL(BaseStateProtocol):
     """
     PostgreSQL Wrapper
 
@@ -88,6 +94,8 @@ class PostgreSQL:
     _pool:AbstractConnectionPool
 
     def __init__(self, *, database:str, user:str, password:str, host:str, port:int = 5432) -> None:
+        self._filesystems = {}
+
         dsn = f"dbname={database} user={user} password={password} host={host} port={port}"
         self._pool = ThreadedConnectionPool(_POOL_MIN, _POOL_MAX, dsn, cursor_factory=_LockableNamedTupleCursor)
 
@@ -108,6 +116,8 @@ class PostgreSQL:
         except psycopg2.Error:
             failed = True
             conn.rollback()
+
+            # TODO Convert into our BackendException hierarchy
             raise
 
         finally:
@@ -124,3 +134,9 @@ class PostgreSQL:
         """
         with self.transaction(autocommit=True) as c:
             c.execute(sql.read_text())
+
+    def filesystem_convertor(self, name:str) -> BaseFilesystem:
+        if name not in self._filesystems:
+            raise NoFilesystemConvertor(f"Cannot convert \"{name}\" into a recognised instance")
+
+        return self._filesystems[name]
