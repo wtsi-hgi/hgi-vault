@@ -29,6 +29,7 @@ from psycopg2.extras import NamedTupleCursor
 from psycopg2.pool import AbstractConnectionPool, ThreadedConnectionPool
 from psycopg2.sql import SQL, Identifier
 
+from common import types as T
 from common.models.filesystem.types import BaseFilesystem
 from ..types import BaseStateProtocol
 from ..exceptions import BackendException, LogicException, NoFilesystemConvertor
@@ -39,17 +40,24 @@ _POOL_MIN = int(os.getenv("PG_POOL_MIN", "1"))
 _POOL_MAX = int(os.getenv("PG_POOL_MAX", "10"))
 
 
+_ExcT = T.TypeVar("_ExcT", bound=BackendException)
+
+def _exception(heading:str, pg_exc:psycopg2.Error, exc_type:T.Type[_ExcT]) -> _ExcT:
+    message = f"{heading} {pg_exc.pgcode}"
+    if pg_exc.pgerror:
+        message += f"\n{pg_exc.pgerror}"
+
+    return exc_type(message)
+
 @singledispatch
 def _exception_mapper(exc:psycopg2.Error) -> BackendException:
     # Fallback to BackendException
-    message = "\n".join([exc.pgcode, exc.pgerror])
-    return BackendException(f"PostgreSQL error {exc.pgcode}{message}")
+    return _exception("PostgreSQL error", exc, BackendException)
 
 @_exception_mapper.register
 def _(exc:RaiseException) -> LogicException:
     # RaiseException -> LogicException
-    message = "\n".join([exc.pgcode, exc.pgerror])
-    return LogicException(f"PL/pgSQL exception {exc.pgcode}{message}")
+    return _exception("PL/pgSQL exception", exc, LogicException)
 
 
 class LockingMode(Enum):
