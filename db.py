@@ -20,21 +20,36 @@ with this program. If not, see https://www.gnu.org/licenses/
 import os
 from contextlib import contextmanager
 from enum import Enum
+from functools import singledispatch
 from pathlib import Path
 
 import psycopg2
+from psycopg2.errors import RaiseException
 from psycopg2.extras import NamedTupleCursor
 from psycopg2.pool import AbstractConnectionPool, ThreadedConnectionPool
 from psycopg2.sql import SQL, Identifier
 
 from common.models.filesystem.types import BaseFilesystem
 from ..types import BaseStateProtocol
-from ..exceptions import NoFilesystemConvertor
+from ..exceptions import BackendException, LogicException, NoFilesystemConvertor
 
 
 # Get connection pool size constraints from environment, if available
 _POOL_MIN = int(os.getenv("PG_POOL_MIN", "1"))
 _POOL_MAX = int(os.getenv("PG_POOL_MAX", "10"))
+
+
+@singledispatch
+def _exception_mapper(exc:psycopg2.Error) -> BackendException:
+    # Fallback to BackendException
+    message = "\n".join([exc.pgcode, exc.pgerror])
+    return BackendException(f"PostgreSQL error {exc.pgcode}{message}")
+
+@_exception_mapper.register
+def _(exc:RaiseException) -> LogicException:
+    # RaiseException -> LogicException
+    message = "\n".join([exc.pgcode, exc.pgerror])
+    return LogicException(f"PL/pgSQL exception {exc.pgcode}{message}")
 
 
 class LockingMode(Enum):
@@ -72,12 +87,10 @@ class _LockableNamedTupleCursor(NamedTupleCursor):
 
             yield self
 
-        except psycopg2.Error:
+        except psycopg2.Error as e:
             failed = True
             self.connection.rollback()
-
-            # TODO Convert into our BackendException hierarchy
-            raise
+            raise _exception_mapper(e)
 
         finally:
             if not failed:
@@ -113,12 +126,10 @@ class PostgreSQL(BaseStateProtocol):
 
             yield conn.cursor()
 
-        except psycopg2.Error:
+        except psycopg2.Error as e:
             failed = True
             conn.rollback()
-
-            # TODO Convert into our BackendException hierarchy
-            raise
+            raise _exception_mapper(e)
 
         finally:
             if not autocommit and not failed:
