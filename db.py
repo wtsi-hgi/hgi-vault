@@ -30,7 +30,7 @@ from psycopg2.pool import AbstractConnectionPool, ThreadedConnectionPool
 from psycopg2.sql import SQL, Identifier
 
 from common import types as T
-from common.models.filesystem.types import BaseFilesystem
+from common.models.filesystems.types import BaseFilesystem
 from ..types import BaseStateProtocol
 from ..exceptions import BackendException, LogicException, NoFilesystemConvertor
 
