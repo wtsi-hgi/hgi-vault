@@ -1,5 +1,5 @@
 """
-Copyright (c) 2019 Genome Research Limited
+Copyright (c) 2019, 2020 Genome Research Limited
 
 Author: Christopher Harrison <ch12@sanger.ac.uk>
 
@@ -65,6 +65,8 @@ class Logger:
         self._level  = level
         self._format = formatter
 
+        # NOTE It's a client's responsibility to add a useful output
+        # handler (see .to_tty and .to_file, for convenience)
         self._logger.setLevel(level.value)
         self._add_handler(logging.NullHandler())
 
@@ -76,9 +78,11 @@ class Logger:
         self._logger.addHandler(handler)
 
     def to_tty(self) -> None:
+        """ Add a handler to the standard output streams """
         self._add_handler(logging.StreamHandler())
 
     def to_file(self, filename:T.Path) -> None:
+        """ Add a handler to a given file """
         self._add_handler(logging.FileHandler(filename))
 
     def __call__(self, message:str, level:Level = Level.Info) -> None:
