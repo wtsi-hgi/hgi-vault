@@ -26,25 +26,13 @@ from types import TracebackType
 from . import types as T, time
 
 
-class Level(Enum):
-    """ Convenience enumeration for logging levels """
-    Debug    = logging.DEBUG
-    Info     = logging.INFO
-    Warning  = logging.WARNING
-    Error    = logging.ERROR
-    Critical = logging.CRITICAL
-
-
-_LOGGER = "shepherd"
-_LEVEL  = Level.Debug if __debug__ else Level.Info
-
 def _exception_handler(logger:logging.Logger) -> T.Callable:
     """
     Create an exception handler that logs uncaught exceptions (except
     keyboard interrupts) and spews the traceback to stderr (in debugging
     mode) before terminating
     """
-    def _log_uncaught_exception(exc_type:T.Type[BaseException], exc_val:BaseException, traceback:TracebackType) -> None:
+    def _log_uncaught_exception(exc_type:T.Type[Exception], exc_val:Exception, traceback:TracebackType) -> None:
         if issubclass(exc_type, KeyboardInterrupt):
             sys.__excepthook__(exc_type, exc_val, traceback)
 
@@ -57,26 +45,69 @@ def _exception_handler(logger:logging.Logger) -> T.Callable:
 
     return _log_uncaught_exception
 
-def get_logger() -> logging.Logger:
-    """ Initialise the logger and return it """
-    if _LOGGER in logging.Logger.manager.loggerDict:
-        return logging.getLogger(_LOGGER)
 
-    formatter = logging.Formatter(fmt="%(asctime)s\t%(levelname)s\t%(message)s", datefmt=time.ISO8601)
+class Level(Enum):
+    """ Convenience enumeration for logging levels """
+    Debug    = logging.DEBUG
+    Info     = logging.INFO
+    Warning  = logging.WARNING
+    Error    = logging.ERROR
+    Critical = logging.CRITICAL
 
-    handler = logging.StreamHandler()
-    handler.setLevel(_LEVEL.value)
-    handler.setFormatter(formatter)
 
-    logger = logging.getLogger(_LOGGER)
-    logger.setLevel(_LEVEL.value)
-    logger.addHandler(handler)
+class Logger:
+    _logger:logging.Logger
+    _level:Level
+    _format:logging.Formatter
 
-    sys.excepthook = _exception_handler(logger)
+    def __init__(self, name:str, level:Level, formatter:logging.Formatter) -> None:
+        self._logger = logging.getLogger(name)
+        self._level  = level
+        self._format = formatter
 
-    return logger
+        self._logger.setLevel(level.value)
+        self._add_handler(logging.NullHandler())
 
-def log(message:str, level:Level = Level.Info) -> None:
-    """ Log a message at an optional level """
-    logger = get_logger()
-    logger.log(level.value, message)
+        sys.excepthook = _exception_handler(self._logger)
+
+    def _add_handler(self, handler:logging.Handler) -> None:
+        handler.setLevel(self._level.value)
+        handler.setFormatter(self._format)
+        self._logger.addHandler(handler)
+
+    def to_tty(self) -> None:
+        self._add_handler(logging.StreamHandler())
+
+    def to_file(self, filename:T.Path) -> None:
+        self._add_handler(logging.FileHandler(filename))
+
+    def __call__(self, message:str, level:Level = Level.Info) -> None:
+        """ Log a message at an optional level """
+        self._logger.log(level.value, message)
+
+    def debug(self, message:str) -> None:
+        # Convenience alias
+        self(message, Level.Debug)
+
+    def info(self, message:str) -> None:
+        # Convenience alias
+        self(message, Level.Info)
+
+    def warning(self, message:str) -> None:
+        # Convenience alias
+        self(message, Level.Warning)
+
+    def error(self, message:str) -> None:
+        # Convenience alias
+        self(message, Level.Error)
+
+    def critical(self, message:str) -> None:
+        # Convenience alias
+        self(message, Level.Critical)
+
+
+_LOGGER = "shepherd"
+_LEVEL  = Level.Debug if __debug__ else Level.Info
+_FORMAT = logging.Formatter(fmt="%(asctime)s\t%(levelname)s\t%(message)s", datefmt=time.ISO8601)
+
+log = Logger(_LOGGER, _LEVEL, _FORMAT)
