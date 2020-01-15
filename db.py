@@ -66,6 +66,38 @@ def _(exc:RaiseException) -> LogicException:
     return _exception("PL/pgSQL exception", exc, LogicException)
 
 
+def _session_factory(init_state, extract_cursor, teardown, commit_session, rollback_session):
+    """
+    Session context manager factory
+
+    @param   init_state        Callable that initialises state
+    @param   extract_cursor    Callable that returns a cursor from state
+    @param   teardown          Callable that tears down state
+    @param   commit_session    Callable that commits the session
+    @param   rollback_session  Callable that rolls the session back
+    @return  Session context manager
+    """
+    def _session():
+        failed = False
+
+        try:
+            state = init_state()
+            yield extract_cursor(state)
+
+        except psycopg2.Error as e:
+            failed = True
+            rollback_session(state)
+            raise _exception_mapper(e)
+
+        finally:
+            if not failed:
+                commit_session(state)
+
+            teardown(state)
+
+    return contextmanager(_session)
+
+
 class LockingMode(Enum):
     """ PostgreSQL locking mode enumeration """
     AccessShare          = "access share"
@@ -80,7 +112,6 @@ class LockingMode(Enum):
 
 class _LockableNamedTupleCursor(NamedTupleCursor):
     """ NamedTupleCursor with a locking context managers """
-    @contextmanager
     def advisory_lock(self, lock_id:int):
         """
         Acquire a session-level advisory lock context manager with the
@@ -88,25 +119,15 @@ class _LockableNamedTupleCursor(NamedTupleCursor):
 
         @oaram  lock_id  Advisory lock ID
         """
-        # FIXME These context managers are all very similar!
-        failed = False
-
-        try:
+        def _init_state():
             self.execute("select pg_advisory_lock(%s);", (lock_id,))
-            yield self
+            return self
 
-        except psycopg2.Error as e:
-            failed = True
-            self.connection.rollback()
-            raise _exception_mapper(e)
-
-        finally:
-            if not failed:
-                self.connection.commit()
-
+        def _teardown(_):
             self.execute("select pg_advisory_unlock(%s);", (lock_id,))
 
-    @contextmanager
+        return _session_factory(_init_state, (lambda x: x), _teardown, (lambda _: self.connection.commit()), (lambda _: self.connection.rollback()))()
+
     def table_lock(self, *tables:str, lock_mode:LockingMode = LockingMode.AccessExclusive):
         """
         Acquire a table lock context manager on the given tables with
@@ -115,28 +136,18 @@ class _LockableNamedTupleCursor(NamedTupleCursor):
         @param  tables     PostgreSQL tables
         @param  lock_mode  Locking mode (defaults to "access exclusive")
         """
-        # FIXME These context managers are all very similar!
         # NOTE Given that we've effectively serialised everything with
         # advisory locks, explicit table locking is a bit redundant
-        failed = False
-
-        try:
+        def _init_state():
             to_lock = SQL(", ").join(Identifier(t) for t in tables)
             self.execute(SQL("""
                 begin transaction;
                 lock table {tables} in """ f"{lock_mode.value}" """ mode;
             """).format(tables=to_lock))
 
-            yield self
+            return self
 
-        except psycopg2.Error as e:
-            failed = True
-            self.connection.rollback()
-            raise _exception_mapper(e)
-
-        finally:
-            if not failed:
-                self.connection.commit()
+        return _session_factory(_init_state, (lambda x: x), (lambda: None), (lambda _: self.connection.commit()), (lambda _: self.connection.rollback()))()
 
 
 class PostgreSQL(BaseStateProtocol):
@@ -157,13 +168,9 @@ class PostgreSQL(BaseStateProtocol):
     def __del__(self) -> None:
         self._pool.closeall()
 
-    @contextmanager
     def transaction(self, *, autocommit:bool = False):
         """ Transaction context manager, using the connection pool """
-        # FIXME These context managers are all very similar!
-        failed = False
-
-        try:
+        def _init_state():
             connection = self._pool.getconn()
             connection.autocommit = autocommit
             cursor = connection.cursor()
@@ -175,18 +182,25 @@ class PostgreSQL(BaseStateProtocol):
                 select pg_advisory_unlock(%(lock_id)s);
             """, [{"lock_id": lock_id} for lock_id in _ADVISORY_LOCKS.values()])
 
-            yield cursor
+            return connection, cursor
 
-        except psycopg2.Error as e:
-            failed = True
-            connection.rollback()
-            raise _exception_mapper(e)
+        def _extract_cursor(state):
+            _, cursor = state
+            return cursor
 
-        finally:
-            if not autocommit and not failed:
-                connection.commit()
-
+        def _teardown(state):
+            connection, _ = state
             self._pool.putconn(connection)
+
+        def _commit_session(state):
+            connection, _ = state
+            connection.commit()
+
+        def _rollback_session(state):
+            connection, _ = state
+            connection.rollback()
+
+        return _session_factory(_init_state, _extract_cursor, _teardown, _commit_session, _rollback_session)()
 
     def execute_script(self, sql:Path) -> None:
         """
