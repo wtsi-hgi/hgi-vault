@@ -147,7 +147,7 @@ class _LockableNamedTupleCursor(NamedTupleCursor):
 
             return self
 
-        return _session_factory(_init_state, (lambda x: x), (lambda: None), (lambda _: self.connection.commit()), (lambda _: self.connection.rollback()))()
+        return _session_factory(_init_state, (lambda x: x), (lambda _: None), (lambda _: self.connection.commit()), (lambda _: self.connection.rollback()))()
 
 
 class PostgreSQL(BaseStateProtocol):
