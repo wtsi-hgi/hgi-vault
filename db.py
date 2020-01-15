@@ -40,6 +40,12 @@ _POOL_MIN = int(os.getenv("PG_POOL_MIN", "1"))
 _POOL_MAX = int(os.getenv("PG_POOL_MAX", "10"))
 
 
+# Advisory lock IDs
+_ADVISORY_LOCKS = {
+    "DDL": 0
+}
+
+
 _ExcT = T.TypeVar("_ExcT", bound=BackendException)
 
 def _exception(heading:str, pg_exc:psycopg2.Error, exc_type:T.Type[_ExcT]) -> _ExcT:
@@ -73,17 +79,45 @@ class LockingMode(Enum):
 
 
 class _LockableNamedTupleCursor(NamedTupleCursor):
-    """ NamedTupleCursor with a table locking context manager """
+    """ NamedTupleCursor with a locking context managers """
     @contextmanager
-    def lock(self, *tables:str, lock_mode:LockingMode = LockingMode.AccessExclusive):
+    def advisory_lock(self, lock_id:int):
         """
-        Acquire a lock context manager on the given PostgreSQL tables
-        with the specified locking mode
+        Acquire a session-level advisory lock context manager with the
+        given advisory lock ID
+
+        @oaram  lock_id  Advisory lock ID
+        """
+        # FIXME These context managers are all very similar!
+        failed = False
+
+        try:
+            self.execute("select pg_advisory_lock(%s);", (lock_id,))
+            yield self
+
+        except psycopg2.Error as e:
+            failed = True
+            self.connection.rollback()
+            raise _exception_mapper(e)
+
+        finally:
+            if not failed:
+                self.connection.commit()
+
+            self.execute("select pg_advisory_unlock(%s);", (lock_id,))
+
+    @contextmanager
+    def table_lock(self, *tables:str, lock_mode:LockingMode = LockingMode.AccessExclusive):
+        """
+        Acquire a table lock context manager on the given tables with
+        the specified locking mode
 
         @param  tables     PostgreSQL tables
         @param  lock_mode  Locking mode (defaults to "access exclusive")
         """
-        # TODO This code is very similar to the transaction manager...
+        # FIXME These context managers are all very similar!
+        # NOTE Given that we've effectively serialised everything with
+        # advisory locks, explicit table locking is a bit redundant
         failed = False
 
         try:
@@ -126,24 +160,33 @@ class PostgreSQL(BaseStateProtocol):
     @contextmanager
     def transaction(self, *, autocommit:bool = False):
         """ Transaction context manager, using the connection pool """
+        # FIXME These context managers are all very similar!
         failed = False
 
         try:
-            conn = self._pool.getconn()
-            conn.autocommit = autocommit
+            connection = self._pool.getconn()
+            connection.autocommit = autocommit
+            cursor = connection.cursor()
 
-            yield conn.cursor()
+            # Acquire and release all advisory locks
+            # NOTE This will necessarily serialise transactions
+            cursor.executemany("""
+                select pg_advisory_lock(%(lock_id)s);
+                select pg_advisory_unlock(%(lock_id)s);
+            """, [{"lock_id": lock_id} for lock_id in _ADVISORY_LOCKS.values()])
+
+            yield cursor
 
         except psycopg2.Error as e:
             failed = True
-            conn.rollback()
+            connection.rollback()
             raise _exception_mapper(e)
 
         finally:
             if not autocommit and not failed:
-                conn.commit()
+                connection.commit()
 
-            self._pool.putconn(conn)
+            self._pool.putconn(connection)
 
     def execute_script(self, sql:Path) -> None:
         """
@@ -152,7 +195,8 @@ class PostgreSQL(BaseStateProtocol):
         @param  sql  Path to SQL script
         """
         with self.transaction(autocommit=True) as c:
-            c.execute(sql.read_text())
+            with c.advisory_lock(_ADVISORY_LOCKS["DDL"]):
+                c.execute(sql.read_text())
 
     def filesystem_convertor(self, name:str) -> BaseFilesystem:
         if name not in self._filesystems:
