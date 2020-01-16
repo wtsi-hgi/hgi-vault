@@ -207,7 +207,7 @@ class PostgreSQL(BaseStateProtocol):
                 execute_batch(self._cursor, """
                     select pg_advisory_lock(%(lock_id)s);
                     select pg_advisory_unlock(%(lock_id)s);
-                """, [{"lock_id": lock_id} for lock_id in AdvisoryLockID])
+                """, [{"lock_id": lock_id.value} for lock_id in AdvisoryLockID])
 
                 # Start transaction
                 self._cursor.execute("begin transaction;")
