@@ -230,9 +230,9 @@ class PostgreSQL(BaseStateProtocol):
 
         @param  sql  Path to SQL script
         """
-        with self.transaction(autocommit=True) as c:
-            with c.advisory_lock(AdvisoryLockID.DDL):
-                c.execute(sql.read_text())
+        with self.transaction(autocommit=True) as t:
+            with t.advisory_lock(AdvisoryLockID.DDL):
+                t.execute(sql.read_text())
 
     def filesystem_convertor(self, name:str) -> BaseFilesystem:
         if name not in self._filesystems:
