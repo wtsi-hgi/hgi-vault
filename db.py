@@ -26,7 +26,7 @@ from pathlib import Path
 
 from psycopg2 import Error as PGError
 from psycopg2.errors import RaiseException
-from psycopg2.extensions import cursor as Cursor, connection as Connection
+from psycopg2.extensions import cursor as BaseCursor, connection as BaseConnection
 from psycopg2.extras import NamedTupleCursor, execute_batch
 from psycopg2.pool import AbstractConnectionPool, ThreadedConnectionPool
 from psycopg2.sql import SQL, Identifier
@@ -79,10 +79,10 @@ def _(exc:RaiseException) -> LogicException:
 
 class _BaseSession(AbstractContextManager, metaclass=ABCMeta):
     """ Abstract base class for session context managers """
-    _connection:Connection
-    _cursor:Cursor
+    _connection:BaseConnection
+    _cursor:BaseCursor
 
-    def __enter__(self) -> Cursor:
+    def __enter__(self) -> BaseCursor:
         self.session()
         return self._cursor
 
