@@ -112,6 +112,10 @@ class _BaseSession(AbstractContextManager, metaclass=ABCMeta):
         """ Teardown session state """
 
 
+_QueryT = T.Union[SQL, str]
+_ParamT = T.Union[T.Tuple, T.Dict, None]
+_ExecT  = T.Tuple[_QueryT, _ParamT]
+
 class _LockableNamedTupleCursor(NamedTupleCursor):
     """ NamedTupleCursor with a locking context managers """
     def __init__(self, *args, **kwargs) -> None:
@@ -121,8 +125,8 @@ class _LockableNamedTupleCursor(NamedTupleCursor):
 
         class _Lock(_BaseSession):
             """ Base lock """
-            _entry_query:T.Optional[T.Tuple[T.Union[str, SQL], ...]]
-            _exit_query:T.Optional[T.Tuple[T.Union[str, SQL], ...]]
+            _entry_query:T.Optional[_ExecT]
+            _exit_query:T.Optional[_ExecT]
 
             def session(self) -> None:
                 self._connection = cursor.connection
