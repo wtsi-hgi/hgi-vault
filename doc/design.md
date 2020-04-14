@@ -190,7 +190,7 @@ can_delete: Callable[[Path], bool]
 ```
 
 This function makes decisions on whether a file can be deleted, which
-would be implemented similarly to:
+would be used in a similar fashion to:
 
 ```py
 can_deletes = [can_delete-hot-ch12.can_delete,
