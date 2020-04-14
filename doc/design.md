@@ -169,7 +169,7 @@ not possible, that code may be either:
    would reduce the implementation count below three, then the
    reimplementation must first be written and certified to replace it.
 
-Hot code may call other library call defined elsewhere in the project.
+Hot code may call other library code defined elsewhere in the project.
 Such called code will be termed "warm code" and be subject to higher
 scrutiny. To facilitate this, all references to warm code must be
 documented in the opening comments of all hot code modules.
@@ -178,7 +178,9 @@ documented in the opening comments of all hot code modules.
 
 The following predicate may need to be defined:
 
-    can_delete: Callable(Path, bool)
+```py
+can_delete: Callable[[Path], bool]
+```
 
 This function makes decisions on whether a file can be deleted, which
 would be implemented similarly to:
