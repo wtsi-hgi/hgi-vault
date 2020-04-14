@@ -25,7 +25,8 @@ criteria for the system will be:
 * Hot code ([defined later](#hot-and-warm-code)) **must** be replicated
   in isolation by at least three different developers.
 
-* The cyclomatic complexity of the system **must** be:
+* The [cyclomatic complexity](https://en.wikipedia.org/wiki/Cyclomatic_complexity) of
+  the system **must** be:
   * At most 10 and **should** be below 7;
   * At most 5 for hot and warm code.
 
