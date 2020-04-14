@@ -27,10 +27,14 @@ criteria for the system will be:
 * The cyclomatic complexity of the system **must** be at most 10 and
   **should** be below 7.
 
+* Hot code ([defined later](#hot-and-warm-code)) **must** be replicated
+  in isolation by at least three different developers.
+
 * The system's code **must** be fully type annotated and satisfy static
   analysis.
 
-* The system's code **must** conform to the PEP8 style.
+* The system's code **must** conform to the [PEP8
+  style](https://www.python.org/dev/peps/pep-0008).
 
 * External (non-standard) libraries **may** be used, but it is
   discouraged.
@@ -117,12 +121,17 @@ Notes:
 
 ### Change Process
 
-Changes to the specification must be formally reviewed via the following process:
+Changes to the specification must be formally reviewed via the following
+process:
 
 * All stakeholders must meet to discuss the change.
 
 * The proposer must justify the change in terms of cost vs. benefit and
   its risk assessment.
+
+* This analysis needn't be formal, but changes that impinge on hot code
+  ([defined later](#hot-and-warm-code)) will be subject to closer
+  scrutiny.
 
 * The change may be iterated upon during the meeting by any stakeholder.
 
@@ -130,6 +139,67 @@ Changes to the specification must be formally reviewed via the following process
   agree.
 
 * If a change is rejected, it may be resubmitted at a later date.
+
+### Hot and Warm Code
+
+"Hot code" is defined to be code that immediately leads to irrecoverable
+data loss. Any such code must be implemented in replicate by at least
+three developers. Each implementation is assumed to follow similar
+logic, but must nonetheless be implemented in isolation (before review).
+All implementations will be called and only acted upon in the event of
+unanimous consensus.
+
+**If unanimity is not established, the process must exit immediately and
+cease all further function.**
+
+Hot code must be written in a separate file, suffixed with
+`-hot-USERNAME` (where `USERNAME` is the username of the developer who
+originally wrote said code). The full name and e-mail address of said
+developer must appear in said code's comments, per the usual legalese.
+Changes to hot code must be done by the original developer. When that is
+not possible, that code may be either:
+
+1. Inherited by a new developer, who will therein become its new
+   maintainer. The change of owner will be documented in the comments
+   and the module suffix will change to reflect the new ownership. No
+   developer can be the maintainer of more than one implementation of
+   any specific piece of hot code.
+
+2. Or retired, for reimplementation by a new developer. If retiring code
+   would reduce the implementation count below three, then the
+   reimplementation must first be written and certified to replace it.
+
+Hot code may call other library call defined elsewhere in the project.
+Such called code will be termed "warm code" and be subject to higher
+scrutiny. To facilitate this, all references to warm code must be
+documented in the opening comments of all hot code modules.
+
+#### Example
+
+The following predicate may need to be defined:
+
+    can_delete: Callable(Path, bool)
+
+This function makes decisions on whether a file can be deleted, which
+would be implemented similarly to:
+
+```py
+can_deletes = [can_delete-hot-ch12.can_delete,
+               can_delete-hot-fm12.can_delete,
+               can_delete-hot-pa11.can_delete]
+
+if not all(can_delete(file) for can_delete in can_deletes):
+  # Fail immediately
+
+# Deletion code
+```
+
+Any `can_delete` implementation _may_ refer to a library function named
+`is_in_vault`, which would be therefore be mentioned in the respective
+implementations' comments. As well as facilitating review, seeing the
+same reference in multiple implementations can serve as a sanity check
+(e.g., an implementation that doesn't use this function, where others
+do, may be suspect).
 
 ### Overview
 
@@ -168,11 +238,11 @@ The CLI will have the following interface:
 
     hgi-vault keep|archive|remove FILE...
 
-That is, the CLI's first argument is an action of either `keep`, `archive`
-or `remove`. The subsequent arguments (at least one) are paths to files,
-either relative or absolute, that should be marked. These files must be
-regular files, rather than directories or symlinks, etc. Non-regular
-files should be skipped over and logged as such to the user.
+That is, the CLI's first argument is an action of either `keep`,
+`archive` or `remove`. The subsequent arguments (at least one) are paths
+to files, either relative or absolute, that should be marked. These
+files must be regular files, rather than directories or symlinks, etc.
+Non-regular files should be skipped over and logged as such to the user.
 
 #### Vault Location
 
@@ -205,6 +275,7 @@ For each file:
 
   * Check the directory structure/file name hasn't changed in the
     meantime:
+
     * If it has:
       * Correct the structure/name in the vault.
       * Log the change to the user.
@@ -253,6 +324,13 @@ For each file:
   * If the file is not owned by the current user or the current user is
     not a group owner:
     * Log a permission denied error.
+
+##### Auditing and Logging
+
+All above actions will be logged to the user, as described. In addition,
+these logs will be appended to a `.audit` file that exists in the root
+of the respective vault. The persisted log messages will be amended with
+the username of whoever invoked the action.
 
 #### Batch Process
 
