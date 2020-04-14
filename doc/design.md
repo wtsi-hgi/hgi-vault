@@ -334,6 +334,26 @@ For each file:
     not a group owner:
     * Log a permission denied error.
 
+##### Permissions
+
+**TODO** Unanswered questions.
+
+All files within HGI managed project and team directories should have
+identical user and group POSIX permissions. This component will need to
+do some additional management on top of that provided by the filesystem,
+as described earlier. To address this, the following questions need to
+be answered:
+
+1. What permissions does a file and/or its parent directory need for a
+   new hardlink to be created?
+
+2. What permissions does a file and/or its parent directory need to be
+   deletable?
+
+The answers to these conditions ought to be checked upfront for each
+file being marked and, if they are not satisfied, the action should fail
+for that file, logged appropriately.
+
 ##### Auditing and Logging
 
 All above actions will be logged to the user, as described. In addition,
@@ -343,7 +363,66 @@ the username of whoever invoked the action.
 
 #### Batch Process
 
-<!-- TODO -->
+The batch process is intended to be run periodically (e.g., from a
+`cron` job) and will have the following interface:
+
+    vault-sweep [--dry-run] VAULTED_DIR...
+
+Where at least one `VAULTED_DIR`, representing paths to directories
+(either relative or absolute) that contain a `.vault` directory, is
+supplied. An optional `--dry-run` argument may also be provided, which
+will cause the batch process to log what it would do, without affecting
+the filesystem.
+
+**TODO** What the sweep should do and in what order.
+
+##### Configuration
+
+The batch process will read its configuration from file, following the
+following precedence (highest first):
+
+1. The file at the path in the environment variable `VAULTRC`;
+2. `~/.vaultrc` (i.e., in the running user's home directory);
+3. `/etc/vaultrc`
+
+If no configuration is found, or is incomplete, then the process with
+fail immediately.
+
+The configuration will be [YAML](https://yaml.org)-based, with the
+following schema:
+
+```yaml
+threshold:
+  age: <Age, in days, at which to delete>
+  grace: <Days warning to give each file's owner and group owner>
+
+ldap:
+  host: <LDAP Server>
+  port: <LDAP Port>
+  # TODO How to specify LDAP base DN/search string for users and groups
+
+email:
+  sender: <E-mail address of sender>
+  smtp:
+    host: <SMTP host>
+    port: <SMTP port>
+
+# TODO How to specify archiver/archive queue...
+```
+
+##### File Age
+
+The age of a file is defined to be the duration from the file's `mtime`
+to present. We use modification time, rather than change time, as it's a
+better indicator of usage. (Access time is not reliably available to us
+on all filesystems.)
+
+##### Auditing and Logging
+
+The sweep will be logged to the user, as described. In addition, these
+logs will be appended to a `.audit` file that exists in the root of the
+respective vault. The persisted log messages will be amended with the
+username of whoever invoked the batch process.
 
 ### Test Driven Development
 
@@ -362,5 +441,5 @@ benefit of reducing cyclomatic complexity.
 
 ### Detail
 
-<!-- TODO: Detailed design should be worked on after the above has been
-polished and finalised. -->
+**TODO** Detailed design should be worked on after the above has been
+polished and finalised.
