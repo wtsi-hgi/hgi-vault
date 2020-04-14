@@ -22,13 +22,17 @@ criteria for the system will be:
 * The test suite **must** pass without warnings or errors on the target
   platform.
 
-* The test suite **must** achieve at least 90% code coverage.
-
-* The cyclomatic complexity of the system **must** be at most 10 and
-  **should** be below 7.
-
 * Hot code ([defined later](#hot-and-warm-code)) **must** be replicated
   in isolation by at least three different developers.
+
+* The cyclomatic complexity of the system **must** be:
+  * At most 10 and **should** be below 7;
+  * At most 5 for hot and warm code.
+
+* The test suite **must** achieve:
+  * 100% coverage for hot code;
+  * At least 90% coverage for warm code;
+  * And average no less than 80% coverage, elsewhere.
 
 * The system's code **must** be fully type annotated and satisfy static
   analysis.
@@ -173,6 +177,9 @@ Hot code may call other library code defined elsewhere in the project.
 Such called code will be termed "warm code" and be subject to higher
 scrutiny. To facilitate this, all references to warm code must be
 documented in the opening comments of all hot code modules.
+
+An index of all hot and warm code will be actively maintained amongst
+the project's documentation.
 
 #### Example
 
@@ -340,4 +347,20 @@ the username of whoever invoked the action.
 
 ### Test Driven Development
 
-<!-- TODO: Don't start work on this project until this section is written -->
+Test cases for any new functionality must be written upfront, where
+functionality and interfaces will be [defined later](#detail). Tests
+must cover the Cartesian product of all options and, where external
+state is required, this must be specified upfront (again, [defined
+later](#detail)) and cover all expected (per design) eventualities. The
+test suite may be amended and altered afterwards to conform to
+unexpected implementation details required for certification.
+
+The Cartesian product of options has the potential of making the test
+space very large. To therefore avoid intractability, options ought to be
+constrained in both quantity and type. This will have the consequential
+benefit of reducing cyclomatic complexity.
+
+### Detail
+
+<!-- TODO: Detailed design should be worked on after the above has been
+polished and finalised. -->
