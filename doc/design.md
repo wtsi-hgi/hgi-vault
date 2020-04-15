@@ -233,14 +233,20 @@ special "vault" directory.
   `archive`.
 
 * Within these respective directories, hardlinks of marked files will
-  exist, as well as their mirrored directory structure, which will be
-  preserved at the time of marking.
+  exist. The names of said hardlinks will be the base64 encoding of
+  their path, relative to the vault's location, at time of marking.
 
-For example, say a user marks `my_group/path/to/some/file` for archival,
-it will be hardlinked to `my_group/.vault/archive/path/to/some/file`.
-Clearly the directory structure and naming of files could change, but
-the inode link will not; in such an event, it will be the batch process'
-ultimate responsibility to correct this.
+For example, say a user marks `my_group/path/to/some/file` for archival.
+The relative path to the file from the vault location is
+`path/to/some/file`, which has a base64 encoding of
+`cGF0aC90by9zb21lL2ZpbGU=`; thus the hardlink will be created as
+`my_group/.vault/archive/cGF0aC90by9zb21lL2ZpbGU=`
+
+Clearly the directory structure and naming of files that have been
+marked could change, without being reflected in the vault. The inode
+link will never be affected by this, but in such an event, corrective
+procedures will be applied ad hoc, with the batch process taking
+ultimate responsibility in fixing any inconsistencies.
 
 ##### Vault Location
 
@@ -257,7 +263,7 @@ point. For example:
 
 If the file to be kept is `/projects/my_project/foo/bar.xyzzy`, then the
 vault will be located in `/projects/my_project/.vault` and the hardlink
-will be `/projects/my_project/.vault/keep/foo/bar.xyzzy`.
+will be `/projects/my_project/.vault/keep/Zm9vL2Jhci54eXp6eQ==`.
 
 #### CLI
 
@@ -287,13 +293,13 @@ For each file:
     meantime:
 
     * If it has:
-      * Correct the structure/name in the vault.
+      * Correct the hardlinked name in the vault.
       * Log the change to the user.
 
   * Check in which branch the hardlink exists in the vault:
 
     * If it matches the action (`keep` or `archive`):
-      * Log to the user that no change is necessary.
+      * Log to the user that no further change is necessary.
 
     * If it differs:
       * Move the hardlink to the opposite branch.
@@ -301,9 +307,8 @@ For each file:
         respectively.
 
 * If it doesn't exist in the vault:
-  * Mimic the directory structure of the file to action, relative to the
-    vault root, in the respective branch of the vault.
-  * Hardlink the file into that directory.
+  * Hardlink the file into the appropriate branch, named with the base64
+    encoding of its path relative to the vault location.
   * Log to the user that said file has been actioned.
 
 ##### `remove`
@@ -323,8 +328,6 @@ For each file:
     * If the file already exists in the vault (by virtue of matching
       inode IDs), in either the `keep` or `archive` branch:
       * Delete the hardlink.
-      * Clean up any redundant directory structure that now exists in
-        the vault (i.e., empty directories above the deleted hardlink).
       * Log to the user that the file is no longer marked for the
         appropriate action.
 
