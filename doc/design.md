@@ -27,8 +27,8 @@ criteria for the system will be:
 
 * The [cyclomatic complexity](https://en.wikipedia.org/wiki/Cyclomatic_complexity) of
   the system **must** be:
-  * At most 10 and **should** be below 7;
-  * At most 5 for hot and warm code.
+  * At most 5 for hot and warm code;
+  * At most 10 and **should** be below 7, elsewhere.
 
 * The test suite **must** achieve:
   * 100% coverage for hot code;
@@ -184,14 +184,14 @@ the project's documentation.
 
 #### Example
 
-The following predicate may need to be defined:
+Say the following predicate needs to be implemented:
 
 ```py
 can_delete: Callable[[Path], bool]
 ```
 
-This function makes decisions on whether a file can be deleted, which
-would be used in a similar fashion to:
+This function makes decisions on whether a file can be deleted. This
+then may be used in a fashion similar to:
 
 ```py
 can_deletes = [can_delete-hot-ch12.can_delete,
@@ -204,7 +204,7 @@ if not all(can_delete(file) for can_delete in can_deletes):
 # Deletion code
 ```
 
-Any `can_delete` implementation _may_ refer to a library function named
+Any `can_delete` implementation might refer to a library function named
 `is_in_vault`, which would be therefore be mentioned in the respective
 implementations' comments. As well as facilitating review, seeing the
 same reference in multiple implementations can serve as a sanity check
@@ -242,19 +242,7 @@ Clearly the directory structure and naming of files could change, but
 the inode link will not; in such an event, it will be the batch process'
 ultimate responsibility to correct this.
 
-#### CLI
-
-The CLI will have the following interface:
-
-    hgi-vault keep|archive|remove FILE...
-
-That is, the CLI's first argument is an action of either `keep`,
-`archive` or `remove`. The subsequent arguments (at least one) are paths
-to files, either relative or absolute, that should be marked. These
-files must be regular files, rather than directories or symlinks, etc.
-Non-regular files should be skipped over and logged as such to the user.
-
-#### Vault Location
+##### Vault Location
 
 The location of the vault will be the highest directory up the tree,
 from a reference point (e.g., the current working directory or a
@@ -270,6 +258,18 @@ point. For example:
 If the file to be kept is `/projects/my_project/foo/bar.xyzzy`, then the
 vault will be located in `/projects/my_project/.vault` and the hardlink
 will be `/projects/my_project/.vault/keep/foo/bar.xyzzy`.
+
+#### CLI
+
+The CLI will have the following interface:
+
+    hgi-vault keep|archive|remove FILE...
+
+That is, the CLI's first argument is an action of either `keep`,
+`archive` or `remove`. The subsequent arguments (at least one) are paths
+to files, either relative or absolute, that should be marked. These
+files must be regular files, rather than directories or symlinks, etc.
+Non-regular files should be skipped over and logged as such to the user.
 
 ##### `keep` and `archive`
 
