@@ -337,23 +337,30 @@ For each file:
 
 ##### Permissions
 
-**TODO** Unanswered questions.
-
-All files within HGI managed project and team directories should have
+All files within HGI managed project and team directories _should_ have
 identical user and group POSIX permissions. This component will need to
 do some additional management on top of that provided by the filesystem,
-as described earlier. To address this, the following questions need to
-be answered:
+as described earlier. For example, the group permissions will allow the
+group owner to make changes -- provided they are also a group member --
+but this component will need to restrict operations from any other
+member of that group who isn't also authorised to perform said action.
 
-1. What permissions does a file and/or its parent directory need for a
-   new hardlink to be created?
+Note that this additional layer of management is trivially
+circumventable, by performing the underlying filesystem operations
+manually. This is an accepted trade-off.
 
-2. What permissions does a file and/or its parent directory need to be
-   deletable?
+The following conditions should be checked upfront for each file and, if
+not satisfied, that action should fail for that file, logged
+appropriately:
 
-The answers to these conditions ought to be checked upfront for each
-file being marked and, if they are not satisfied, the action should fail
-for that file, logged appropriately.
+1. Check that the permissions of the file are at least `ug+rw`;
+2. Check that the user and group permissions of the file match;
+3. Check that the file's parent directory permissions are at least
+   `ug+wx`.
+
+(Note that the first condition is only technically required if the
+kernel parameter `fs.protected_hardlinks = 1`. We fallback to the lowest
+common denominator for simplicity's sake.)
 
 ##### Auditing and Logging
 
