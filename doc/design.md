@@ -211,6 +211,21 @@ same reference in multiple implementations can serve as a sanity check
 (e.g., an implementation that doesn't use this function, where others
 do, may be suspect).
 
+### Test Driven Development
+
+Test cases for any new functionality must be written upfront, where
+functionality and interfaces will be [defined later](#detail). Tests
+must cover the Cartesian product of all options and, where external
+state is required, this must be specified upfront (again, [defined
+later](#detail)) and cover all expected (per design) eventualities. The
+test suite may be amended and altered afterwards to conform to
+unexpected implementation details required for certification.
+
+The Cartesian product of options has the potential of making the test
+space very large. To therefore avoid intractability, options ought to be
+constrained in both quantity and type. This will have the consequential
+benefit of reducing cyclomatic complexity.
+
 ### Overview
 
 The system will be comprised of two subcomponents, which may share
@@ -434,21 +449,6 @@ The sweep will be logged to the user, as described. In addition, these
 logs will be appended to a `.audit` file that exists in the root of the
 respective vault. The persisted log messages will be amended with the
 username of whoever invoked the batch process.
-
-### Test Driven Development
-
-Test cases for any new functionality must be written upfront, where
-functionality and interfaces will be [defined later](#detail). Tests
-must cover the Cartesian product of all options and, where external
-state is required, this must be specified upfront (again, [defined
-later](#detail)) and cover all expected (per design) eventualities. The
-test suite may be amended and altered afterwards to conform to
-unexpected implementation details required for certification.
-
-The Cartesian product of options has the potential of making the test
-space very large. To therefore avoid intractability, options ought to be
-constrained in both quantity and type. This will have the consequential
-benefit of reducing cyclomatic complexity.
 
 ### Detail
 
