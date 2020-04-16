@@ -145,6 +145,21 @@ process:
 
 * If a change is rejected, it may be resubmitted at a later date.
 
+### Test Driven Development
+
+Test cases for any new functionality must be written upfront, where
+functionality and interfaces will be [defined later](#detail). Tests
+must cover the Cartesian product of all options and, where external
+state is required, this must be specified upfront (again, [defined
+later](#detail)) and cover all expected (per design) eventualities. The
+test suite may be amended and altered afterwards to conform to
+unexpected implementation details required for certification.
+
+The Cartesian product of options has the potential of making the test
+space very large. To therefore avoid intractability, options ought to be
+constrained in both quantity and type. This will have the consequential
+benefit of reducing cyclomatic complexity.
+
 ### Hot and Warm Code
 
 "Hot code" is defined to be code that immediately leads to irrecoverable
@@ -210,21 +225,6 @@ implementations' comments. As well as facilitating review, seeing the
 same reference in multiple implementations can serve as a sanity check
 (e.g., an implementation that doesn't use this function, where others
 do, may be suspect).
-
-### Test Driven Development
-
-Test cases for any new functionality must be written upfront, where
-functionality and interfaces will be [defined later](#detail). Tests
-must cover the Cartesian product of all options and, where external
-state is required, this must be specified upfront (again, [defined
-later](#detail)) and cover all expected (per design) eventualities. The
-test suite may be amended and altered afterwards to conform to
-unexpected implementation details required for certification.
-
-The Cartesian product of options has the potential of making the test
-space very large. To therefore avoid intractability, options ought to be
-constrained in both quantity and type. This will have the consequential
-benefit of reducing cyclomatic complexity.
 
 ### Overview
 
