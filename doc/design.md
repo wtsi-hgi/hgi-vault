@@ -25,8 +25,8 @@ criteria for the system will be:
 * Hot code ([defined later](#hot-and-warm-code)) **must** be replicated
   in isolation by at least three different developers.
 
-* The [cyclomatic complexity](https://en.wikipedia.org/wiki/Cyclomatic_complexity) of
-  the system **must** be:
+* The [cyclomatic complexity](https://en.wikipedia.org/wiki/Cyclomatic_complexity)
+  of the system **must** be:
   * At most 5 for hot and warm code;
   * At most 10 and **should** be below 7, elsewhere.
 
@@ -38,8 +38,8 @@ criteria for the system will be:
 * The system's code **must** be fully type annotated and satisfy static
   analysis.
 
-* The system's code **must** conform to the [PEP8
-  style](https://www.python.org/dev/peps/pep-0008).
+* The system's code **must** conform to the
+  [PEP8 style](https://www.python.org/dev/peps/pep-0008).
 
 * External (non-standard) libraries **may** be used, but it is
   discouraged.
@@ -72,7 +72,8 @@ Preferably, the programmatic analysis should be automated.
 
 ## Source Control
 
-* git will be used for source control; origin will be hosted by GitHub.
+* git will be used for source control; `origin` will be hosted by
+  GitHub.
 
 * The default branch will be named `develop`.
 
@@ -219,8 +220,12 @@ if not all(can_delete(file) for can_delete in can_deletes):
 # Deletion code
 ```
 
+Note that it isn't the deletion code itself that is "hot" -- as this
+will almost certainly be a single standard library call -- but rather
+the code that facilitates or guards against it.
+
 Any `can_delete` implementation might refer to a library function named
-`is_in_vault`, which would be therefore be mentioned in the respective
+`is_in_vault`, which would therefore be mentioned in the respective
 implementations' comments. As well as facilitating review, seeing the
 same reference in multiple implementations can serve as a sanity check
 (e.g., an implementation that doesn't use this function, where others
@@ -228,21 +233,22 @@ do, may be suspect).
 
 ### Overview
 
-The system will be comprised of two subcomponents, which may share
-common code:
+The system will be comprised of two components, which may share common
+code:
 
 1. A user-facing CLI.
 2. A batch process that actions requests, run periodically.
 
 The purpose of the system is to mark files to be kept or archived,
 action that respectively, and to delete files that have passed a
-threshold age. Files will be marked by virtue of being hardlinked into a
-special "vault" directory.
+threshold age. Files will be marked by virtue of being hardlinked into
+special "vault" directories, thus utilising the filesystem an in-band
+record of state.
 
 #### The Vault
 
 * The vault directory will be a single directory named `.vault` in the
-  root of a group's directory.
+  root of a group's directory ([defined later](#vault-location)).
 
 * The vault directory will contain two subdirectories: `keep` and
   `archive`.
