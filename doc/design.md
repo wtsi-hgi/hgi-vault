@@ -250,12 +250,12 @@ record of state.
 * The vault directory will be a single directory named `.vault` in the
   root of a group's directory ([defined later](#vault-location)).
 
-* The vault directory will contain two subdirectories: `keep` and
-  `archive`.
+* The vault directory will contain two subdirectories ("branches"):
+  `keep` and `archive`.
 
 * Within these respective directories, hardlinks of marked files will
   exist. The names of said hardlinks will be the base64 encoding of
-  their path, relative to the vault's location, at time of marking.
+  their path, relative to the vault's location, at the time of marking.
 
 For example, say a user marks `my_group/path/to/some/file` for archival.
 The relative path to the file from the vault location is
@@ -271,10 +271,11 @@ ultimate responsibility in fixing any inconsistencies.
 
 ##### Vault Location
 
-The location of the vault will be the highest directory up the tree,
-from a reference point (e.g., the current working directory or a
-specific file), that retains the same group ownership as that reference
-point. For example:
+The location of the vault will be as a child of the highest directory up
+the tree, from a reference point (e.g., the current working directory or
+a specific file), that retains the same group ownership as that
+reference point (i.e., the root of the homogroupic subtree). For
+example:
 
     /                                   root:root
     /projects                           root:root
@@ -290,22 +291,37 @@ will be `/projects/my_project/.vault/keep/Zm9vL2Jhci54eXp6eQ==`.
 
 The CLI will have the following interface:
 
-    hgi-vault keep|archive|remove FILE...
+    hgi-vault ACTION [OPTIONS]
 
-That is, the CLI's first argument is an action of either `keep`,
-`archive` or `remove`. The subsequent arguments (at least one) are paths
-to files, either relative or absolute, that should be marked. These
-files must be regular files, rather than directories or symlinks, etc.
-Non-regular files should be skipped over and logged as such to the user.
+Where the CLI's first argument is an action of either `keep`, `archive`
+or `remove`. The usual `--help` option will be available, both to the
+base command and all the actions, which will show the respective usage
+instructions.
 
-##### `keep` and `archive`
+##### The `keep` and `archive` Actions
 
-The `keep` and `archive` actions will hardlink the given files into the
-appropriate subdirectory (`keep` and `archive`, respectively) of the
-vault respective to said file ([see earlier](#vault-location)). Note
-that the files provided may not end up in the same vault.
+    hgi-vault keep --view|FILE...
+    hgi-vault archive --view|FILE...
 
-For each file:
+The `keep` and `archive` actions take two forms, which perform the same
+function on the respective branch of the appropriate vaults:
+
+1. The `--view` option will list the contents of the respective branch
+   of the vault relative to the current working directory ([see
+   earlier](#vault-location)).
+
+2. When given a list of (at least one) paths to files, either relative
+   or absolute, these will be hardlinked into the respective branch of
+   the vault relative to each file ([see earlier](#vault-location)).
+
+   Note that the files provided must be regular files (rather than
+   directories or symlinks, etc.); non-regular files should be skipped
+   over and logged as such to the user. Moreover, as the files provided
+   as arguments may be arbitrary, it cannot be assumed that they belong
+   in the same vault.
+
+Specifically, the hardlinking function should do the following for each
+regular file provided as an argument:
 
 * If said file already exists in the vault (by virtue of matching inode
   IDs):
@@ -332,12 +348,14 @@ For each file:
     encoding of its path relative to the vault location.
   * Log to the user that said file has been actioned.
 
-##### `remove`
+##### The `remove` Action
+
+    hgi-vault remove FILE...
 
 The `remove` action will remove the given files from either branch of
 the vault respective to said file ([see earlier](#vault-location)).
-Again, the files provided as arguments may not be removed from the same
-vault.
+Again, it should not be assumed that files provided as arguments will be
+removed from the same vault.
 
 For each file:
 
@@ -348,7 +366,7 @@ For each file:
 
     * If the file already exists in the vault (by virtue of matching
       inode IDs), in either the `keep` or `archive` branch:
-      * Delete the hardlink.
+      * Delete the vault hardlink.
       * Log to the user that the file is no longer marked for the
         appropriate action.
 
@@ -371,14 +389,15 @@ member of that group who isn't also authorised to perform said action.
 
 Note that this additional layer of management is trivially
 circumventable, by performing the underlying filesystem operations
-manually. This is an accepted trade-off.
+manually. This is an accepted trade-off, which may nonetheless be
+mitigable with suitable `sudo`er rules.
 
 The following conditions should be checked upfront for each file and, if
 not satisfied, that action should fail for that file, logged
 appropriately:
 
 1. Check that the permissions of the file are at least `ug+rw`;
-2. Check that the user and group permissions of the file match;
+2. Check that the user and group permissions of the file are equal;
 3. Check that the file's parent directory permissions are at least
    `ug+wx`.
 
