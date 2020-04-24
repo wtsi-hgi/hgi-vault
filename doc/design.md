@@ -254,20 +254,49 @@ record of state.
   `keep` and `archive`.
 
 * Within these respective directories, hardlinks of marked files will
-  exist. The names of said hardlinks will be the base64 encoding of
-  their path, relative to the vault's location, at the time of marking.
+  exist in a structured way. Specifically:
+
+  * The hexidecimal representation of their inode ID will be broken out
+    into 8-bit words (padded, if necessary). All but the least
+    significant word will be used to make a heirarchy of directories, if
+    they don't already exist. (If the inode ID is less than 256, then no
+    heirarchy need be created.)
+
+  * In the lowest child directory, the file will be hardlinked, having a
+    filename equal to the least significant word, concatenated
+    (delimited with a `-`) with the base64 encoding of the marked file's
+    path, relative to the vault's location, at the time of marking.
 
 For example, say a user marks `my_group/path/to/some/file` for archival.
-The relative path to the file from the vault location is
-`path/to/some/file`, which has a base64 encoding of
-`cGF0aC90by9zb21lL2ZpbGU=`; thus the hardlink will be created as
-`my_group/.vault/archive/cGF0aC90by9zb21lL2ZpbGU=`
+This file has inode ID `123456`, which is `0x1e240`, and a relative path
+with respect to the vault location of `path/to/some/file`, which has a
+base64 encoding of `cGF0aC90by9zb21lL2ZpbGU=`. Thus, the hardlink, and
+intermediary directories, as needed, will be created as
+`my_group/.vault/archive/01/e2/40-cGF0aC90by9zb21lL2ZpbGU=`.
 
-Clearly the directory structure and naming of files that have been
-marked could change, without being reflected in the vault. The inode
-link will never be affected by this, but in such an event, corrective
-procedures will be applied ad hoc, with the batch process taking
-ultimate responsibility in fixing any inconsistencies.
+This structure is justified by:
+
+1. Encoding the inode ID into the hardlink's path allows for O(1)
+   lookups in the vault, by inode ID, rather than expensively walking
+   the filesystem.
+
+2. Splitting the inode ID into 8-bit words means, at each level, there
+   will never be more that 512 entries (256 hardlinks and 256
+   directories).
+
+3. Encoding the original filename into the link provides information to
+   the sweep when archiving data. Clearly the directory structure and
+   naming of files could change in the meantime, but corrective
+   procedures can be applied ad hoc if such an inconsistency is found.
+
+4. The obfuscation of hardlinks in the vault will raise the bar to end
+   users who might be curious. It won't stop them, but it may be enough
+   to deter most attempts at tampering.
+
+Note that hardlinks cannot span physical devices. On a distributed
+system, such as Lustre, this means the vault must reside on the same MDS
+as the files that are to be marked. Enforcement of this constraint is
+outside the scope of this project.
 
 ##### Vault Location
 
@@ -277,15 +306,15 @@ a specific file), that retains the same group ownership as that
 reference point (i.e., the root of the homogroupic subtree). For
 example:
 
-    /                                   root:root
-    /projects                           root:root
-    /projects/my_project                abc123:my_project
-    /projects/my_project/foo            xyz456:my_project
-    /projects/my_project/foo/bar.xyzzy  xyz456:my_project
+    /                                   12345  root:root
+    /projects                           12346  root:root
+    /projects/my_project                12347  abc123:my_project
+    /projects/my_project/foo            12348  xyz456:my_project
+    /projects/my_project/foo/bar.xyzzy  12349  xyz456:my_project
 
 If the file to be kept is `/projects/my_project/foo/bar.xyzzy`, then the
 vault will be located in `/projects/my_project/.vault` and the hardlink
-will be `/projects/my_project/.vault/keep/Zm9vL2Jhci54eXp6eQ==`.
+will be `/projects/my_project/.vault/keep/30/3d-Zm9vL2Jhci54eXp6eQ==`.
 
 #### CLI
 
@@ -339,13 +368,22 @@ regular file provided as an argument:
       * Log to the user that no further change is necessary.
 
     * If it differs:
-      * Move the hardlink to the opposite branch.
+      * Move the hardlink to the opposite branch, maintaining the
+        necessary structure.
       * Log to the user that the file's status has changed,
         respectively.
 
 * If it doesn't exist in the vault:
-  * Hardlink the file into the appropriate branch, named with the base64
-    encoding of its path relative to the vault location.
+  * Hardlink the file into the appropriate branch:
+    * Create the hierarchy needed to address the inode ID; specifically
+      its hexidecimal representation, zero-padded to a multiple of 8 and
+      broken into 8-bit words, taking all but the least signficiant word
+      to enumerate the tree.
+    * Hardlink the file into the leaf of this tree, with its name given
+      by the least significant word (from the previous step) and the
+      base64 encoding of the file's path relative to the vault location,
+      concatenated with a `-`.
+
   * Log to the user that said file has been actioned.
 
 ##### The `remove` Action
