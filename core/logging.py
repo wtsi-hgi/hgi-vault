@@ -23,7 +23,7 @@ from enum import Enum
 from traceback import print_tb
 from types import TracebackType
 
-from . import types as T, time
+from . import typing as T, time
 
 
 def _exception_handler(logger:logging.Logger) -> T.Callable:
@@ -110,7 +110,7 @@ class Logger:
         self(message, Level.Critical)
 
 
-_LOGGER = "shepherd"
+_LOGGER = "vault"
 _LEVEL  = Level.Debug if __debug__ else Level.Info
 _FORMAT = logging.Formatter(fmt="%(asctime)s\t%(levelname)s\t%(message)s", datefmt=time.ISO8601)
 
