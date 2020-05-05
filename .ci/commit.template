@@ -1,0 +1,29 @@
+Short description of the commit
+
+Added:
+* List of added functionality
+* etc.
+
+Removed:
+* List of removed functionality, with justification for removal
+* etc.
+
+Changed:
+* List of changed functionality, with justification for the change
+* etc.
+
+Fixed:
+* List of fixed functionality, with a brief description of the original problem
+* etc.
+
+# Guidance for Commit Messages:
+#
+# * Any of the Added, Removed, Changed or Fixed lists can be omitted in
+#   a commit message, if they are empty.
+#
+# * Ideally, each list should contain only one or two items, with no
+#   more than five items across all lists.
+#
+# * If any item in the Fixed list refers to a GitHub issue, include the
+#   text `(resolves #ISSUE_ID)`, where `ISSUE_ID` is the GitHub issue
+#   number.
