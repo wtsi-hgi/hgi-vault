@@ -17,15 +17,16 @@ You should have received a copy of the GNU General Public License along
 with this program. If not, see https://www.gnu.org/licenses/
 """
 
+import os
+
 from . import typing as T
 
 
 def inode_id(path:T.Path) -> int:
     """
-    Return the inode ID for the given file
+    Return the inode ID for the given file, without following symlinks
 
     @param   path  Path to a regular file
     @return  inode ID
     """
-    # TODO
-    pass
+    return os.stat(path).st_ino

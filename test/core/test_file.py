@@ -1,5 +1,5 @@
 """
-Copyright (c) 2019, 2020 Genome Research Limited
+Copyright (c) 2020 Genome Research Limited
 
 Author: Christopher Harrison <ch12@sanger.ac.uk>
 
@@ -17,19 +17,28 @@ You should have received a copy of the GNU General Public License along
 with this program. If not, see https://www.gnu.org/licenses/
 """
 
-from sys import version_info
+import unittest
+from os import stat
+from tempfile import NamedTemporaryFile
 
-# Make Python's type definitions available
-from numbers import *
-from pathlib import *
-from types import *
-from typing import *
+from core import file, typing as T
 
-# NOTE From Python 3.8, the below submodules have been removed and their
-# contents bundled up into the root typing module
-if version_info < (3, 8):
-    from typing.io import *
-    from typing.re import *
 
-from .time import datetime as DateTime, \
-                  timedelta as TimeDelta
+class TestFile(unittest.TestCase):
+    _tmp:T.IO[bytes]
+
+    def setUp(self) -> None:
+        self._tmp = NamedTemporaryFile(delete=True)
+
+    def tearDown(self) -> None:
+        self._tmp.close()
+
+    def test_inode_id(self) -> None:
+        path = T.Path(self._tmp.name)
+        inode_id = stat(path).st_ino
+
+        self.assertEqual(file.inode_id(path), inode_id)
+
+
+if __name__ == "__main__":
+    unittest.main()
