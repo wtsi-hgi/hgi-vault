@@ -21,13 +21,15 @@ from abc import ABCMeta, abstractmethod
 from base64 import b64encode
 from enum import Enum
 
-from .. import typing as T, file
+from core import typing as T, file
 
 
 class Branch(Enum):
     """ Vault branch/subvault enumeration """
-    Keep    = "keep"
-    Archive = "archive"
+    # It would be nice if this could also be a subclass of os.PathLike,
+    # but because both that and Enum do metaclass trickery, we can't :(
+    Keep    = T.Path("keep")
+    Archive = T.Path("archive")
 
 
 def _path_to_vault_key(path:T.Path) -> T.Path:
