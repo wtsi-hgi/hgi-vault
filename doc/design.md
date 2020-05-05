@@ -173,18 +173,18 @@ unanimous consensus.
 **If unanimity is not established, the process must exit immediately and
 cease all further function.**
 
-Hot code must be written in a separate file, suffixed with
-`-hot-USERNAME` (where `USERNAME` is the username of the developer who
-originally wrote said code). The full name and e-mail address of said
-developer must appear in said code's comments, per the usual legalese.
-Changes to hot code must be done by the original developer. When that is
-not possible, that code may be either:
+Hot code must be written under the `hot.USERNAME` submodule (where
+`USERNAME` is the username of the developer who originally wrote the
+code). The full name and e-mail address of said developer must appear in
+said code's comments, per the usual legalese. Changes to hot code must
+be done by the original developer. When that is not possible, that code
+may be either:
 
 1. Inherited by a new developer, who will therein become its new
    maintainer. The change of owner will be documented in the comments
-   and the module suffix will change to reflect the new ownership. No
-   developer can be the maintainer of more than one implementation of
-   any specific piece of hot code.
+   and the module will change to reflect the new ownership. No developer
+   can be the maintainer of more than one implementation of any specific
+   piece of hot code.
 
 2. Or retired, for reimplementation by a new developer. If retiring code
    would reduce the implementation count below three, then the
@@ -193,7 +193,8 @@ not possible, that code may be either:
 Hot code may call other library code defined elsewhere in the project.
 Such called code will be termed "warm code" and be subject to higher
 scrutiny. To facilitate this, all references to warm code must be
-documented in the opening comments of all hot code modules.
+documented in the opening comments of all hot code modules. Automatic
+path dependencies may be established as part of the CI pipeline.
 
 An index of all hot and warm code will be actively maintained amongst
 the project's documentation.
@@ -210,9 +211,8 @@ This function makes decisions on whether a file can be deleted. This
 then may be used in a fashion similar to:
 
 ```py
-can_deletes = [can_delete-hot-ch12.can_delete,
-               can_delete-hot-fm12.can_delete,
-               can_delete-hot-pa11.can_delete]
+from hot import ch12, fm12, pa11
+can_deletes = [ch12.can_delete, fm12.can_delete, pa11.can_delete]
 
 if not all(can_delete(file) for can_delete in can_deletes):
   # Fail immediately
@@ -220,9 +220,9 @@ if not all(can_delete(file) for can_delete in can_deletes):
 # Deletion code
 ```
 
-Note that it isn't the deletion code itself that is "hot" -- as this
-will almost certainly be a single standard library call -- but rather
-the code that facilitates or guards against it.
+Note that, in this case, it isn't the deletion code itself that is "hot"
+-- as this will almost certainly be a single standard library call --
+but rather the code that facilitates or guards against it.
 
 Any `can_delete` implementation might refer to a library function named
 `is_in_vault`, which would therefore be mentioned in the respective
