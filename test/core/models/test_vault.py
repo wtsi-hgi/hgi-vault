@@ -27,7 +27,7 @@ from core.models import vault
 class TestVault(unittest.TestCase):
     @patch("core.file.inode_id")
     def test_path_to_vault_key(self, mock_inode_id):
-        dummy_file = "foo/bar"
+        dummy_file = T.Path("foo/bar")
         b64_dummy  = "Zm9vL2Jhcg=="
 
         mock_inode_id.return_value = 0x1

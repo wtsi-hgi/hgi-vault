@@ -40,3 +40,13 @@ def is_regular(path:T.Path) -> bool:
     @return  Predicate result
     """
     return path.is_file() and not path.is_symlink()
+
+
+def basename(path:T.Path) -> str:
+    """
+    Return the basename of the given path
+
+    @param   path  Path
+    @return  Basename
+    """
+    return path.name

@@ -23,6 +23,7 @@ from enum import Enum
 
 from core import typing as T, file
 
+
 class InvalidRoot(Exception):
     """ Raised when a vault root is not an absolute path """
 
