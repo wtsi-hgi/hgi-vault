@@ -30,3 +30,13 @@ def inode_id(path:T.Path) -> int:
     @return  inode ID
     """
     return os.stat(path).st_ino
+
+
+def is_regular(path:T.Path) -> bool:
+    """
+    Check whether the given path is a regular file
+
+    @param   path  Path
+    @return  Predicate result
+    """
+    return path.is_file() and not path.is_symlink()
