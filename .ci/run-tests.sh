@@ -15,3 +15,11 @@
 #
 # * PEP8 and type checking (maybe warn, rather than fail, because of
 #   false positives)
+
+# Ensure we're in the correct directory
+declare BASE="$(git rev-parse --show-toplevel)"
+[[ "$(pwd)" != "${BASE}" ]] && cd "${BASE}"
+
+nose2 --fail-fast \
+      --with-coverage --coverage-report=term-missing \
+      --verbose

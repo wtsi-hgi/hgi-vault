@@ -3,14 +3,12 @@ language: python
 python:
   - 3.7
 
-before_install:
-  - pip install codecov nose2 nose2-cov
-
 install:
+  - pip install -r .ci/test-requirements.txt
   - pip install -r requirements.txt
 
 script:
-  - nose2 -F -C --coverage-report=term-missing -v
+  - .ci/run-tests.sh
 
 after_success:
   - codecov

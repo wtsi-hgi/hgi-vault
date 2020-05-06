@@ -1,0 +1,7 @@
+# TODO Pin versions
+nose2
+nose2-cov
+codecov
+mccabe
+pylint
+mypy
