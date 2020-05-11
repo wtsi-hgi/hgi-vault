@@ -175,7 +175,9 @@ cease all further function.**
 
 Different implementations of hot code must conform to the same signature
 (argument and return types). While hot code can refer to potentially
-mutable state, they must be implemented as pure functions.
+mutable state, they must be implemented as pure functions. Such a
+constraint cannot be enforced by Python at runtime, nor in its type
+annotation system, so care must be taken to ensure this is respected.
 
 **Hot code *MUST NOT* mutate state.**
 
