@@ -17,30 +17,38 @@ You should have received a copy of the GNU General Public License along
 with this program. If not, see https://www.gnu.org/licenses/
 """
 
+from __future__ import annotations
+
 from abc import ABCMeta, abstractmethod
-from base64 import b64encode
 from enum import Enum
+from dataclasses import dataclass
+from os import PathLike
 
-from core import typing as T, file
+from core import typing as T
 
 
-class InvalidRoot(Exception):
-    """ Raised when a vault root is not an absolute path """
+class exception(T.SimpleNamespace):
+    """ Namespace of exceptions to make importing easier """
+    class InvalidRoot(Exception):
+        """ Raised when a vault root is not an absolute path """
 
-class IncorrectVault(Exception):
-    """ Raised when access is attempted from the wrong vault """
+    class RootIsImmutable(Exception):
+        """ Raised when an attempt to change the vault root is made """
 
-class PhysicalVaultFile(Exception):
-    """ Raised when a file physically inside the vault is referenced """
+    class IncorrectVault(Exception):
+        """ Raised when access is attempted from the wrong vault """
 
-class NotRegularFile(Exception):
-    """ Raised when a file is not a regular file """
+    class PhysicalVaultFile(Exception):
+        """ Raised when a file physically inside the vault is referenced """
 
-class PermissionDenied(Exception):
-    """ Raised when a file cannot be added or removed from the vault """
+    class NotRegularFile(Exception):
+        """ Raised when a file is not a regular file """
 
-class DoesNotExist(Exception):
-    """ Raised when a file does not exist """
+    class PermissionDenied(Exception):
+        """ Raised when a file cannot be added or removed from the vault """
+
+    class DoesNotExist(Exception):
+        """ Raised when a file does not exist """
 
 
 class Branch(Enum):
@@ -50,99 +58,95 @@ class Branch(Enum):
     Keep    = T.Path("keep")
     Archive = T.Path("archive")
 
-
-def _path_to_vault_key(path:T.Path) -> T.Path:
-    """
-    Return the vault key where the given file ought to be stored
-
-    @param   path  Path to a regular file
-    @return  Vault key path
-    """
-    # TODO This should become HGIVault._vault_key
-
-    # The hexidecimal representation of the inode ID, padded to 8-bytes
-    inode = f"{file.inode_id(path):x}"
-    if len(inode) % 2:
-        inode = f"0{inode}"
-
-    # The base64 encoding of the path
-    basename = b64encode(str(path).encode()).decode()
-
-    # Chunk the inode ID into 8-byte segments and concatenate the base64
-    # encoded basename
-    chunks = [inode[i:i+2] for i in range(0, len(inode), 2)]
-    chunks[-1] += f"-{basename}"
-
-    return T.Path(*chunks)
+    def __bool__(self) -> bool:
+        # Always return truthy (see _BaseVault.__contains__)
+        return True
 
 
-class BaseVault(metaclass=ABCMeta):
+@dataclass(init=False)
+class _VaultFile:
+    """ Base properties """
+    vault:_BaseVault
+    branch:Branch
+    last_known_path:T.Path
+
+class _BaseVaultFile(PathLike, _VaultFile, metaclass=ABCMeta):
+    """ Abstract base class for files stored in the vault """
+    @abstractmethod
+    def __init__(self, vault:_BaseVault, branch:Branch, path:T.Path) -> None:
+        """ Initialise the dataclass values """
+
+    @property
+    @abstractmethod
+    def path(self) -> T.Path:
+        """ Return the current path of the vault file """
+
+    @property
+    @abstractmethod
+    def can_add(self) -> bool:
+        """ Predicate on whether the file can be added to the vault """
+
+    @property
+    @abstractmethod
+    def can_remove(self) -> bool:
+        """ Predicate on whether the file can be removed from the vault """
+
+    def __fspath__(self) -> str:
+        return str(self.path)
+
+    @property
+    def exists(self) -> bool:
+        """ Check if the vault file exists """
+        return self.path.exists()
+
+
+_VFT = T.TypeVar("_VFT", bound=_BaseVaultFile)  # "Vault File Type"
+
+class _BaseVault(T.Container[_VFT], metaclass=ABCMeta):
     """ Abstract base class for vault implementations """
     _root:T.Path
     _vault:T.ClassVar[T.Path]
+    _file_type:T.ClassVar[T.Type[_VFT]]
 
     ## Abstract methods
 
     @abstractmethod
-    def _vault_key(self, branch:Branch, path:T.Path) -> T.Path:
-        """
-        Return the vault key; i.e., the path where the given file ought
-        to be stored
-
-        @param   branch  Vault branch
-        @param   path    Path to regular file
-        @return  Vault key path
-        """
-        # FIXME The return value is going to be too specific; we need
-        # some concept of "specific" and "minimal" paths
-
-    @abstractmethod
-    def check_add_permissions(self, path:T.Path) -> None:
-        """
-        Check the permissions of the given file for adding to the vault;
-        if they are not satisfied, raise a PermissionDenied exception
-
-        @param   path  Path to file
-        """
-
-    @abstractmethod
-    def _add_to_vault(self, branch:Branch, path:T.Path) -> None:
+    def add(self, branch:Branch, path:T.Path) -> None:
         """
         Add the given file to the specified vault branch
 
         @param   branch  Vault to branch
-        @param   path    Path to file
+        @param   path    Path
         """
 
     @abstractmethod
-    def check_remove_permissions(self, path:T.Path) -> None:
-        """
-        Check the permissions of the given file for removing from the
-        vault; if they are not satisfied, raise a PermissionDenied
-        exception
-
-        @param   path  Path to file
-        """
-
-    @abstractmethod
-    def _remove_from_vault(self, branch:Branch, path:T.Path) -> None:
+    def remove(self, branch:Branch, path:T.Path) -> None:
         """
         Remove the given file from the specified vault branch
 
         @param   branch  Vault to branch
-        @param   path    Path to file
+        @param   path    Path
         """
 
     ## Properties
 
-    def _set_root(self, path:T.Path) -> None:
+    @property
+    def root(self) -> T.Path:
+        return self._root
+
+    @root.setter
+    def root(self, path:T.Path) -> None:
         """ Set the root vault """
+        try:
+            root = self._root
+            raise exception.RootIsImmutable(f"The vault root is already set to {root}")
+        except AttributeError:
+            pass
+
         if not path.is_absolute() or not path.resolve().exists():
-            raise InvalidRoot(f"A vault cannot exist in {path}")
+            raise exception.InvalidRoot(f"A vault cannot exist in {path}")
 
         self._root = path
-
-    root = property(fset=_set_root)
 
     @property
     def location(self) -> T.Path:
@@ -151,92 +155,45 @@ class BaseVault(metaclass=ABCMeta):
 
     ## Standard Methods
 
-    def _relative_path(self, path:T.Path) -> T.Path:
+    def __eq__(self, other:_BaseVault) -> bool:
+        """ Equality predicate """
+        return isinstance(other, type(self)) and self.root == other.root
+
+    def __contains__(self, path:T.Path) -> bool:
+        """ Check whether the given path is contained in the vault """
+        # NOTE This is why Branch is always truthy
+        # NOTE Technically, path should be of type _VFT, but using Path
+        #      is much more convenient
+        return bool(self.branch(path))
+
+    def file(self, branch:Branch, path:T.Path) -> _VFT:
         """
-        Return the specified path relative to the vault's root
-        directory. If the path is outside the root, then raise an
-        IncorrectVault exception; if that path is physically within the
-        vault, then raise a PhysicalVaultFile exception.
+        Return the vault file given by the specified branch and path;
+        this will be required for .add and .remove, but probably won't
+        be useful outside that context
 
-        @param   path  Path to regular file
-        @return  Path relative to vault root
+        @param   branch  Vault branch
+        @param   path    Path
+        @return  Respective vault file, using the appropriate constructor
         """
-        path = path.resolve()
-        root = self._root
-        vault = self.location
+        return self._file_type(self, branch, path)
 
-        try:
-            _ = path.relative_to(vault)
-            raise PhysicalVaultFile(f"{path} is physically contained in the vault in {root}")
-        except ValueError:
-            pass
-
-        try:
-            return path.relative_to(root)
-        except ValueError:
-            raise IncorrectVault(f"{path} does not belong to the vault in {root}")
-
-    def _canonicalise(self, perm_checker:T.Callable[[T.Path], None], path:T.Path) -> T.Path:
-        """
-        Check the given file is a regular file, exists, has the correct
-        permissions and return its path relative to the vault root; if
-        any of these steps fail, an appropriate exception will be raised
-
-        @param   perm_checker  Permissions checking method
-        @param   path          Path to file
-        @return  Path relative to the vault root
-        """
-        if not file.is_regular(path):
-            raise NotRegularFile(f"{path} is not a regular file")
-
-        if not path.exists():
-            raise DoesNotExist(f"{path} does not exist")
-
-        perm_checker(path)
-
-        return self._relative_path(path)
-
-    def in_vault(self, path:T.Path) -> T.Optional[Branch]:
+    def branch(self, path:T.Path) -> T.Optional[Branch]:
         """
         Return the branch in which the given file is found, or None if
         the file is not contained in the vault
 
-        @param   path  Path to regular file
+        @param   path  Path
         @return  Appropriate branch or None
         """
-        path = self._relative_path(path)
-
         for branch in Branch:
-            # FIXME This will break if the path has been added to the
-            # vault and renamed in the meantime; the return of
-            # _vault_key needs to have higher fidelity
-            if self._vault_key(branch, path).exists():
+            if self.file(branch, path).exists:
                 return branch
 
         return None
 
-    def add_to_vault(self, branch:Branch, path:T.Path) -> None:
-        """
-        Add the given file to the specified vault branch
 
-        @param   branch  Vault to branch
-        @param   path    Path to file
-        """
-        path = self._canonicalise(self.check_add_permissions, path)
-        self._add_to_vault(branch, path)
-
-    def remove_from_vault(self, branch:Branch, path:T.Path) -> None:
-        """
-        Remove the given file from the specified vault branch
-
-        @param   branch  Vault to branch
-        @param   path    Path to file
-        """
-        path = self._canonicalise(self.check_remove_permissions, path)
-        self._remove_from_vault(branch, path)
-
-
-class HGIVault(BaseVault):
-    _vault = T.Path(".vault")
-
-    # TODO Implementations
+class base(T.SimpleNamespace):
+    """ Namespace of base classes to make importing easier """
+    VaultFile = _BaseVaultFile
+    Vault     = _BaseVault

@@ -21,7 +21,7 @@ import unittest
 from unittest.mock import patch
 
 from core import typing as T
-from core.models import vault
+from models import vault
 
 
 class TestVault(unittest.TestCase):
