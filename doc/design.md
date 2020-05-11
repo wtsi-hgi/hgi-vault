@@ -173,6 +173,12 @@ unanimous consensus.
 **If unanimity is not established, the process must exit immediately and
 cease all further function.**
 
+Different implementations of hot code must conform to the same signature
+(argument and return types). While hot code can refer to potentially
+mutable state, they must be implemented as pure functions.
+
+**Hot code *MUST NOT* mutate state.**
+
 Hot code must be written under the `hot.USERNAME` submodule (where
 `USERNAME` is the username of the developer who originally wrote the
 code). The full name and e-mail address of said developer must appear in
