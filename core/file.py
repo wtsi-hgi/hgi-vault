@@ -29,7 +29,7 @@ def inode_id(path:T.Path) -> int:
     @param   path  Path to a regular file
     @return  inode ID
     """
-    return os.stat(path).st_ino
+    return path.stat().st_ino
 
 
 def is_regular(path:T.Path) -> bool:
@@ -42,11 +42,11 @@ def is_regular(path:T.Path) -> bool:
     return path.is_file() and not path.is_symlink()
 
 
-def basename(path:T.Path) -> str:
+def hardlinks(path:T.Path) -> int:
     """
-    Return the basename of the given path
+    Return the number of hardlinks for the given file
 
     @param   path  Path
-    @return  Basename
+    @return  Number of hardlinks
     """
-    return path.name
+    return path.stat().st_nlink
