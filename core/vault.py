@@ -68,7 +68,6 @@ class _VaultFile:
     """ Base properties """
     vault:_BaseVault
     branch:Branch
-    last_known_path:T.Path
 
 class _BaseVaultFile(PathLike, _VaultFile, metaclass=ABCMeta):
     """ Abstract base class for files stored in the vault """
