@@ -64,7 +64,7 @@ The following tools may be useful to facilitate the above. This is not a
 definitive list:
 
 * Code coverage:             https://pypi.org/project/coverage
-* Cyclomatic complexity:     https://pypi.org/project/mccabe
+* Cyclomatic complexity:     https://pypi.org/project/radon
 * Linting/PEP8 conformance:  https://pypi.org/project/pylint
 * Static type analysis:      https://pypi.org/project/mypy
 
