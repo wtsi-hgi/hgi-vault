@@ -22,7 +22,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from os import PathLike
 
-from core import typing as T, file
+from core import typing as T, file, ldap
 from core.logging import Logger
 from core.utils import base64
 from core.vault import Branch, base, exception
