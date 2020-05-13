@@ -21,29 +21,31 @@ import unittest
 from unittest.mock import patch
 
 from core import typing as T
-from models import vault
+from core.utils import base64
+from models.vault import _VaultFileKey
 
 
-class TestVault(unittest.TestCase):
+class TestVaultFileKey(unittest.TestCase):
     @patch("core.file.inode_id")
-    def test_path_to_vault_key(self, mock_inode_id):
-        dummy_file = T.Path("foo/bar")
-        b64_dummy  = "Zm9vL2Jhcg=="
+    def test_constructor(self, mock_inode_id):
+        dummy      = "foo/bar/quux"
+        dummy_file = T.Path(dummy)
+        b64_dummy  = base64.encode(dummy)
 
         mock_inode_id.return_value = 0x1
-        self.assertEqual(vault._path_to_vault_key(dummy_file),
+        self.assertEqual(_VaultFileKey(dummy_file).path,
                          T.Path(f"01-{b64_dummy}"))
 
         mock_inode_id.return_value = 0x12
-        self.assertEqual(vault._path_to_vault_key(dummy_file),
+        self.assertEqual(_VaultFileKey(dummy_file).path,
                          T.Path(f"12-{b64_dummy}"))
 
         mock_inode_id.return_value = 0x123
-        self.assertEqual(vault._path_to_vault_key(dummy_file),
+        self.assertEqual(_VaultFileKey(dummy_file).path,
                          T.Path(f"01/23-{b64_dummy}"))
 
         mock_inode_id.return_value = 0x1234
-        self.assertEqual(vault._path_to_vault_key(dummy_file),
+        self.assertEqual(_VaultFileKey(dummy_file).path,
                          T.Path(f"12/34-{b64_dummy}"))
 
 

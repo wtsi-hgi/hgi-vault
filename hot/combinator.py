@@ -37,7 +37,7 @@ class exception(T.SimpleNamespace):
 
 _ArgT = T.TypeVar("_ArgT")
 _RetT = T.TypeVar("_RetT")
-_HotCode = T.Callable[..., _RetT]  # FIXME Callable[_ArgT, _RetT] doesn't work
+_HotCode = T.Callable[..., _RetT]  # FIXME Callable[_ArgT, _RetT] doesn't parse
 
 def _run(fn:_HotCode) -> _HotCode:
     name = f"{fn.__module__}.{fn.__name__}"
