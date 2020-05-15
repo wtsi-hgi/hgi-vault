@@ -142,3 +142,7 @@ class Vault(base.Vault):
     def remove(self, branch:Branch, path:T.Path) -> None:
         # TODO
         pass
+
+    def list(self, branch:Branch) -> T.Iterator[T.Path]:
+        # TODO
+        pass

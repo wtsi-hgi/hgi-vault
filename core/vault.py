@@ -114,7 +114,7 @@ class _BaseVault(T.Container[_VFT], metaclass=ABCMeta):
         """
         Add the given file to the specified vault branch
 
-        @param   branch  Vault to branch
+        @param   branch  Branch
         @param   path    Path
         """
 
@@ -123,8 +123,18 @@ class _BaseVault(T.Container[_VFT], metaclass=ABCMeta):
         """
         Remove the given file from the specified vault branch
 
-        @param   branch  Vault to branch
+        @param   branch  Branch
         @param   path    Path
+        """
+
+    @abstractmethod
+    def list(self, branch:Branch) -> T.Iterator[T.Path]:
+        """
+        Return an iterator of files that exist in the given vault branch
+        by their extra-vault paths (hence T.Path, rather than _VFT)
+
+        @param   branch  Branch
+        @return  Iterator of paths
         """
 
     ## Properties

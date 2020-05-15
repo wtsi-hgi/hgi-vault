@@ -54,6 +54,9 @@ class DummyVault(base.Vault):
     def remove(self, branch, path):
         pass
 
+    def list(self, branch):
+        pass
+
 
 class TestBaseVault(unittest.TestCase):
     def test_valid_root(self):
