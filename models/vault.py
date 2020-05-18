@@ -36,28 +36,33 @@ class _VaultFileKey(PathLike):
     # FIXME? I'm not sure it's necessary to separate this out into a
     # separate class; it could easily be a part of VaultFile. It does
     # make testing a bit easier, though...
-    prefix:T.Path  # inode prefix path
-    suffix:T.Path  # Basename suffix path
+    prefix:T.Path  # inode prefix path, without the LSB
+    suffix:T.Path  # LSB and basename suffix path
+    glob:str       # Suffix glob
 
     def __init__(self, path:T.Path) -> None:
-        # The hexidecimal representation of the inode ID, padded to a
-        # multiple of 8-bytes
+        # The byte-padded hexidecimal representation of the inode ID
         inode = f"{file.inode_id(path):x}"
         if len(inode) % 2:
             inode = f"0{inode}"
 
-        # Chunk the inode ID into 8-byte segments
-        self.prefix = T.Path(*[inode[i:i+2] for i in range(0, len(inode), 2)])
+        # Chunk the inode ID into 8-bit segments
+        chunks = [inode[i:i+2] for i in range(0, len(inode), 2)]
 
-        # The base64 encoding of the path
-        self.suffix = T.Path(base64.encode(str(path)))
+        # inode ID, without the least significant byte
+        self.prefix = T.Path(*chunks[:-1])
+
+        # inode ID LSB, delimiter, and the base64 encoding of the path
+        basename_prefix = chunks[-1] + _KEY_DELIMITER
+        self.suffix = T.Path(basename_prefix + base64.encode(str(path)))
+        self.glob = f"{basename_prefix}*"
 
     def __fspath__(self) -> str:
         return str(self.path)
 
     @property
     def path(self) -> T.Path:
-        return T.Path(f"{self.prefix}{_KEY_DELIMITER}{self.suffix}")
+        return T.Path(self.prefix, self.suffix)
 
 
 class VaultFile(base.VaultFile):
