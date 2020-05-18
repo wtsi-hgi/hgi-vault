@@ -62,6 +62,10 @@ class Branch(Enum):
         # Always return truthy (see _BaseVault.__contains__)
         return True
 
+    def __invert__(self) -> Branch:
+        """ Return the complementary branch """
+        return Branch.Archive if self is Branch.Keep else Branch.Keep
+
 
 @dataclass(init=False)
 class _VaultFile:

@@ -58,6 +58,13 @@ class DummyVault(base.Vault):
         pass
 
 
+class TestBranch(unittest.TestCase):
+    def test_complement(self):
+        self.assertEqual(~Branch.Keep, Branch.Archive)
+        self.assertEqual(~Branch.Archive, Branch.Keep)
+        self.assertEqual(~~Branch.Keep, Branch.Keep)
+
+
 class TestBaseVault(unittest.TestCase):
     def test_valid_root(self):
         vault = DummyVault()
