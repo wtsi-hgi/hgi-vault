@@ -27,7 +27,13 @@ from os import PathLike
 from core import typing as T, file, ldap
 from core.logging import Logger
 from core.utils import base64
-from core.vault import Branch, base, exception
+from core.vault import base, exception
+
+
+class Branch(base.Branch):
+    """ HGI vault branches """
+    Keep    = T.Path("keep")
+    Archive = T.Path("archive")
 
 
 _PrefixSuffixT = T.Tuple[T.Optional[T.Path], T.Path]
@@ -167,7 +173,7 @@ class VaultFile(base.VaultFile):
 
         self.branch = branch
         self._path  = self._relative_path(path)
-        self._key   = _VaultFileKey(self._path)
+        self._key   = _VaultFileKey(self._path)  # FIXME inode+path
 
         # Test for alternatives in the given branch
         this_branch = self._key.alternate(vault.location / branch.value)
@@ -219,6 +225,10 @@ class VaultFile(base.VaultFile):
         return self.vault.location / self.branch.value / self._key
 
     @property
+    def source(self) -> T.Path:
+        return self.vault.location / self._key.source
+
+    @property
     def can_add(self) -> bool:
         # TODO
         pass
@@ -231,8 +241,9 @@ class VaultFile(base.VaultFile):
 
 class Vault(base.Vault):
     """ HGI vault implementation """
-    _vault = T.Path(".vault")
-    _file_type = VaultFile
+    _file_type   = VaultFile
+    _branch_enum = Branch
+    _vault       = T.Path(".vault")
 
     log:Logger
 
