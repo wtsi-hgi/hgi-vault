@@ -21,10 +21,14 @@ import unittest
 from tempfile import TemporaryDirectory
 
 from core import typing as T
-from core.vault import Branch, base, exception
+from core.vault import base, exception
 
 
 _DUMMY_VAULT = T.Path("dummy")
+
+class DummyBranch(base.Branch):
+    Foo = T.Path("foo")
+    Bar = T.Path("bar")
 
 class DummyVaultFile(base.VaultFile):
     def __init__(self, vault, branch, path):
@@ -37,6 +41,10 @@ class DummyVaultFile(base.VaultFile):
         return self.vault.location / self.branch.value / self._path
 
     @property
+    def source(self):
+        return False
+
+    @property
     def can_add(self):
         pass
 
@@ -45,8 +53,9 @@ class DummyVaultFile(base.VaultFile):
         pass
 
 class DummyVault(base.Vault):
-    _vault = _DUMMY_VAULT
-    _file_type = DummyVaultFile
+    _file_type   = DummyVaultFile
+    _branch_enum = DummyBranch
+    _vault       = _DUMMY_VAULT
 
     def add(self, branch, path):
         pass
@@ -56,13 +65,6 @@ class DummyVault(base.Vault):
 
     def list(self, branch):
         pass
-
-
-class TestBranch(unittest.TestCase):
-    def test_complement(self):
-        self.assertEqual(~Branch.Keep, Branch.Archive)
-        self.assertEqual(~Branch.Archive, Branch.Keep)
-        self.assertEqual(~~Branch.Keep, Branch.Keep)
 
 
 class TestBaseVault(unittest.TestCase):
@@ -86,12 +88,12 @@ class TestBaseVault(unittest.TestCase):
 
         with TemporaryDirectory() as root:
             # Set up vault like so: /path/to/tmp/${_DUMMY_VAULT}/
-            #                       + archive/
-            #                       | + archive
-            #                       + keep/
-            #                         + keep
+            #                       + foo/
+            #                       | + foo
+            #                       + bar/
+            #                         + bar
             root = T.Path(root)
-            for branch in Branch:
+            for branch in DummyBranch:
                 bpath = branch.value
 
                 path = root / _DUMMY_VAULT / bpath
@@ -101,12 +103,12 @@ class TestBaseVault(unittest.TestCase):
                 filename.touch()
 
             vault.root = root
-            for branch in Branch:
+            for branch in DummyBranch:
                 bpath = branch.value
                 self.assertEqual(vault.branch(bpath), branch)
                 self.assertTrue(bpath in vault)
 
-            not_in_vault = T.Path("foo")
+            not_in_vault = T.Path("path/to/nowhere")
             self.assertIsNone(vault.branch(not_in_vault))
             self.assertFalse(not_in_vault in vault)
 
