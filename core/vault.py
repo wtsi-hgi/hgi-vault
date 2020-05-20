@@ -51,7 +51,7 @@ class exception(T.SimpleNamespace):
         """ Raised when a file does not exist """
 
     class VaultCorruption(Exception):
-        """ Raised when duplicate vault keys are detected """
+        """ Raised when duplicate/orphaned vault keys are detected """
 
 
 class _BaseBranch(Enum):
