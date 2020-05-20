@@ -20,8 +20,6 @@ with this program. If not, see https://www.gnu.org/licenses/
 from __future__ import annotations
 
 import os.path
-import re
-from dataclasses import dataclass
 from os import PathLike
 
 from core import typing as T, file, ldap
@@ -38,16 +36,14 @@ class Branch(base.Branch):
 
 _PrefixSuffixT = T.Tuple[T.Optional[T.Path], T.Path]
 
-@dataclass(init=False)
 class _VaultFileKey(PathLike):
     """ HGI vault file key properties """
     # NOTE This is implemented in a separate class to keep that part of
-    # the logic outside of VaultFile. This isn't strictly necessary and
-    # MAY get merged into VaultFile as the implementation develops...
+    # the logic outside VaultFile and to decouple it from the filesystem
     _delimiter:T.ClassVar[str] = "-"
 
-    prefix:T.Optional[T.Path]  # inode prefix path, without the LSB
-    suffix:T.Path              # LSB and encoded basename suffix path
+    _prefix:T.Optional[T.Path]  # inode prefix path, without the LSB
+    _suffix:T.Path              # LSB and encoded basename suffix path
 
     def __init__(self, *, inode:T.Optional[int]       = None,
                           path:T.Optional[T.Path]     = None,
@@ -72,7 +68,7 @@ class _VaultFileKey(PathLike):
         except KeyError:
             raise TypeError(f"{self.__class__.__name__} must be constructed with inode and path arguments OR from a key path")
 
-        self.prefix, self.suffix = dispatch(*args)
+        self._prefix, self._suffix = dispatch(*args)
 
     def _construct(self, inode:int, path:T.Path) -> _PrefixSuffixT:
         """ Construct the vault file key from an inode ID and path """
@@ -102,8 +98,8 @@ class _VaultFileKey(PathLike):
         return prefix, T.Path(basename)
 
     def __eq__(self, rhs:_VaultFileKey) -> bool:
-        return self.prefix == rhs.prefix \
-           and self.suffix == rhs.suffix
+        return self._prefix == rhs._prefix \
+           and self._suffix == rhs._suffix
 
     def __bool__(self) -> bool:
         return True
@@ -113,57 +109,58 @@ class _VaultFileKey(PathLike):
 
     @property
     def path(self) -> T.Path:
-        return self.suffix if self.prefix is None else T.Path(self.prefix, self.suffix)
+        return self._suffix if self._prefix is None \
+          else T.Path(self._prefix, self._suffix)
 
     @property
     def source(self) -> T.Path:
         """ Return the source file path """
-        _, encoded = self.suffix.name.split(self._delimiter)
+        _, encoded = self._suffix.name.split(self._delimiter)
         return T.Path(base64.decode(encoded).decode())
 
-    def alternate(self, search_base:T.Path) -> T.Optional[_VaultFileKey]:
-        """
-        Return an alternate key if one exists in the given search base
+    #def alternate(self, search_base:T.Path) -> T.Optional[_VaultFileKey]:
+    #    """
+    #    Return an alternate key if one exists in the given search base
 
-        @param   search_base  Search base path
-        @return  Alternate key (None, if not found)
-        """
-        # NOTE This method couples this class to the filesystem, however
-        # it relies on its internal implementation details, so it makes
-        # sense for it to belong here. However, this coupling gives
-        # justification for merging this class into VaultFile...
-        if self.prefix is not None:
-            search_base = search_base / self.prefix
+    #    @param   search_base  Search base path
+    #    @return  Alternate key (None, if not found)
+    #    """
+    #    # NOTE This method couples this class to the filesystem, however
+    #    # it relies on its internal implementation details, so it makes
+    #    # sense for it to belong here. However, this coupling gives
+    #    # justification for merging this class into VaultFile...
+    #    if self._prefix is not None:
+    #        search_base = search_base / self._prefix
 
-        lsb, _ = self.suffix.name.split(self._delimiter)
+    #    lsb, _ = self._suffix.name.split(self._delimiter)
 
-        try:
-            # NOTE This assumes there's only ever one match
-            alt, *_ = search_base.glob(f"{lsb}{self._delimiter}*")
-            alt = T.Path(alt.name)
-        except ValueError:
-            # Alternate not found
-            return None
+    #    try:
+    #        # NOTE This assumes there's only ever one match
+    #        alt, *_ = search_base.glob(f"{lsb}{self._delimiter}*")
+    #        alt = T.Path(alt.name)
+    #    except ValueError:
+    #        # Alternate not found
+    #        return None
 
-        if alt == self.suffix:
-            # Alternate not found
-            # FIXME This is wrong; it's dependant upon the branch!
-            return None
+    #    if alt == self._suffix:
+    #        # Alternate not found
+    #        # FIXME This is wrong; it's dependant upon the branch!
+    #        return None
 
-        if self.prefix is not None:
-            alt = self.prefix / alt
+    #    if self._prefix is not None:
+    #        alt = self._prefix / alt
 
-        return _VaultFileKey(key_path=alt)
+    #    return _VaultFileKey(key_path=alt)
 
 
 class VaultFile(base.VaultFile):
     """ HGI vault file implementation """
-    # TODO Do we need _path, now we've got _VaultFileKey.source?
-    _path:T.Path        # Path to external (non-vaulted) file (relative to vault root)
     _key:_VaultFileKey  # Vault key (path) of external file
 
     def __init__(self, vault:Vault, branch:Branch, path:T.Path) -> None:
         self.vault = vault
+        self.branch = branch
+        path = path.resolve()
 
         if not path.exists():
             raise exception.DoesNotExist(f"{path} does not exist")
@@ -171,29 +168,39 @@ class VaultFile(base.VaultFile):
         if not file.is_regular(path):
             raise exception.NotRegularFile(f"{path} is not a regular file")
 
-        self.branch = branch
-        self._path  = self._relative_path(path)
-        self._key   = _VaultFileKey(self._path)  # FIXME inode+path
+        inode = file.inode_id(path)
+        path = self._relative_path(path)
+        self._key = _VaultFileKey(inode=inode, path=path)
 
-        # Test for alternatives in the given branch
-        this_branch = self._key.alternate(vault.location / branch.value)
-        if this_branch is not None:
-            # TODO This should be logged: Source file and vaulted file's
-            # names differ (i.e., source file renamed)
-            self._path  = this_branch.source
-            self._key   = this_branch
+        # Check for corresponding keys in the vault, automatically
+        # update if the branch or path differ in that alternate and log
+        already_found = False
+        for check in Branch:
+            alternate_key = self._alternate(check, self._key)
 
-        else:
-            # Test for alternatives in the other branch
-            other_branch = self._key.alternate(vault.location / (~branch).value)
-            if other_branch is not None:
-                # TODO This should be logged: Branch and/or source name changed
-                self.branch = ~branch
-                self._path  = other_branch.source
-                self._key   = other_branch
+            if alternate_key:
+                if already_found:
+                    raise exception.VaultCorruption(f"The vault in {vault.root} contains duplicates of {path}")
+                already_found = True
 
-        # TODO Check number of hardlinks on key, if it exists; if it is
-        # one, then the original file has been removed. Do what??
+                self._key = alternate_key
+
+                if check != branch:
+                    # Branch differs from expectation
+                    # TODO This should be logged
+                    self._branch = check
+
+                if alternate_key.source != path:
+                    # Path differs from expectation (e.g., source was
+                    # moved or renamed)
+                    # TODO This should be logged
+                    pass
+
+        # If a key already exists in the vault, then it must have at
+        # least two hardlinks. If it has one, then the source file has
+        # been removed...which is bad :P
+        if self.path.exists() and file.hardlinks(self.path) == 1:
+            raise exception.VaultCorruption(f"The vault in {vault.root} contains {self.source}, but this no longer exists outside the vault")
 
     def _relative_path(self, path:T.Path) -> T.Path:
         """
@@ -220,6 +227,10 @@ class VaultFile(base.VaultFile):
         except ValueError:
             raise exception.IncorrectVault(f"{path} does not belong to the vault in {root}")
 
+    def _alternate(self, branch:Branch, key:_VaultFileKey) -> T.Optional[_VaultFileKey]:
+        # TODO This should be migrated from _VaultFileKey.alternate
+        pass
+
     @property
     def path(self) -> T.Path:
         return self.vault.location / self.branch.value / self._key
@@ -241,8 +252,8 @@ class VaultFile(base.VaultFile):
 
 class Vault(base.Vault):
     """ HGI vault implementation """
-    _file_type   = VaultFile
     _branch_enum = Branch
+    _file_type   = VaultFile
     _vault       = T.Path(".vault")
 
     log:Logger

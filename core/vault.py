@@ -50,6 +50,9 @@ class exception(T.SimpleNamespace):
     class DoesNotExist(Exception):
         """ Raised when a file does not exist """
 
+    class VaultCorruption(Exception):
+        """ Raised when duplicate vault keys are detected """
+
 
 class _BaseBranch(Enum):
     """ Base vault branch/namespace enumeration """
@@ -106,9 +109,10 @@ _BranchT = T.TypeVar("_BranchT", bound=_BaseBranch)
 
 class _BaseVault(T.Container[_VFT], metaclass=ABCMeta):
     """ Abstract base class for vault implementations """
-    _file_type:T.ClassVar[T.Type[_VFT]]
     _branch_enum:T.ClassVar[T.Type[_BranchT]]
+    _file_type:T.ClassVar[T.Type[_VFT]]
     _vault:T.ClassVar[T.Path]
+
     _root:T.Path
 
     ## Abstract methods

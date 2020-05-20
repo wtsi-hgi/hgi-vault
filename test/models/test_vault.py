@@ -56,28 +56,29 @@ class TestVaultFileKey(unittest.TestCase):
         self.assertEqual(VFK(0x12,  _DUMMY_FILE), VFK_k(T.Path(f"12-{_DUMMY_ENC}")))
         self.assertEqual(VFK(0x123, _DUMMY_FILE), VFK_k(T.Path(f"01/23-{_DUMMY_ENC}")))
 
-    def test_alternate(self):
-        key = VFK(0x1234, _DUMMY_FILE)
+    # TODO Migrate to VaultFile testing
+    #def test_alternate(self):
+    #    key = VFK(0x1234, _DUMMY_FILE)
 
-        alternate = "some/other/path"
-        alt_key = VFK(0x1234, T.Path(alternate))
+    #    alternate = "some/other/path"
+    #    alt_key = VFK(0x1234, T.Path(alternate))
 
-        with TemporaryDirectory() as tmp:
-            tmp = T.Path(tmp)
-            (tmp / "12").mkdir()
+    #    with TemporaryDirectory() as tmp:
+    #        tmp = T.Path(tmp)
+    #        (tmp / "12").mkdir()
 
-            # No alternate exists
-            self.assertIsNone(key.alternate(tmp))
+    #        # No alternate exists
+    #        self.assertIsNone(key.alternate(tmp))
 
-            # Original key exists
-            original = f"12/34-{_DUMMY_ENC}"
-            (tmp / original).touch()
-            self.assertIsNone(key.alternate(tmp))
+    #        # Original key exists
+    #        original = f"12/34-{_DUMMY_ENC}"
+    #        (tmp / original).touch()
+    #        self.assertIsNone(key.alternate(tmp))
 
-            # Create alternate
-            alt_enc = f"12/34-{base64.encode(alternate)}"
-            (tmp / original).rename(tmp / alt_enc)
-            self.assertEqual(key.alternate(tmp), alt_key)
+    #        # Create alternate
+    #        alt_enc = f"12/34-{base64.encode(alternate)}"
+    #        (tmp / original).rename(tmp / alt_enc)
+    #        self.assertEqual(key.alternate(tmp), alt_key)
 
 
 if __name__ == "__main__":
