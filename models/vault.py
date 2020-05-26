@@ -293,11 +293,15 @@ class Vault(base.Vault):
     _file_type   = VaultFile
     _vault       = T.Path(".vault")
 
+    _ldap:ldap.LDAP
     log:Logger
 
-    def __init__(self) -> None:
-        # TODO
-        pass
+    def __init__(self, relative_to:T.Path, *, log:Logger, ldap:ldap.LDAP) -> None:
+        self.log = log
+        self._ldap = ldap
+
+        # TODO Set root location
+        # TODO Create vault, if necessary
 
     @property
     def group(self) -> int:
