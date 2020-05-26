@@ -1,0 +1,9 @@
+[report]
+
+fail_under=90
+
+include=
+    core/typing.py
+    
+skip_covered=true
+

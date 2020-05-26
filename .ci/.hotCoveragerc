@@ -1,0 +1,9 @@
+[report]
+
+fail_under=100
+
+include=
+    hot/*
+
+
+skip_covered=true
