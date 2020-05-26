@@ -19,8 +19,9 @@ with this program. If not, see https://www.gnu.org/licenses/
 
 from __future__ import annotations
 
+import os
 import os.path
-from os import PathLike
+import stat
 
 from core import typing as T, file, ldap
 from core.logging import Logger
@@ -36,7 +37,7 @@ class Branch(base.Branch):
 
 _PrefixSuffixT = T.Tuple[T.Optional[T.Path], str]
 
-class _VaultFileKey(PathLike):
+class _VaultFileKey(os.PathLike):
     """ HGI vault file key properties """
     # NOTE This is implemented in a separate class to keep that part of
     # the logic outside VaultFile and to decouple it from the filesystem
@@ -240,13 +241,50 @@ class VaultFile(base.VaultFile):
 
     @property
     def can_add(self) -> bool:
-        # TODO
-        pass
+        # Check that the file is:
+        # * Regular
+        # * Has at least ug+rw permissions
+        # * Have equal user and group permissions
+        # * Has a parent directory with at least ug+wx permissions
+        source = self.source
+
+        if not file.is_regular(source):
+            # TODO Log file isn't regular
+            return False
+
+        source_mode = source.stat().st_mode
+        ugrw = stat.S_IRUSR | stat.S_IWUSR | stat.S_IRGRP | stat.S_IWGRP
+        if not source_mode & ugrw:
+            # TODO Log file isn't ug+rw
+            return False
+
+        user_perms = (source_mode & stat.S_IRWXU) >> 3
+        group_perms = source_mode & stat.S_IRWXG
+        if user_perms != group_perms:
+            # TODO Log user and group permissions don't match
+            return False
+
+        parent_mode = source.parent.stat().st_mode
+        ugwx = stat.S_IWUSR | stat.S_IXUSR | stat.S_IWGRP | stat.S_IXGRP
+        if not parent_mode & ugwx:
+            # TODO Log parent directory isn't ug+wx
+            return False
+
+        return True
 
     @property
     def can_remove(self) -> bool:
-        # TODO
-        pass
+        # We have an additional constraint on removal: Only owners of
+        # the group or the file itself can remove it from the vault
+        source = self.source
+        owner = source.stat().st_uid
+
+        whoami = os.getuid()
+        if whoami not in [*self.vault.owners, owner]:
+            # TODO Log current user is not the group/file owner
+            return False
+
+        return self.can_add
 
 
 class Vault(base.Vault):
@@ -260,6 +298,16 @@ class Vault(base.Vault):
     def __init__(self) -> None:
         # TODO
         pass
+
+    @property
+    def group(self) -> int:
+        """ Return the group ID of the vault location """
+        # TODO
+
+    @property
+    def owners(self) -> T.Iterator[int]:
+        """ Return an iterator of group owners' user IDs """
+        # TODO
 
     def add(self, branch:Branch, path:T.Path) -> None:
         # TODO
