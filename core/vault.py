@@ -53,6 +53,9 @@ class exception(T.SimpleNamespace):
     class VaultCorruption(Exception):
         """ Raised when duplicate/orphaned vault keys are detected """
 
+    class VaultConflict(Exception):
+        """ Raised whenever the vault conflicts with userland """
+
 
 class _BaseBranch(Enum):
     """ Base vault branch/namespace enumeration """

@@ -295,20 +295,53 @@ class Vault(base.Vault):
     _file_type   = VaultFile
     _vault       = T.Path(".vault")
 
+    # Injected dependencies
     _ldap:ldap.LDAP
     log:Logger
+
+    # Internal state
+    _gid:int
 
     def __init__(self, relative_to:T.Path, *, log:Logger, ldap:ldap.LDAP) -> None:
         self.log = log
         self._ldap = ldap
 
-        # TODO Set root location
-        # TODO Create vault, if necessary
+        # The vault's location is the root of the homogroupic subtree
+        # that contains relative_to; that's where we start and traverse up
+        relative_to = relative_to.resolve()
+        root = relative_to.parent if not relative_to.is_dir() else relative_to
+        while root != T.Path("/") and root.group() == root.parent.group():
+            root = root.parent
+
+        self.root = root  # NOTE self.root can only be set once
+        self._gid = root.stat().st_gid
+
+        # TODO Vault logger should have an additional handler that
+        # writes to self.location / .audit -- this can't be kept
+        # external, because it relies on knowing self.location...
+
+        # Create vault, if it doesn't already exist
+        if not self.location.is_dir():
+            try:
+                self.location.mkdir()
+                log.info(f"Vault created in {root}")
+            except FileExistsError:
+                raise exception.VaultConflict(f"Cannot create a vault in {root}; user file already exists")
+
+        # Create branches, if they don't already exists
+        for branch in Branch:
+            bpath = self.location / branch.value
+            if not bpath.is_dir():
+                try:
+                    bpath.mkdir()
+                    log.info(f"{branch.name} branch created in the vault in {root}")
+                except FileExistsError:
+                    raise exception.VaultConflict(f"Cannot create a {branch.name} branch in the vault in {root}; user file already exists")
 
     @property
     def group(self) -> int:
         """ Return the group ID of the vault location """
-        # TODO
+        return self._gid
 
     @property
     def owners(self) -> T.Iterator[int]:
