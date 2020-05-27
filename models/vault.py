@@ -132,6 +132,7 @@ class VaultFile(base.VaultFile):
     def __init__(self, vault:Vault, branch:Branch, path:T.Path) -> None:
         self.vault = vault
         self.branch = branch
+        log = vault.log
         path = path.resolve()
 
         if not path.exists():
@@ -161,14 +162,13 @@ class VaultFile(base.VaultFile):
 
                 if check != branch:
                     # Branch differs from expectation
-                    # TODO This should be logged
+                    log.info(f"{path} was found in the {check.name} branch, rather than {branch.name}")
                     self._branch = check
 
                 if alternate_key.source != path:
                     # Path differs from expectation
                     # (i.e., source was moved or renamed)
-                    # TODO This should be logged
-                    pass
+                    log.info(f"{path} was found in the vault as {alternate_key.source}")
 
         # If a key already exists in the vault, then it must have at
         # least two hardlinks. If it has one, then the source file has
@@ -246,28 +246,29 @@ class VaultFile(base.VaultFile):
         # * Has at least ug+rw permissions
         # * Have equal user and group permissions
         # * Has a parent directory with at least ug+wx permissions
+        log = self.vault.log
         source = self.source
 
         if not file.is_regular(source):
-            # TODO Log file isn't regular
+            log.info(f"{source} is not a regular file")
             return False
 
         source_mode = source.stat().st_mode
         ugrw = stat.S_IRUSR | stat.S_IWUSR | stat.S_IRGRP | stat.S_IWGRP
         if not source_mode & ugrw:
-            # TODO Log file isn't ug+rw
+            log.info(f"{source} is not read-writable by both its owner and group")
             return False
 
         user_perms = (source_mode & stat.S_IRWXU) >> 3
         group_perms = source_mode & stat.S_IRWXG
         if user_perms != group_perms:
-            # TODO Log user and group permissions don't match
+            log.info(f"The owner and group permissions do not match for {source}")
             return False
 
         parent_mode = source.parent.stat().st_mode
         ugwx = stat.S_IWUSR | stat.S_IXUSR | stat.S_IWGRP | stat.S_IXGRP
         if not parent_mode & ugwx:
-            # TODO Log parent directory isn't ug+wx
+            log.info(f"The parent directory of {source} is not writable or executable for both its owner and group")
             return False
 
         return True
@@ -276,12 +277,13 @@ class VaultFile(base.VaultFile):
     def can_remove(self) -> bool:
         # We have an additional constraint on removal: Only owners of
         # the group or the file itself can remove it from the vault
+        log = self.vault.log
         source = self.source
         owner = source.stat().st_uid
 
         whoami = os.getuid()
         if whoami not in [*self.vault.owners, owner]:
-            # TODO Log current user is not the group/file owner
+            log.info(f"The current user is not the owner of {source} nor a group owner")
             return False
 
         return self.can_add
