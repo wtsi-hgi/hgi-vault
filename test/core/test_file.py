@@ -41,6 +41,8 @@ class TestFile(unittest.TestCase):
         symlink.symlink_to(tmp_file)
 
         hardlink = path / "quux"
+
+        # FIXME Propose requirement of at least Python 3.8?
         if version_info < (3, 8):
             os.link(tmp_file, hardlink)
         else:
