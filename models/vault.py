@@ -296,15 +296,14 @@ class Vault(base.Vault):
     _vault       = T.Path(".vault")
 
     # Injected dependencies
-    _ldap:ldap.LDAP
     log:Logger
 
     # Internal state
     _gid:int
+    _owners:T.List[int]
 
     def __init__(self, relative_to:T.Path, *, log:Logger, ldap:ldap.LDAP) -> None:
         self.log = log
-        self._ldap = ldap
 
         # The vault's location is the root of the homogroupic subtree
         # that contains relative_to; that's where we start and traverse up
@@ -316,9 +315,15 @@ class Vault(base.Vault):
         self.root = root  # NOTE self.root can only be set once
         self._gid = root.stat().st_gid
 
+        # NOTE As the frequency of LDAP record changes is dwarfed by
+        # that of vault construction, it makes sense to only lookup the
+        # owner list here, rather than carrying around the LDAP
+        # interface and doing expensive lookups on demand
+        self._owners = []  # TODO Waiting on LDAP interface...
+
         # TODO Vault logger should have an additional handler that
         # writes to self.location / .audit -- this can't be kept
-        # external, because it relies on knowing self.location...
+        # upstream, because it relies on knowing self.location...
 
         # Create vault, if it doesn't already exist
         if not self.location.is_dir():
@@ -346,7 +351,7 @@ class Vault(base.Vault):
     @property
     def owners(self) -> T.Iterator[int]:
         """ Return an iterator of group owners' user IDs """
-        # TODO
+        yield from self._owners
 
     def add(self, branch:Branch, path:T.Path) -> None:
         # TODO
