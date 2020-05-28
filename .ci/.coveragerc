@@ -4,5 +4,5 @@ omit =
   .venv/*
   test/*
   */__init__.py
-  virtualenv/
+  /home/travis/virtualenv/*
 
