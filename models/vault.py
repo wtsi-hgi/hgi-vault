@@ -289,6 +289,9 @@ class VaultFile(base.VaultFile):
         return self.can_add
 
 
+# Vault permissions: ug+rwx, g+s (i.e., 02770)
+_PERMS = stat.S_ISGID | stat.S_IRWXU | stat.S_IRWXG
+
 class Vault(base.Vault):
     """ HGI vault implementation """
     _branch_enum = Branch
@@ -328,7 +331,7 @@ class Vault(base.Vault):
         # Create vault, if it doesn't already exist
         if not self.location.is_dir():
             try:
-                self.location.mkdir()
+                self.location.mkdir(_PERMS)
                 log.info(f"Vault created in {root}")
             except FileExistsError:
                 raise exception.VaultConflict(f"Cannot create a vault in {root}; user file already exists")
@@ -338,7 +341,7 @@ class Vault(base.Vault):
             bpath = self.location / branch.value
             if not bpath.is_dir():
                 try:
-                    bpath.mkdir()
+                    bpath.mkdir(_PERMS)
                     log.info(f"{branch.name} branch created in the vault in {root}")
                 except FileExistsError:
                     raise exception.VaultConflict(f"Cannot create a {branch.name} branch in the vault in {root}; user file already exists")
