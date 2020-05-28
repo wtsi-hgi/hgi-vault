@@ -357,5 +357,14 @@ class Vault(base.Vault):
         pass
 
     def list(self, branch:Branch) -> T.Iterator[T.Path]:
-        # TODO
-        pass
+        # NOTE The order in which the listing is generated is
+        # unspecified (I suspect it will be by inode ID); it is up to
+        # downstream to modify this, as required
+        bpath = self.location / branch.value
+        source = lambda key: _VaultFileKey(key_path=key).source
+
+        return (
+            source(T.Path(dirname, file).relative_to(bpath))
+            for dirname, _, files in os.walk(bpath)
+            for file in files
+        )

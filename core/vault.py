@@ -144,6 +144,8 @@ class _BaseVault(T.Container[_VFT], metaclass=ABCMeta):
         Return an iterator of files that exist in the given vault branch
         by their extra-vault paths (hence T.Path, rather than _VFT)
 
+        @note    There is no guarantee on the order of the output
+
         @param   branch  Branch
         @return  Iterator of paths
         """
