@@ -27,6 +27,7 @@ from typing import *
 
 # NOTE From Python 3.8, the below submodules have been removed and their
 # contents bundled up into the root typing module
+# FIXME Propose requirement of at least Python 3.8?
 if version_info < (3, 8):
     from typing.io import *
     from typing.re import *

@@ -22,6 +22,7 @@ from __future__ import annotations
 import os
 import os.path
 import stat
+from sys import version_info
 
 from core import typing as T, file, ldap
 from core.logging import Logger
@@ -327,6 +328,7 @@ class Vault(base.Vault):
         # TODO Vault logger should have an additional handler that
         # writes to self.location / .audit -- this can't be kept
         # upstream, because it relies on knowing self.location...
+        log_file = self.location / ".audit"
 
         # Create vault, if it doesn't already exist
         if not self.location.is_dir():
@@ -357,8 +359,44 @@ class Vault(base.Vault):
         yield from self._owners
 
     def add(self, branch:Branch, path:T.Path) -> None:
-        # TODO
-        pass
+        log = self.log
+
+        to_add = self.file(branch, path)
+        if not to_add.can_add:
+            raise exception.PermissionDenied(f"Cannot add {path} to the vault in {self.root}")
+
+        if to_add.exists:
+            # File is already in the vault
+
+            # TODO (n.b., Much of this is satisfied by VaultFile)
+            # * Check the directory structure/file name hasn't changed
+            #   in the meantime:
+            #   * If it has:
+            #     * Correct the hardlinked name in the vault.
+            #     * Log the change to the user.
+            #
+            # * Check in which branch the hardlink exists in the vault:
+            #   * If it matches the action (keep or archive):
+            #     * Log to the user that no further change is necessary.
+            #   * If it differs:
+            #     * Move the hardlink to the opposite branch,
+            #       maintaining the necessary structure.
+            #     * Log to the user that the file's status has changed,
+            #       respectively.
+            pass
+
+        else:
+            # File is not in the vault
+            to_add.path.parent.mkdir(_PERMS, parents=True, exist_ok=True)
+
+            # FIXME Propose requirement of at least Python 3.8?
+            if version_info < (3, 8):
+                os.link(to_add.source, to_add.path)
+            else:
+                # NOTE Path.link_to is only available from Python 3.8
+                to_add.path.link_to(to_add.source)
+
+            log.info(f"{to_add.source} added to the {to_add.branch} branch of the vault in {self.root}")
 
     def remove(self, branch:Branch, path:T.Path) -> None:
         # TODO
