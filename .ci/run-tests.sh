@@ -19,7 +19,10 @@ die() {
 coverage run -m nose2 --fail-fast  --coverage-report=term-missing \
    --verbose
 
-
+# Earlier command (without coverage package) (Remove if not necessary):
+# nose2 --fail-fast \
+#       --with-coverage --coverage-report=term-missing --coverage-config="${BASE}/.ci/.coveragerc" \
+#       --verbose
 
 # * Establish hot, warm and cool code (hot is anything in hot/, warm is
 #   anything referenced by hot, cool is everything else)
@@ -57,5 +60,6 @@ pylint --rcfile=.pylintrc *
 
 
 # Mypy: The system's code must be fully type annotated and satisfy static analysis.
+
 
 mypy hot core models --follow-imports=silent || die 1 "Failed Static Type Analysis "
