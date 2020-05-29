@@ -19,7 +19,6 @@ with this program. If not, see https://www.gnu.org/licenses/
 
 import os
 import unittest
-from sys import version_info
 from tempfile import TemporaryDirectory
 
 from core import file, typing as T
@@ -41,13 +40,7 @@ class TestFile(unittest.TestCase):
         symlink.symlink_to(tmp_file)
 
         hardlink = path / "quux"
-
-        # FIXME Propose requirement of at least Python 3.8?
-        if version_info < (3, 8):
-            os.link(tmp_file, hardlink)
-        else:
-            # NOTE Path.link_to is only available from Python 3.8
-            hardlink.link_to(tmp_file)
+        tmp_file.link_to(hardlink)
 
     def tearDown(self) -> None:
         self._tmp.cleanup()
