@@ -22,7 +22,6 @@ from __future__ import annotations
 import os
 import os.path
 import stat
-from sys import version_info
 
 from core import typing as T, file, ldap
 from core.logging import Logger
@@ -75,8 +74,7 @@ class _VaultFileKey(os.PathLike):
     def _construct(self, inode:int, path:T.Path) -> _PrefixSuffixT:
         """ Construct the vault file key from an inode ID and path """
         # The byte-padded hexidecimal representation of the inode ID
-        inode_hex = f"{inode:x}"
-        if len(inode_hex) % 2:
+        if len(inode_hex := f"{inode:x}") % 2:
             inode_hex = f"0{inode_hex}"
 
         # Chunk the inode ID into 8-bit segments
@@ -152,9 +150,7 @@ class VaultFile(base.VaultFile):
         for check in Branch:
             # NOTE The alternate key could be the expected key; we don't
             # bother checking for that, because it's effectively a noop
-            alternate_key = self._preexisting(check, expected_key)
-
-            if alternate_key:
+            if alternate_key := self._preexisting(check, expected_key):
                 if already_found:
                     raise exception.VaultCorruption(f"The vault in {vault.root} contains duplicates of {path} in the {already_found.name} branch")
                 already_found = check
@@ -282,8 +278,7 @@ class VaultFile(base.VaultFile):
         source = self.source
         owner = source.stat().st_uid
 
-        whoami = os.getuid()
-        if whoami not in [*self.vault.owners, owner]:
+        if os.getuid() not in [*self.vault.owners, owner]:
             log.info(f"The current user is not the owner of {source} nor a group owner")
             return False
 
@@ -340,8 +335,7 @@ class Vault(base.Vault):
 
         # Create branches, if they don't already exists
         for branch in Branch:
-            bpath = self.location / branch.value
-            if not bpath.is_dir():
+            if not (bpath := self.location / branch.value).is_dir():
                 try:
                     bpath.mkdir(_PERMS)
                     log.info(f"{branch.name} branch created in the vault in {root}")
@@ -361,8 +355,7 @@ class Vault(base.Vault):
     def add(self, branch:Branch, path:T.Path) -> None:
         log = self.log
 
-        to_add = self.file(branch, path)
-        if not to_add.can_add:
+        if not (to_add := self.file(branch, path)).can_add:
             raise exception.PermissionDenied(f"Cannot add {path} to the vault in {self.root}")
 
         if to_add.exists:
@@ -388,13 +381,7 @@ class Vault(base.Vault):
         else:
             # File is not in the vault
             to_add.path.parent.mkdir(_PERMS, parents=True, exist_ok=True)
-
-            # FIXME Propose requirement of at least Python 3.8?
-            if version_info < (3, 8):
-                os.link(to_add.source, to_add.path)
-            else:
-                # NOTE Path.link_to is only available from Python 3.8
-                to_add.path.link_to(to_add.source)
+            to_add.source.link_to(to_add.path)
 
             log.info(f"{to_add.source} added to the {to_add.branch} branch of the vault in {self.root}")
 

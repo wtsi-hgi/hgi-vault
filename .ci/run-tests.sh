@@ -21,5 +21,5 @@ declare BASE="$(git rev-parse --show-toplevel)"
 [[ "$(pwd)" != "${BASE}" ]] && cd "${BASE}"
 
 nose2 --fail-fast \
-      --with-coverage --coverage-report=term-missing \
+      --with-coverage --coverage-report=term-missing --coverage-config="${BASE}/.ci/.coveragerc" \
       --verbose

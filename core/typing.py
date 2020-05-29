@@ -17,20 +17,11 @@ You should have received a copy of the GNU General Public License along
 with this program. If not, see https://www.gnu.org/licenses/
 """
 
-from sys import version_info
-
 # Make Python's type definitions available
 from numbers import *
 from pathlib import *
 from types import *
 from typing import *
-
-# NOTE From Python 3.8, the below submodules have been removed and their
-# contents bundled up into the root typing module
-# FIXME Propose requirement of at least Python 3.8?
-if version_info < (3, 8):
-    from typing.io import *
-    from typing.re import *
 
 from .time import datetime as DateTime, \
                   timedelta as TimeDelta

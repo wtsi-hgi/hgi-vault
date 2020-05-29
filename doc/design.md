@@ -13,7 +13,7 @@ high risk this poses:
   before it can be run in production. Changes to the system will require
   recertification.
 
-The system will be written in Python 3.7, or newer. Certification
+The system will be written in Python 3.8, or newer. Certification
 criteria for the system will be:
 
 * The state for the test suite **must** satisfy the Cartesian product of
