@@ -385,8 +385,22 @@ class Vault(base.Vault):
             log.info(f"{to_add.source} added to the {to_add.branch.name} branch of the vault in {self.root}")
 
     def remove(self, branch:Branch, path:T.Path) -> None:
-        # TODO
-        pass
+        # NOTE We are not interested in the branch
+        log = self.log
+
+        if not (to_remove := self.file(branch, path)).can_remove:
+            # NOTE This exception is raised whether the file is in the
+            # vault or not (i.e., so not to reveal that information)
+            raise exception.PermissionDenied(f"Cannot remove {path} from the vault in {self.root}")
+
+        if to_remove.exists:
+            # NOTE to_remove.branch and to_remove.source might not match
+            # branch and path, respectively
+            to_remove.path.unlink()
+            log.info(f"{to_remove.source} has been removed from the {to_remove.branch.name} branch of the vault in {self.root}")
+
+        else:
+            log.info(f"{to_remove.source} is not in the vault in {self.root}")
 
     def list(self, branch:Branch) -> T.Iterator[T.Path]:
         # NOTE The order in which the listing is generated is
