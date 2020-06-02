@@ -409,7 +409,7 @@ class Vault(base.Vault):
         bpath = self.location / branch
 
         return (
-            _decode_key(T.Path(dirname, file).relative_to(bpath))
+            self.root / _decode_key(T.Path(dirname, file).relative_to(bpath))
             for dirname, _, files in os.walk(bpath)
             for file in files
         )
