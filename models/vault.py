@@ -23,7 +23,8 @@ import os
 import os.path
 import stat
 
-from core import typing as T, file, ldap
+from core import typing as T, file
+from core.ldap import LDAP
 from core.logging import Logger
 from core.utils import base64
 from core.vault import base, exception
@@ -122,6 +123,10 @@ class _VaultFileKey(os.PathLike):
         """ Return the prefix and suffix glob pattern """
         lsb, _ = self._suffix.split(self._delimiter)
         return self._prefix, f"{lsb}{self._delimiter}*"
+
+def _decode_key(path:T.Path) -> T.Path:
+    """ Convenience function to decode a key path into its source """
+    return _VaultFileKey(key_path=path).source
 
 
 class VaultFile(base.VaultFile):
@@ -301,7 +306,7 @@ class Vault(base.Vault):
     _gid:int
     _owners:T.List[int]
 
-    def __init__(self, relative_to:T.Path, *, log:Logger, ldap:ldap.LDAP) -> None:
+    def __init__(self, relative_to:T.Path, *, log:Logger, ldap:LDAP) -> None:
         self.log = log
 
         # The vault's location is the root of the homogroupic subtree
@@ -360,30 +365,24 @@ class Vault(base.Vault):
 
         if to_add.exists:
             # File is already in the vault
+            if to_add.source.resolve() != path.resolve() or to_add.branch != branch:
+                # If the file is in the vault, but it's been renamed or
+                # is found in a different branch, then we delete it from
+                # its incorrect location and re-add it (rather than
+                # attempting to correct by moving)
+                log.info(f"Correcting vault entry for {path}")
+                to_add.path.unlink()
+                self.add(branch, path)
 
-            # TODO (n.b., Much of this is satisfied by VaultFile)
-            # * Check the directory structure/file name hasn't changed
-            #   in the meantime:
-            #   * If it has:
-            #     * Correct the hardlinked name in the vault.
-            #     * Log the change to the user.
-            #
-            # * Check in which branch the hardlink exists in the vault:
-            #   * If it matches the action (keep or archive):
-            #     * Log to the user that no further change is necessary.
-            #   * If it differs:
-            #     * Move the hardlink to the opposite branch,
-            #       maintaining the necessary structure.
-            #     * Log to the user that the file's status has changed,
-            #       respectively.
-            pass
+            else:
+                log.info(f"{path} is already in the {branch.name} branch of the vault in {self.root}"
 
         else:
             # File is not in the vault
             to_add.path.parent.mkdir(_PERMS, parents=True, exist_ok=True)
             to_add.source.link_to(to_add.path)
 
-            log.info(f"{to_add.source} added to the {to_add.branch} branch of the vault in {self.root}")
+            log.info(f"{to_add.source} added to the {to_add.branch.name} branch of the vault in {self.root}")
 
     def remove(self, branch:Branch, path:T.Path) -> None:
         # TODO
@@ -394,10 +393,9 @@ class Vault(base.Vault):
         # unspecified (I suspect it will be by inode ID); it is up to
         # downstream to modify this, as required
         bpath = self.location / branch.value
-        source = lambda key: _VaultFileKey(key_path=key).source
 
         return (
-            source(T.Path(dirname, file).relative_to(bpath))
+            _decode_key(T.Path(dirname, file).relative_to(bpath))
             for dirname, _, files in os.walk(bpath)
             for file in files
         )
