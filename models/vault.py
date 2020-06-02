@@ -157,14 +157,14 @@ class VaultFile(base.VaultFile):
             # bother checking for that, because it's effectively a noop
             if alternate_key := self._preexisting(check, expected_key):
                 if already_found:
-                    raise exception.VaultCorruption(f"The vault in {vault.root} contains duplicates of {path} in the {already_found.name} branch")
+                    raise exception.VaultCorruption(f"The vault in {vault.root} contains duplicates of {path} in the {already_found} branch")
                 already_found = check
 
                 self._key = alternate_key
 
                 if check != branch:
                     # Branch differs from expectation
-                    log.info(f"{path} was found in the {check.name} branch, rather than {branch.name}")
+                    log.info(f"{path} was found in the {check} branch, rather than {branch}")
                     self._branch = check
 
                 if alternate_key.source != path:
@@ -213,7 +213,7 @@ class VaultFile(base.VaultFile):
         """
         key_base, key_glob = key.search_criteria
 
-        search_base = self.vault.location / branch.value
+        search_base = self.vault.location / branch
         if key_base is not None:
             search_base = search_base / key_base
 
@@ -225,7 +225,7 @@ class VaultFile(base.VaultFile):
 
         if len(others) != 0:
             # If the glob finds multiple matches, that's bad!
-            raise exception.VaultCorruption(f"The vault in {self.vault.root} contains duplicates of {key.path} in the {branch.name} branch")
+            raise exception.VaultCorruption(f"The vault in {self.vault.root} contains duplicates of {key.path} in the {branch} branch")
 
         alternate = T.Path(alt_suffix)
         if key_base is not None:
@@ -235,7 +235,7 @@ class VaultFile(base.VaultFile):
 
     @property
     def path(self) -> T.Path:
-        return self.vault.location / self.branch.value / self._key
+        return self.vault.location / self.branch / self._key
 
     @property
     def source(self) -> T.Path:
@@ -340,12 +340,12 @@ class Vault(base.Vault):
 
         # Create branches, if they don't already exists
         for branch in Branch:
-            if not (bpath := self.location / branch.value).is_dir():
+            if not (bpath := self.location / branch).is_dir():
                 try:
                     bpath.mkdir(_PERMS)
-                    log.info(f"{branch.name} branch created in the vault in {root}")
+                    log.info(f"{branch} branch created in the vault in {root}")
                 except FileExistsError:
-                    raise exception.VaultConflict(f"Cannot create a {branch.name} branch in the vault in {root}; user file already exists")
+                    raise exception.VaultConflict(f"Cannot create a {branch} branch in the vault in {root}; user file already exists")
 
     @property
     def group(self) -> int:
@@ -375,14 +375,14 @@ class Vault(base.Vault):
                 self.add(branch, path)
 
             else:
-                log.info(f"{path} is already in the {branch.name} branch of the vault in {self.root}"
+                log.info(f"{path} is already in the {branch} branch of the vault in {self.root}")
 
         else:
             # File is not in the vault
             to_add.path.parent.mkdir(_PERMS, parents=True, exist_ok=True)
             to_add.source.link_to(to_add.path)
 
-            log.info(f"{to_add.source} added to the {to_add.branch.name} branch of the vault in {self.root}")
+            log.info(f"{to_add.source} added to the {to_add.branch} branch of the vault in {self.root}")
 
     def remove(self, branch:Branch, path:T.Path) -> None:
         # NOTE We are not interested in the branch
@@ -397,7 +397,7 @@ class Vault(base.Vault):
             # NOTE to_remove.branch and to_remove.source might not match
             # branch and path, respectively
             to_remove.path.unlink()
-            log.info(f"{to_remove.source} has been removed from the {to_remove.branch.name} branch of the vault in {self.root}")
+            log.info(f"{to_remove.source} has been removed from the {to_remove.branch} branch of the vault in {self.root}")
 
         else:
             log.info(f"{to_remove.source} is not in the vault in {self.root}")
@@ -406,7 +406,7 @@ class Vault(base.Vault):
         # NOTE The order in which the listing is generated is
         # unspecified (I suspect it will be by inode ID); it is up to
         # downstream to modify this, as required
-        bpath = self.location / branch.value
+        bpath = self.location / branch
 
         return (
             _decode_key(T.Path(dirname, file).relative_to(bpath))
