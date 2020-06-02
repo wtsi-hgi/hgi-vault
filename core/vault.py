@@ -65,6 +65,14 @@ class _BaseBranch(Enum):
         # Always return truthy (see _BaseVault.__contains__)
         return True
 
+    def __str__(self) -> str:
+        return self.name
+
+    def __fspath__(self) -> str:
+        # We can't enforce enumerations to be os.PathLike at the type
+        # level, but we can implement it anyway for syntactic sugar
+        return str(self.value)
+
 
 @dataclass(init=False)
 class _VaultFile:
