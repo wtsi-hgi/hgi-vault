@@ -24,8 +24,7 @@ import os.path
 import stat
 from functools import cached_property
 
-from core import typing as T, file
-from core.ldap import LDAP
+from core import typing as T, idm as IdM, file
 from core.logging import Logger
 from core.utils import base64
 from core.vault import base, exception
@@ -302,9 +301,11 @@ class Vault(base.Vault):
 
     # Injected dependencies
     log:Logger
+    _idm:IdM.base.IdentityManager
 
-    def __init__(self, relative_to:T.Path, *, log:Logger, ldap:LDAP) -> None:
+    def __init__(self, relative_to:T.Path, *, log:Logger, idm:IdM.base.IdentityManager) -> None:
         self.log = log
+        self._idm = idm
 
         # The vault's location is the root of the homogroupic subtree
         # that contains relative_to; that's where we start and traverse up
@@ -345,8 +346,10 @@ class Vault(base.Vault):
     @cached_property
     def owners(self) -> T.Iterator[int]:
         """ Return an iterator of group owners' user IDs """
-        # TODO Waiting on LDAP interface...
-        yield from []
+        if group := self._idm.group(gid=self.group) is None:
+            raise IdM.exception.NoSuchIdentity(f"No group found with ID {self.group}")
+
+        return (user.uid for user in group.owners)
 
     def add(self, branch:Branch, path:T.Path) -> None:
         log = self.log
