@@ -1,6 +1,6 @@
 # TODO Pin versions
 nose2
-nose2-cov
+coverage
 codecov
 xenon
 pylint
