@@ -17,10 +17,11 @@ You should have received a copy of the GNU General Public License along
 with this program. If not, see https://www.gnu.org/licenses/
 """
 
+import os
 import unittest
 from tempfile import TemporaryDirectory
 
-from core import typing as T
+from core import typing as T, idm as IdM
 from core.utils import base64
 from models.vault import _VaultFileKey
 
@@ -56,29 +57,45 @@ class TestVaultFileKey(unittest.TestCase):
         self.assertEqual(VFK(0x12,  _DUMMY_FILE), VFK_k(T.Path(f"12-{_DUMMY_ENC}")))
         self.assertEqual(VFK(0x123, _DUMMY_FILE), VFK_k(T.Path(f"01/23-{_DUMMY_ENC}")))
 
-    # TODO Migrate to VaultFile testing
-    #def test_alternate(self):
-    #    key = VFK(0x1234, _DUMMY_FILE)
 
-    #    alternate = "some/other/path"
-    #    alt_key = VFK(0x1234, T.Path(alternate))
+# TODO Test VaultFile
 
-    #    with TemporaryDirectory() as tmp:
-    #        tmp = T.Path(tmp)
-    #        (tmp / "12").mkdir()
 
-    #        # No alternate exists
-    #        self.assertIsNone(key.alternate(tmp))
+class _DummyUser(IdM.base.User):
+    def __init__(self, uid):
+        self._id = uid
 
-    #        # Original key exists
-    #        original = f"12/34-{_DUMMY_ENC}"
-    #        (tmp / original).touch()
-    #        self.assertIsNone(key.alternate(tmp))
+class _DummyGroup(IdM.base.Group):
+    _owner:_DummyUser
+    _member:_DummyUser
 
-    #        # Create alternate
-    #        alt_enc = f"12/34-{base64.encode(alternate)}"
-    #        (tmp / original).rename(tmp / alt_enc)
-    #        self.assertEqual(key.alternate(tmp), alt_key)
+    def __init__(self, gid, owner, member=None):
+        self._id = gid
+        self._owner = owner
+        self._member = member or owner
+
+    @property
+    def owners(self):
+        yield self._owner
+
+    @property
+    def members(self):
+        yield self._member
+
+class _DummyIdM(IdM.base.IdentityManager):
+    _user:_DummyUser
+
+    def __init__(self, dummy_uid):
+        self._user = _DummyUser(dummy_uid)
+
+    def user(self, uid):
+        pass
+
+    def group(self, gid):
+        return _DummyGroup(gid, self._user)
+
+
+# TODO Test Vault
 
 
 if __name__ == "__main__":
