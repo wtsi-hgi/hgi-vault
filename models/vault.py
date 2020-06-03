@@ -22,6 +22,7 @@ from __future__ import annotations
 import os
 import os.path
 import stat
+from functools import cached_property
 
 from core import typing as T, file
 from core.ldap import LDAP
@@ -107,18 +108,18 @@ class _VaultFileKey(os.PathLike):
     def __fspath__(self) -> str:
         return str(self.path)
 
-    @property
+    @cached_property
     def path(self) -> T.Path:
         return T.Path(self._suffix) if self._prefix is None \
           else T.Path(self._prefix, self._suffix)
 
-    @property
+    @cached_property
     def source(self) -> T.Path:
         """ Return the source file path """
         _, encoded = self._suffix.split(self._delimiter)
         return T.Path(base64.decode(encoded).decode())
 
-    @property
+    @cached_property
     def search_criteria(self) -> _PrefixSuffixT:
         """ Return the prefix and suffix glob pattern """
         lsb, _ = self._suffix.split(self._delimiter)
@@ -302,10 +303,6 @@ class Vault(base.Vault):
     # Injected dependencies
     log:Logger
 
-    # Internal state
-    _gid:int
-    _owners:T.List[int]
-
     def __init__(self, relative_to:T.Path, *, log:Logger, ldap:LDAP) -> None:
         self.log = log
 
@@ -317,13 +314,6 @@ class Vault(base.Vault):
             root = root.parent
 
         self.root = root  # NOTE self.root can only be set once
-        self._gid = root.stat().st_gid
-
-        # NOTE As the frequency of LDAP record changes is dwarfed by
-        # that of vault construction, it makes sense to only lookup the
-        # owner list here, rather than carrying around the LDAP
-        # interface and doing expensive lookups on demand
-        self._owners = []  # TODO Waiting on LDAP interface...
 
         # TODO Vault logger should have an additional handler that
         # writes to self.location / .audit -- this can't be kept
@@ -347,15 +337,16 @@ class Vault(base.Vault):
                 except FileExistsError:
                     raise exception.VaultConflict(f"Cannot create a {branch} branch in the vault in {root}; user file already exists")
 
-    @property
+    @cached_property
     def group(self) -> int:
         """ Return the group ID of the vault location """
-        return self._gid
+        return self.root.stat().st_gid
 
-    @property
+    @cached_property
     def owners(self) -> T.Iterator[int]:
         """ Return an iterator of group owners' user IDs """
-        yield from self._owners
+        # TODO Waiting on LDAP interface...
+        yield from []
 
     def add(self, branch:Branch, path:T.Path) -> None:
         log = self.log
