@@ -18,18 +18,29 @@ with this program. If not, see https://www.gnu.org/licenses/
 """
 
 import unittest
+from dataclasses import dataclass
 
+from core import typing as T
 from core.utils import base64
 
 
+@dataclass
+class _DUMMY:
+    value:T.Stringable
+
+    def __str__(self) -> str:
+        return str(self.value)
+
 class TestBase64(unittest.TestCase):
     def test_encode(self):
-        self.assertEqual(base64.encode("foo"),  "Zm9v")
-        self.assertEqual(base64.encode(b"foo"), "Zm9v")
+        self.assertEqual(base64.encode("foo"),         "Zm9v")
+        self.assertEqual(base64.encode(b"foo"),        "Zm9v")
+        self.assertEqual(base64.encode(_DUMMY("foo")), "Zm9v")
 
     def test_decode(self):
         self.assertEqual(base64.decode("Zm9v"),  b"foo")
         self.assertEqual(base64.decode(b"Zm9v"), b"foo")
+        self.assertRaises(TypeError, base64.decode, 123)
 
 
 if __name__ == "__main__":
