@@ -24,8 +24,7 @@ import os.path
 import stat
 from functools import cached_property
 
-from core import typing as T, idm as IdM, file
-from core.logging import Logger
+from core import typing as T, file, idm as IdM, logging
 from core.utils import base64
 from core.vault import base, exception
 
@@ -293,18 +292,20 @@ class VaultFile(base.VaultFile):
 # Vault permissions: ug+rwx, g+s (i.e., 02770)
 _PERMS = stat.S_ISGID | stat.S_IRWXU | stat.S_IRWXG
 
-class Vault(base.Vault):
+class Vault(base.Vault, logging.base.LoggableMixin):
     """ HGI vault implementation """
     _branch_enum = Branch
     _file_type   = VaultFile
     _vault       = T.Path(".vault")
 
     # Injected dependencies
-    log:Logger
     _idm:IdM.base.IdentityManager
 
-    def __init__(self, relative_to:T.Path, *, log:Logger, idm:IdM.base.IdentityManager) -> None:
-        self.log = log
+    # Class-level logging configuration
+    _level     = logging.levels.default
+    _formatter = logging.formats.with_username
+
+    def __init__(self, relative_to:T.Path, *, idm:IdM.base.IdentityManager) -> None:
         self._idm = idm
 
         # The vault's location is the root of the homogroupic subtree
@@ -316,10 +317,10 @@ class Vault(base.Vault):
 
         self.root = root  # NOTE self.root can only be set once
 
-        # TODO Vault logger should have an additional handler that
-        # writes to self.location / .audit -- this can't be kept
-        # upstream, because it relies on knowing self.location...
-        log_file = self.location / ".audit"
+        # Logging configuration for the vault
+        self._logger = str(root)
+        self.log.to_tty()
+        self.log.to_file(self.location / ".audit")
 
         # Create vault, if it doesn't already exist
         if not self.location.is_dir():
