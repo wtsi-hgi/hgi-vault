@@ -26,9 +26,8 @@ from core.utils import base64
 from models.vault import _VaultFileKey
 
 
-_DUMMY = "foo/bar/quux"
-_DUMMY_FILE = T.Path(_DUMMY)
-_DUMMY_ENC = base64.encode(_DUMMY)
+_DUMMY = T.Path("foo/bar/quux")
+_B64_DUMMY = base64.encode(_DUMMY)
 
 # For convenience
 VFK = lambda inode, path: _VaultFileKey(inode=inode, path=path)
@@ -36,29 +35,26 @@ VFK_k = lambda path: _VaultFileKey(key_path=path)
 
 class TestVaultFileKey(unittest.TestCase):
     def test_constructor(self):
-        self.assertEqual(VFK(0x1,    _DUMMY_FILE).path, T.Path(f"01-{_DUMMY_ENC}"))
-        self.assertEqual(VFK(0x1,    _DUMMY_FILE).path, T.Path(f"01-{_DUMMY_ENC}"))
-        self.assertEqual(VFK(0x12,   _DUMMY_FILE).path, T.Path(f"12-{_DUMMY_ENC}"))
-        self.assertEqual(VFK(0x123,  _DUMMY_FILE).path, T.Path(f"01/23-{_DUMMY_ENC}"))
-        self.assertEqual(VFK(0x1234, _DUMMY_FILE).path, T.Path(f"12/34-{_DUMMY_ENC}"))
+        self.assertEqual(VFK(0x1,    _DUMMY).path, T.Path(f"01-{_B64_DUMMY}"))
+        self.assertEqual(VFK(0x1,    _DUMMY).path, T.Path(f"01-{_B64_DUMMY}"))
+        self.assertEqual(VFK(0x12,   _DUMMY).path, T.Path(f"12-{_B64_DUMMY}"))
+        self.assertEqual(VFK(0x123,  _DUMMY).path, T.Path(f"01/23-{_B64_DUMMY}"))
+        self.assertEqual(VFK(0x1234, _DUMMY).path, T.Path(f"12/34-{_B64_DUMMY}"))
 
         self.assertRaises(TypeError, _VaultFileKey)
         self.assertRaises(TypeError, _VaultFileKey, inode=123)
-        self.assertRaises(TypeError, _VaultFileKey, path=_DUMMY_FILE)
-        self.assertRaises(TypeError, _VaultFileKey, inode=123, key_path=_DUMMY_FILE)
-        self.assertRaises(TypeError, _VaultFileKey, path=_DUMMY_FILE, key_path=_DUMMY_FILE)
-        self.assertRaises(TypeError, _VaultFileKey, inode=123, path=_DUMMY_FILE, key_path=_DUMMY_FILE)
+        self.assertRaises(TypeError, _VaultFileKey, path=_DUMMY)
+        self.assertRaises(TypeError, _VaultFileKey, inode=123, key_path=_DUMMY)
+        self.assertRaises(TypeError, _VaultFileKey, path=_DUMMY, key_path=_DUMMY)
+        self.assertRaises(TypeError, _VaultFileKey, inode=123, path=_DUMMY, key_path=_DUMMY)
 
     def test_resolve(self):
-        self.assertEqual(VFK(0, _DUMMY_FILE).source, _DUMMY_FILE)
-        self.assertEqual(VFK_k(T.Path(f"01-{_DUMMY_ENC}")).source, _DUMMY_FILE)
+        self.assertEqual(VFK(0, _DUMMY).source, _DUMMY)
+        self.assertEqual(VFK_k(T.Path(f"01-{_B64_DUMMY}")).source, _DUMMY)
 
     def test_equality(self):
-        self.assertEqual(VFK(0x12,  _DUMMY_FILE), VFK_k(T.Path(f"12-{_DUMMY_ENC}")))
-        self.assertEqual(VFK(0x123, _DUMMY_FILE), VFK_k(T.Path(f"01/23-{_DUMMY_ENC}")))
-
-
-# TODO Test VaultFile
+        self.assertEqual(VFK(0x12,  _DUMMY), VFK_k(T.Path(f"12-{_B64_DUMMY}")))
+        self.assertEqual(VFK(0x123, _DUMMY), VFK_k(T.Path(f"01/23-{_B64_DUMMY}")))
 
 
 class _DummyUser(IdM.base.User):
@@ -95,7 +91,10 @@ class _DummyIdM(IdM.base.IdentityManager):
         return _DummyGroup(gid, self._user)
 
 
-# TODO Test Vault
+# TODO Test Vault and VaultFile
+# * Vault root setting
+# * Vault and branch creation
+# * Vault owners
 
 
 if __name__ == "__main__":
