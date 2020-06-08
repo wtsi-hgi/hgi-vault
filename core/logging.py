@@ -54,40 +54,35 @@ class _LoggableMixin:
         logger.setLevel(self._level.value)
         return logger
 
-    def _log(self, message:str, level:Level = Level.Info) -> None:
-        """ Log a message at an optional level """
-        self.logger.log(level.value, message)
-
     @property
     def log(self) -> object:
         """ End-user logging functions exposed as log.* """
         parent = self
 
         class _wrapper:
-            @staticmethod
-            def debug(message:str) -> None:
-                # Convenience alias
-                parent._log(message, Level.Debug)
+            def __call__(self, message:str, level:Level = Level.Info) -> None:
+                """ Log a message at an optional level """
+                parent.logger.log(level.value, message)
 
-            @staticmethod
-            def info(message:str) -> None:
+            def debug(self, message:str) -> None:
                 # Convenience alias
-                parent._log(message, Level.Info)
+                self(message, Level.Debug)
 
-            @staticmethod
-            def warning(message:str) -> None:
+            def info(self, message:str) -> None:
                 # Convenience alias
-                parent._log(message, Level.Warning)
+                self(message, Level.Info)
 
-            @staticmethod
-            def error(message:str) -> None:
+            def warning(self, message:str) -> None:
                 # Convenience alias
-                parent._log(message, Level.Error)
+                self(message, Level.Warning)
 
-            @staticmethod
-            def critical(message:str) -> None:
+            def error(self, message:str) -> None:
                 # Convenience alias
-                parent._log(message, Level.Critical)
+                self(message, Level.Error)
+
+            def critical(self, message:str) -> None:
+                # Convenience alias
+                self(message, Level.Critical)
 
             def add_handler(self, handler:logging.Handler, formatter:T.Optional[logging.Formatter] = None, level:T.Optional[Level] = None) -> None:
                 # TODO Don't add the same handler more than once

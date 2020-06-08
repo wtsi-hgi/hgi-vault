@@ -28,3 +28,6 @@ class Loggable(base.LoggableMixin):
 
 utils.to_tty(Loggable)
 utils.set_exception_handler(Loggable)
+
+# Convenience function for module/function-based logging
+log = Loggable().log
