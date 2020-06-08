@@ -51,7 +51,7 @@ coverage report --rcfile=.warmCoveragerc || die 1 "Warm Coverage is not satisfie
 # Controlled by conifuration file radon.cfg. The output can be parsed to do selective analysis on hot, warm and cold file paths. 
 
 radon cc -s --total-average  -j --json -O cyclomatic_analysis *
-
+python analyze_cc.py --f cyclomatic_analysis || die 1 "Cyclomatic complexity threshold exceeded"
 
 # Must conform to the PEP8 style: Pylint is a Python static code analysis tool which looks for programming errors, helps enforcing a coding standard, sniffs for code smells and offers simple refactoring suggestions.
 
