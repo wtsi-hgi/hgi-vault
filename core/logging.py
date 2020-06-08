@@ -37,6 +37,21 @@ class Level(Enum):
     Critical = logging.CRITICAL
 
 
+def _equal_stream_handlers(lhs:logging.StreamHandler, rhs:logging.StreamHandler) -> bool:
+    """
+    Check two stream handlers (n.b., file handlers are stream handlers)
+    are equal, by virtue of having the same stream name, level and
+    formatter. (This approach is easier than subclassing StreamHandler
+    then monkey patching FileHandler, but leaves a lot to be desired!)
+
+    @param   lhs  Stream handler
+    @param   rhs  Stream handler
+    @return  Equality
+    """
+    return lhs.stream.name == rhs.stream.name \
+       and lhs.level == rhs.level \
+       and lhs.formatter == rhs.formatter
+
 class _LoggableMixin:
     """ Base mixin class for logging interface """
     # NOTE The following can be either class or instance variables
@@ -50,6 +65,8 @@ class _LoggableMixin:
 
     @property
     def logger(self) -> logging.Logger:
+        # NOTE setLevel is called explicitly on each invocation to avoid
+        # having downstream classes call it in their constructors
         logger = logging.getLogger(self._logger)
         logger.setLevel(self._level.value)
         return logger
@@ -84,19 +101,26 @@ class _LoggableMixin:
                 # Convenience alias
                 self(message, Level.Critical)
 
-            def add_handler(self, handler:logging.Handler, formatter:T.Optional[logging.Formatter] = None, level:T.Optional[Level] = None) -> None:
-                # TODO Don't add the same handler more than once
+            @property
+            def _streams(self) -> T.Iterator[logging.StreamHandler]:
+                """ Iterator of StreamHandlers on the logger """
+                yield from filter(lambda h: isinstance(h, logging.StreamHandler), parent.logger.handlers)
+
+            def _to_stream(self, handler:logging.StreamHandler, formatter:T.Optional[logging.Formatter] = None, level:T.Optional[Level] = None) -> None:
+                """ Add a new stream handler to the logger """
                 handler.setFormatter(formatter or parent._formatter)
                 handler.setLevel((level or parent._level).value)
-                parent.logger.addHandler(handler)
+
+                if not any(_equal_stream_handlers(handler, stream) for stream in self._streams):
+                    parent.logger.addHandler(handler)
 
             def to_tty(self, formatter:T.Optional[logging.Formatter] = None, level:T.Optional[Level] = None) -> None:
                 # Convenience alias
-                self.add_handler(logging.StreamHandler(), formatter, level)
+                self._to_stream(logging.StreamHandler(), formatter, level)
 
             def to_file(self, filename:T.Path, formatter:T.Optional[logging.Formatter] = None, level:T.Optional[Level] = None) -> None:
                 # Convenience alias
-                self.add_handler(logging.FileHandler(filename), formatter, level)
+                self._to_stream(logging.FileHandler(filename), formatter, level)
 
         return _wrapper()
 
