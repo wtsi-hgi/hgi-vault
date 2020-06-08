@@ -87,7 +87,7 @@ class _VaultFileKey(os.PathLike):
             dirname = T.Path(*chunks[:-1])
 
         # inode ID LSB, delimiter, and the base64 encoding of the path
-        basename = chunks[-1] + self._delimiter + base64.encode(str(path))
+        basename = chunks[-1] + self._delimiter + base64.encode(path)
 
         return dirname, basename
 

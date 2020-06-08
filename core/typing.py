@@ -17,6 +17,8 @@ You should have received a copy of the GNU General Public License along
 with this program. If not, see https://www.gnu.org/licenses/
 """
 
+from abc import abstractmethod
+
 # Make Python's type definitions available
 from numbers import *
 from pathlib import *
@@ -25,3 +27,12 @@ from typing import *
 
 from .time import datetime as DateTime, \
                   timedelta as TimeDelta
+
+
+@runtime_checkable
+class Stringable(Protocol):
+    """ Protocol type that supports the __str__ method """
+
+    @abstractmethod
+    def __str__(self) -> str:
+        """ Return the string representation of an object """
