@@ -35,9 +35,9 @@ coverage run -m nose2 --fail-fast  --coverage-report=term-missing \
 #
 #   Anything not satisfying the above should exit non-zero
 
-coverage report --rcfile=.hotCoveragerc  || die 1 "Hot Coverage is not satisfied"
-coverage report --rcfile=.warmCoveragerc || die 1 "Warm Coverage is not satisfied"
-# coverage report --rcfile=.coldCoveragerc || die 1 "Cold Coverage is not satisfied"
+coverage report --rcfile=.ci/.hotCoveragerc  || die 1 "Hot Coverage is not satisfied"
+coverage report --rcfile=.ci/.warmCoveragerc || die 1 "Warm Coverage is not satisfied"
+coverage report --rcfile=.ci/.coldCoveragerc || die 1 "Cold Coverage is not satisfied"
 
 
 
@@ -50,13 +50,13 @@ coverage report --rcfile=.warmCoveragerc || die 1 "Warm Coverage is not satisfie
 
 # Controlled by conifuration file radon.cfg. The output can be parsed to do selective analysis on hot, warm and cold file paths. 
 
-radon cc -s --total-average  -j --json -O cyclomatic_analysis *
-python analyze_cc.py --f cyclomatic_analysis || die 1 "Cyclomatic complexity threshold exceeded"
+radon cc -s --total-average  -j --json -O .ci/cyclomatic_analysis *
+python .ci/analyze_cc.py --f .ci/cyclomatic_analysis || die 1 "Cyclomatic complexity threshold exceeded"
 
 # Must conform to the PEP8 style: Pylint is a Python static code analysis tool which looks for programming errors, helps enforcing a coding standard, sniffs for code smells and offers simple refactoring suggestions.
 
 # Controlled by conifuration file .pylintrc
-pylint --rcfile=.pylintrc *
+pylint --rcfile= .ci/.pylintrc *
 
 
 # Mypy: The system's code must be fully type annotated and satisfy static analysis.
