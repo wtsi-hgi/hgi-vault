@@ -33,7 +33,7 @@ criteria for the system will be:
 * The test suite **must** achieve:
   * 100% coverage for hot code;
   * At least 90% coverage for warm code;
-  * And average no less than 80% coverage, elsewhere.
+  * And be no less than 80% coverage, elsewhere.
 
 * The system's code **must** be fully type annotated and satisfy static
   analysis.
@@ -148,13 +148,12 @@ process:
 
 ### Test Driven Development
 
-Test cases for any new functionality must be written upfront, where
-functionality and interfaces will be [defined later](#detail). Tests
-must cover the Cartesian product of all options and, where external
-state is required, this must be specified upfront (again, [defined
-later](#detail)) and cover all expected (per design) eventualities. The
-test suite may be amended and altered afterwards to conform to
-unexpected implementation details required for certification.
+Test cases for any new functionality must be written upfront. Tests must
+cover the Cartesian product of all options and, where external state is
+required, this must be specified upfront and cover all expected (per
+design) eventualities. The test suite may be amended and altered
+afterwards to conform to unexpected implementation details required for
+certification.
 
 The Cartesian product of options has the potential of making the test
 space very large. To therefore avoid intractability, options ought to be
@@ -224,13 +223,16 @@ can_deletes = [ch12.can_delete, fm12.can_delete, pa11.can_delete]
 
 if not all(can_delete(file) for can_delete in can_deletes):
   # Fail immediately
+  raise Exception("Consensus not reached!")
 
 # Deletion code
+file.unlink()
 ```
 
 Note that, in this case, it isn't the deletion code itself that is "hot"
--- as this will almost certainly be a single standard library call --
-but rather the code that facilitates or guards against it.
+-- as this will almost certainly be a single standard library call and
+necessarily mutates state -- but rather the code that facilitates or
+guards against it.
 
 Any `can_delete` implementation might refer to a library function named
 `is_in_vault`, which would therefore be mentioned in the respective
@@ -241,16 +243,20 @@ do, may be suspect).
 
 ### Overview
 
-The system will be comprised of two components, which may share common
+The system will be comprised of three components, which may share common
 code:
 
 1. A user-facing CLI.
-2. A batch process that actions requests, run periodically.
+2. A batch process that actions requests, run periodically. Some actions
+   may need to be deferred, for efficiency's sake, which will be
+   published to a message queue.
+3. A consumer of that message queue to action deferred events. (Note
+   that this maybe implemented as a mode of the batch process.)
 
 The purpose of the system is to mark files to be kept or archived,
 action that respectively, and to delete files that have passed a
 threshold age. Files will be marked by virtue of being hardlinked into
-special "vault" directories, thus utilising the filesystem an in-band
+special "vault" directories, thus utilising the filesystem as an in-band
 record of state.
 
 #### The Vault
@@ -324,11 +330,106 @@ If the file to be kept is `/projects/my_project/foo/bar.xyzzy`, then the
 vault will be located in `/projects/my_project/.vault` and the hardlink
 will be `/projects/my_project/.vault/keep/30/3d-Zm9vL2Jhci54eXp6eQ==`.
 
-#### CLI
+#### Configuration
 
-The CLI will have the following interface:
+All components will share common configuration, read from file, in the
+following precedence (highest first):
 
-    hgi-vault ACTION [OPTIONS]
+1. The file at the path in the environment variable `VAULTRC`;
+2. `~/.vaultrc` (i.e., in the running user's home directory);
+3. `/etc/vaultrc`
+
+If no configuration is found, or is incomplete, then the process with
+fail immediately.
+
+The configuration will be [YAML](https://yaml.org)-based, with the
+following schema:
+
+```yaml
+# Identity Management
+# - ldap       Host (host) and port (port) of the LDAP server
+# - users      Base DN (dn) and search attribute (attr) for users
+# - groups     Base DN (dn) and search attribute (attr) for groups
+
+# NOTE Group LDAP records are assumed to have owner and member
+# attributes, containing the DNs of users.
+
+identity:
+  ldap:
+    host: ldap.example.com
+    port: 389
+
+  users:
+    dn: ou=users,dc=example,dc=com
+    attr: uid
+
+  groups:
+    dn: ou=groups,dc=example,dc=com
+    attr: cn
+
+# E-Mail Configuration
+# - smtp       Host (host) and port (port) of the SMTP server
+# - sender     E-mail address of the sender
+
+email:
+  smtp:
+    host: mail.example.com
+    port: 25
+
+  sender: vault@example.com
+
+# Deletion Control
+# - threshold  Age (in days) at which a file can be deleted
+# - warnings   List of warning times (in hours before the deletion age)
+#              at which a file's owner and group owner should be
+#              notified
+
+# NOTE These timings are relative to the fidelity in which the batch
+# process is run. For example, if it's only run once per week and a
+# warning time of one hour is specified, it's very likely that this
+# warning will never be triggered.
+
+deletion:
+  threshold: 90
+  warnings:
+  - 700  # 10 days' notice
+  - 72   # 3 days' notice
+  - 24   # 24 hours' notice
+
+# Archival/Downstream Control
+# - amqp       Host (host) and port (port) of the AMQP server
+# - exchange   Exchange to which to publish archival events
+# - threshold  Minimum number of events to accumulate before
+#              draining the queue
+
+# NOTE The consumer of the message queue is intended to perform the
+# archival, and a consumer is provided for this end, however it is not
+# limited to this purpose.
+
+archive:
+  amqp:
+    host: amqp.example.com
+    port: 5672
+
+  exchange: vault
+  threshold: 1000
+```
+
+Note that this schema is subject to change, during design and
+implementation.
+
+##### File Age
+
+The age of a file is defined to be the duration from the file's `mtime`
+to present. We use modification time, rather than change time, as it's a
+better indicator of usage. (Unfortunately, access time is not reliably
+available to us on all filesystems.)
+
+#### The User-Facing CLI
+
+The user-facing CLI will have the following interface:
+
+    vault ACTION [OPTIONS]
 
 Where the CLI's first argument is an action of either `keep`, `archive`
 or `remove`. The usual `--help` option will be available, both to the
@@ -337,8 +438,8 @@ instructions.
 
 ##### The `keep` and `archive` Actions
 
-    hgi-vault keep --view|FILE...
-    hgi-vault archive --view|FILE...
+    vault keep --view|FILE...
+    vault archive --view|FILE...
 
 The `keep` and `archive` actions take two forms, which perform the same
 function on the respective branch of the appropriate vaults:
@@ -396,7 +497,7 @@ regular file provided as an argument:
 
 ##### The `remove` Action
 
-    hgi-vault remove FILE...
+    vault remove FILE...
 
 The `remove` action will remove the given files from either branch of
 the vault respective to said file ([see earlier](#vault-location)).
@@ -458,61 +559,20 @@ these logs will be appended to a `.audit` file that exists in the root
 of the respective vault. The persisted log messages will be amended with
 the username of whoever invoked the action.
 
-#### Batch Process
+#### The Batch Process and Message Queue Consumer
 
-The batch process is intended to be run periodically (e.g., from a
-`cron` job) and will have the following interface:
+The batch process and message queue consumer are intended to be run
+periodically (e.g., from a `cron` job) and will have the following
+interface:
 
-    vault-sweep [--dry-run] VAULTED_DIR...
+    sandman sweep [--dry-run] VAULTED_DIR...
+    sandman drain
 
 Where at least one `VAULTED_DIR`, representing paths to directories
 (either relative or absolute) that contain a `.vault` directory, is
-supplied. An optional `--dry-run` argument may also be provided, which
-will cause the batch process to log what it would do, without affecting
-the filesystem.
-
-**TODO** What the sweep should do and in what order.
-
-##### Configuration
-
-The batch process will read its configuration from file, following the
-following precedence (highest first):
-
-1. The file at the path in the environment variable `VAULTRC`;
-2. `~/.vaultrc` (i.e., in the running user's home directory);
-3. `/etc/vaultrc`
-
-If no configuration is found, or is incomplete, then the process with
-fail immediately.
-
-The configuration will be [YAML](https://yaml.org)-based, with the
-following schema:
-
-```yaml
-threshold:
-  age: <Age, in days, at which to delete>
-  grace: <Days warning to give each file's owner and group owner>
-
-ldap:
-  host: <LDAP Server>
-  port: <LDAP Port>
-  # TODO How to specify LDAP base DN/search string for users and groups
-
-email:
-  sender: <E-mail address of sender>
-  smtp:
-    host: <SMTP host>
-    port: <SMTP port>
-
-# TODO How to specify archiver/archive queue...
-```
-
-##### File Age
-
-The age of a file is defined to be the duration from the file's `mtime`
-to present. We use modification time, rather than change time, as it's a
-better indicator of usage. (Access time is not reliably available to us
-on all filesystems.)
+supplied. An optional `--dry-run` argument may also be provided to the
+sweeper, which will cause the batch process to log what it would do,
+without affecting the filesystem; the drainer has no dry-run option.
 
 ##### Auditing and Logging
 
@@ -521,7 +581,6 @@ logs will be appended to a `.audit` file that exists in the root of the
 respective vault. The persisted log messages will be amended with the
 username of whoever invoked the batch process.
 
-### Detail
+**TODO** What the sweeper and drainer should do and in what order.
 
-**TODO** Detailed design should be worked on after the above has been
-polished and finalised.
+**TODO** Why the sweeper and drainer are separated.
