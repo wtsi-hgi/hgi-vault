@@ -125,6 +125,22 @@ Notes:
 
 ## Specification
 
+The system will be comprised of three components, which may share common
+code:
+
+1. A user-facing CLI.
+2. A batch process that actions requests, run periodically. Some actions
+   may need to be deferred, for efficiency's sake, which will be
+   published to a message queue.
+3. A consumer of that message queue to action deferred events. (Note
+   that this maybe implemented as a mode of the batch process.)
+
+The purpose of the system is to mark files to be kept or archived,
+action that respectively, and to delete files that have passed a
+threshold age. Files will be marked by virtue of being hardlinked into
+special "vault" directories, thus utilising the filesystem as an in-band
+record of state.
+
 ### Change Process
 
 Changes to the specification must be formally reviewed via the following
@@ -241,25 +257,7 @@ same reference in multiple implementations can serve as a sanity check
 (e.g., an implementation that doesn't use this function, where others
 do, may be suspect).
 
-### Overview
-
-The system will be comprised of three components, which may share common
-code:
-
-1. A user-facing CLI.
-2. A batch process that actions requests, run periodically. Some actions
-   may need to be deferred, for efficiency's sake, which will be
-   published to a message queue.
-3. A consumer of that message queue to action deferred events. (Note
-   that this maybe implemented as a mode of the batch process.)
-
-The purpose of the system is to mark files to be kept or archived,
-action that respectively, and to delete files that have passed a
-threshold age. Files will be marked by virtue of being hardlinked into
-special "vault" directories, thus utilising the filesystem as an in-band
-record of state.
-
-#### The Vault
+### The Vault
 
 * The vault directory will be a single directory named `.vault` in the
   root of a group's directory ([defined later](#vault-location)).
@@ -312,7 +310,7 @@ system, such as Lustre, this means the vault must reside on the same MDS
 as the files that are to be marked. Enforcement of this constraint is
 outside the scope of this project.
 
-##### Vault Location
+#### Vault Location
 
 The location of the vault will be as a child of the highest directory up
 the tree, from a reference point (e.g., the current working directory or
@@ -330,7 +328,7 @@ If the file to be kept is `/projects/my_project/foo/bar.xyzzy`, then the
 vault will be located in `/projects/my_project/.vault` and the hardlink
 will be `/projects/my_project/.vault/keep/30/3d-Zm9vL2Jhci54eXp6eQ==`.
 
-#### Configuration
+### Configuration
 
 All components will share common configuration, read from file, in the
 following precedence (highest first):
@@ -422,14 +420,14 @@ archive:
 Note that this schema is subject to change, during design and
 implementation.
 
-##### File Age
+#### File Age
 
 The age of a file is defined to be the duration from the file's `mtime`
 to present. We use modification time, rather than change time, as it's a
 better indicator of usage. (Unfortunately, access time is not reliably
 available to us on all filesystems.)
 
-#### The User-Facing CLI
+### The User-Facing CLI
 
 The user-facing CLI will have the following interface:
 
@@ -440,7 +438,7 @@ or `remove`. The usual `--help` option will be available, both to the
 base command and all the actions, which will show the respective usage
 instructions.
 
-##### The `keep` and `archive` Actions
+#### The `keep` and `archive` Actions
 
     vault keep --view|FILE...
     vault archive --view|FILE...
@@ -499,7 +497,7 @@ regular file provided as an argument:
 
   * Log to the user that said file has been actioned.
 
-##### The `remove` Action
+#### The `remove` Action
 
     vault remove FILE...
 
@@ -528,7 +526,7 @@ For each file:
     not a group owner:
     * Log a permission denied error.
 
-##### Permissions
+#### Permissions
 
 All files within HGI managed project and team directories _should_ have
 identical user and group POSIX permissions. This component will need to
@@ -556,14 +554,14 @@ appropriately:
 kernel parameter `fs.protected_hardlinks = 1`. We fallback to the lowest
 common denominator for simplicity's sake.)
 
-##### Auditing and Logging
+#### Auditing and Logging
 
 All above actions will be logged to the user, as described. In addition,
 these logs will be appended to a `.audit` file that exists in the root
 of the respective vault. The persisted log messages will be amended with
 the username of whoever invoked the action.
 
-#### The Batch Process and Message Queue Consumer
+### The Batch Process and Message Queue Consumer
 
 The batch process and message queue consumer are intended to be run
 periodically (e.g., from a `cron` job) and will have the following
@@ -580,7 +578,7 @@ the filesystem. The drainer has no dry-run option and only an optional
 `--force` option, which will drain the message queue regardless of
 reaching its configured threshold.
 
-##### Auditing and Logging
+#### Auditing and Logging
 
 The sweep will be logged to the user, as described. In addition, these
 logs will be appended to a `.audit` file that exists in the root of the
