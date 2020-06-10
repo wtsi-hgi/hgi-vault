@@ -33,6 +33,7 @@ class Branch(base.Branch):
     """ HGI vault branches """
     Keep    = T.Path("keep")
     Archive = T.Path("archive")
+    Staged  = T.Path("staged")
 
 
 _PrefixSuffixT = T.Tuple[T.Optional[T.Path], str]
@@ -164,18 +165,25 @@ class VaultFile(base.VaultFile):
                 if check != branch:
                     # Branch differs from expectation
                     log.info(f"{path} was found in the {check} branch, rather than {branch}")
-                    self._branch = check
+                    self.branch = check
 
                 if alternate_key.source != path:
                     # Path differs from expectation
                     # (i.e., source was moved or renamed)
                     log.info(f"{path} was found in the vault as {alternate_key.source}")
 
-        # If a key already exists in the vault, then it must have at
-        # least two hardlinks. If it has one, then the source file has
-        # been removed...which is bad :P
-        if self.exists and file.hardlinks(self.path) == 1:
-            raise exception.VaultCorruption(f"The vault in {vault.root} contains {self.source}, but this no longer exists outside the vault")
+        # If a key already exists in the vault, then it must have:
+        # * At least two hardlinks, when in the Keep or Archive branch
+        # * Exactly one hardlink, when in the Staged branch
+        if self.exists:
+            staged = self.branch == Branch.Staged
+            single_hardlink = file.hardlinks(self.path) == 1
+
+            if not staged and single_hardlink:
+                raise exception.VaultCorruption(f"The vault in {vault.root} contains {self.source}, but this no longer exists outside the vault")
+
+            if staged and not single_hardlink:
+                raise exception.VaultCorruption(f"{self.source} is staged in the vault in {vault.root}, but also exists outside the vault")
 
     def _relative_path(self, path:T.Path) -> T.Path:
         """

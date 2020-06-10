@@ -262,8 +262,9 @@ do, may be suspect).
 * The vault directory will be a single directory named `.vault` in the
   root of a group's directory ([defined later](#vault-location)).
 
-* The vault directory will contain two subdirectories ("branches"):
-  `keep` and `archive`.
+* The vault directory will contain three subdirectories ("branches"):
+  `keep`, `archive` and `staged`. (Note that the `staged` branch is for
+  internal use.)
 
 * Within these respective directories, hardlinks of marked files will
   exist in a structured way. Specifically:
@@ -294,16 +295,16 @@ This structure is justified by:
 
 2. Splitting the inode ID into 8-bit words means, at each level, there
    will never be more that 512 entries (256 hardlinks and 256
-   directories).
+   directories) in any directory.
 
 3. Encoding the original filename into the link provides information to
-   the sweep when archiving data. Clearly the directory structure and
-   naming of files could change in the meantime, but corrective
-   procedures can be applied ad hoc if such an inconsistency is found.
+   the batch processes. Clearly the directory structure and naming of
+   files could change in the meantime, but corrective procedures can be
+   applied ad hoc if such an inconsistency is found.
 
 4. The obfuscation of hardlinks in the vault will raise the bar to end
-   users who might be curious. It won't stop them, but it may be enough
-   to deter most attempts at tampering.
+   users who might be "curious". It won't stop them, but it may be
+   enough to deter most attempts at tampering.
 
 Note that hardlinks cannot span physical devices. On a distributed
 system, such as Lustre, this means the vault must reside on the same MDS
@@ -578,13 +579,22 @@ the filesystem. The drainer has no dry-run option and only an optional
 `--force` option, which will drain the message queue regardless of
 reaching its configured threshold.
 
+Note that, both the sweeper and drainer are designed to be run as
+periodic batch processes. However, because the drainer is designed to
+facilitate the archival -- or some other long-running process -- it is
+explicitly separated out to achieve this, without impinging upon the
+sweeper. For example, the sweeper may run once per day, whereas a big
+archive job could take multiple days to complete; in this case, the
+sweeper can still run and add archive events to the drainer's backlog,
+as necessary.
+
+#### The Sweeper
+
+#### The Drainer
+
 #### Auditing and Logging
 
 The sweep will be logged to the user, as described. In addition, these
 logs will be appended to a `.audit` file that exists in the root of the
 respective vault. The persisted log messages will be amended with the
 username of whoever invoked the batch process.
-
-**TODO** What the sweeper and drainer should do and in what order.
-
-**TODO** Why the sweeper and drainer are separated.
