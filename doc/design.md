@@ -347,9 +347,9 @@ following schema:
 
 ```yaml
 # Identity Management
-# - ldap       Host (host) and port (port) of the LDAP server
-# - users      Base DN (dn) and search attribute (attr) for users
-# - groups     Base DN (dn) and search attribute (attr) for groups
+# - ldap        Host (host) and port (port) of the LDAP server
+# - users       Base DN (dn) and search attribute (attr) for users
+# - groups      Base DN (dn) and search attribute (attr) for groups
 
 # NOTE Group LDAP records are assumed to have owner and member
 # attributes, containing the DNs of users.
@@ -368,8 +368,8 @@ identity:
     attr: cn
 
 # E-Mail Configuration
-# - smtp       Host (host) and port (port) of the SMTP server
-# - sender     E-mail address of the sender
+# - smtp        Host (host) and port (port) of the SMTP server
+# - sender      E-mail address of the sender
 
 email:
   smtp:
@@ -379,10 +379,10 @@ email:
   sender: vault@example.com
 
 # Deletion Control
-# - threshold  Age (in days) at which a file can be deleted
-# - warnings   List of warning times (in hours before the deletion age)
-#              at which a file's owner and group owner should be
-#              notified
+# - threshold   Age (in days) at which a file can be deleted
+# - warnings    List of warning times (in hours before the deletion age)
+#               at which a file's owner and group owner should be
+#               notified
 
 # NOTE These timings are relative to the fidelity in which the batch
 # process is run. For example, if it's only run once per week and a
@@ -397,10 +397,13 @@ deletion:
   - 24   # 24 hours' notice
 
 # Archival/Downstream Control
-# - amqp       Host (host) and port (port) of the AMQP server
-# - exchange   Exchange to which to publish archival events
-# - threshold  Minimum number of events to accumulate before
-#              draining the queue
+# - amqp        AMQP server configuration
+#   - host      Hostname
+#   - port      Port
+#   - exchange  Exchange to which to publish archival events
+# - threshold   Minimum number of events to accumulate before
+#               draining the queue
+# - handler     Path to archiver binary
 
 # NOTE The consumer of the message queue is intended to perform the
 # archival, and a consumer is provided for this end, however it is not
@@ -410,9 +413,10 @@ archive:
   amqp:
     host: amqp.example.com
     port: 5672
+    exchange: vault
 
-  exchange: vault
   threshold: 1000
+  handler: /path/to/binary
 ```
 
 Note that this schema is subject to change, during design and
@@ -566,13 +570,15 @@ periodically (e.g., from a `cron` job) and will have the following
 interface:
 
     sandman sweep [--dry-run] VAULTED_DIR...
-    sandman drain
+    sandman drain [--force]
 
-Where at least one `VAULTED_DIR`, representing paths to directories
-(either relative or absolute) that contain a `.vault` directory, is
-supplied. An optional `--dry-run` argument may also be provided to the
-sweeper, which will cause the batch process to log what it would do,
-without affecting the filesystem; the drainer has no dry-run option.
+The sweeper must be called with at least one `VAULTED_DIR`, representing
+paths to directories (either relative or absolute) that contain a
+`.vault` directory. An optional `--dry-run` argument may also be
+provided, which will cause it to log what it would do, without affecting
+the filesystem. The drainer has no dry-run option and only an optional
+`--force` option, which will drain the message queue regardless of
+reaching its configured threshold.
 
 ##### Auditing and Logging
 
