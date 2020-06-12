@@ -65,6 +65,7 @@ archive:
   amqp:
     host: amqp.example.com
     port: 5672
+    vhost: /
     exchange: vault
 
   threshold: 1000
