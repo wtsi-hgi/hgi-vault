@@ -790,7 +790,58 @@ The drainer only exposes one, optional argument of `--force`, which will
 drain the message queue regardless of it reaching its configured
 threshold.
 
-**TODO** Drainer process...
+The drainer will do the following:
+
+* Check the downstream handler is ready ([defined
+  later](#downstream-handler)).
+  * If not, log appropriately and exit.
+
+* Check the size of the archival queue exceeds the threshold, or
+  `--force` is specified.
+  * If not, log appropraitely and exit.
+
+* Pull the entire contents of the archival queue, where each message
+  represents a vault file staged for archival, and stream these,
+  `\0`-delimited, into the standard input of the downstream handler.
+
+##### Downstream Handler
+
+The downstream handler will be an executable that provides the following
+interface:
+
+    /path/to/binary [ready]
+
+If the `ready` argument is provided, the handler will exit with a zero
+exit code if it is ready to consume the message queue, otherwise it will
+exit with 1.
+
+If no arguments are provided, then the handler will read `\0`-delimited
+filenames from standard input. These will be the files to archive and
+delete.
+
+For example, something like the following Bash script might suffice as a
+simple handler:
+
+```bash
+#!/usr/bin/env bash
+
+exec 123>".lock"
+
+if [[ "$1" == "ready" ]]; then
+  flock -nx 123
+  exit $?
+fi
+
+flock -x 123
+xargs -0 tar czf "/archive/$(date +%F).tar.gz" --remove-files
+```
+
+Note that the stream of filenames provided from the message queue will
+be the vault files, with their obfuscated names. It is up to the
+downstream handler to decode these, if necessary.
+
+Note that, if required, it is the downstream handler's responsibility to
+delete staged files from vaults, once they are archived.
 
 ##### AMQP Architecture
 
