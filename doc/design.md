@@ -596,6 +596,113 @@ sweeper to log what it would do, without affecting the filesystem.
 
 **TODO** Sweeper process...
 
+##### Regarding E-Mails
+
+The sweeper must not send an e-mail for each file that meets the
+criteria for e-mailing. Instead, it should build up the contents of the
+e-mail for each user and send them once it's completed its sweep, such
+that each relevant user gets exactly one e-mail each.
+
+The format of the e-mail should not be an intractable list of files for
+the user to wade through. Rather it should be summarised into a
+convenient form, with full listings provided as attachments. The
+template for e-mails should be:
+
+```jinja2
+Dear {{ user.name }}
+
+The following vaults contain data that are scheduled for deletion. Full
+listings can be found in the attachments. You MUST act now to avoid
+these files from being deleted!
+
+{% for warning in deletion.warnings | reverse %}
+Files from the following vaults will be IRRECOVERABLY DELETED within
+{{ warning }} hours:
+
+{% for vault in vaults | to_delete(warning) %}
+* {{ vault.root }}: {{ vault.files | count }} files
+{% else %}
+* None
+{% endfor %}
+{% endfor %}
+
+Space has been recovered from the following vaults:
+
+{% for vault in vaults | deleted %}
+* {{ vault.root }}: {{ vault.files | size | sum }} MiB
+{% else %}
+* None
+{% endfor %}
+
+The following vaults contain data that is staged for archival:
+
+{% for vault in vaults | staged %}
+* {{ vault.root }}: {{ vault.files | count }} files
+{% else %}
+* None
+{% endfor %}
+
+These will be acted upon shortly.
+```
+
+Each e-mail will have the following attachments, if they are non-empty:
+
+* `delete-WARNING.fofn.gz`, where `WARNING` is the hours' warning
+  checkpoint, containing the list of files due for deletion within that
+  time (e.g., `delete-24.fofn.gz` for files to be deleted within 24
+  hours, etc.). There should be as many of these files as there are
+  configured deletion warning checkpoints.
+
+  Note that, necessarily, the later checkpoint files will be supersets
+  of the earlier ones (e.g., everything due to be deleted within 24
+  hours is also due to be deleted within 72 hours).
+
+* `deleted.fofn.gz` containing the list of files that were deleted in
+  this sweep.
+
+* `staged.fofn.gz` containing the list of files that have been staged
+  for archival in this sweep.
+
+Note that the templating tags should be considered pseudocode, to
+describe the intent, rather than the expected underlying structure. An
+example e-mail may look like:
+
+> Dear Vault User
+>
+> The following vaults contain data that are scheduled for deletion. Full
+> listings can be found in the attachments. You MUST act now to avoid
+> these files from being deleted!
+>
+> Files from the following vaults will be IRRECOVERABLY DELETED within
+> 24 hours:
+>
+> * /path/to/my/project: 10 files
+> * /path/to/another/project: 50 files
+>
+> Files from the following vaults will be IRRECOVERABLY DELETED within
+> 72 hours:
+>
+> * /path/to/my/project: 85 files
+> * /path/to/another/project: 52 files
+> * /path/to/yet/another/project: 4 files
+>
+> Files from the following vaults will be IRRECOVERABLY DELETED within
+> 700 hours:
+>
+> * /path/to/my/project: 1252 files
+> * /path/to/another/project: 55 files
+> * /path/to/yet/another/project: 10203 files
+>
+> Space has been recovered from the following vaults:
+>
+> * /path/to/really-big-project: 10000 MiB
+>
+> The following vaults contain data that is staged for archival:
+>
+> * None
+>
+> These will be acted upon shortly.
+
 #### The Drainer
 
 The drainer will have the following interface:
