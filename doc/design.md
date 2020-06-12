@@ -115,7 +115,7 @@ Notes:
 * Any of the Added, Removed, Changed or Fixed lists can be omitted in a
   commit message, if they are empty.
 
-* Ideally, each lists should contain only one or two items, with no more
+* Ideally, each list should contain only one or two items, with no more
   than five items across all lists; any more implies the commit it too
   large and should be done more frequently.
 
@@ -609,6 +609,8 @@ following, in the given order:
 
 * Walk the contents of `DIR`, either directly via the filesystem
   interface, or using the `stat` listings given by `FILE`, if provided.
+  Files in the walk that are physically located within the vault must be
+  skipped.
 
 Note that, for efficiency's sake, the walking of every provided `DIR` is
 preferred, rather than walking each `DIR` separately.
@@ -635,9 +637,8 @@ Then, for each regular file in the walk:
       * Move the vaulted file, recreating its associated hierarchy as
         needed, into the "staged" branch.&ast;
       * Post an archival event (i.e., using the appropriate routing key
-        ([defined later](#amqp-architecture))) to the message queue
-        exchange, consisting of the absolute path of the staged
-        file.&ast;
+        ([defined later](#amqp-architecture))) to the message queue,
+        consisting of the absolute path of the staged file.&ast;
       * Log that the file has been staged for archival.
       * Amend the list of files staged for archival for the file and
         vault owner.
@@ -841,8 +842,12 @@ be the vault files, with their obfuscated names. It is up to the
 downstream handler to decode these, if necessary.
 
 Note that, if required, it is the downstream handler's responsibility to
-delete staged files from vaults, once they are archived.
+delete staged files from vaults, once they are archived. Failing to
+delete staged files will cause the vault to increase in size in
+perpetuity.
 
 ##### AMQP Architecture
 
-**TODO** Message queue design
+The message queue must be a service that supports AMQP. It should have
+one exchange that accepts the routing key of `archive`, which routes to
+a single queue named `staged`.
