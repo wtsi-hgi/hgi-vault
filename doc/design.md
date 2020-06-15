@@ -391,7 +391,7 @@ email:
 deletion:
   threshold: 90
   warnings:
-  - 700  # 10 days' notice
+  - 240  # 10 days' notice
   - 72   # 3 days' notice
   - 24   # 24 hours' notice
 
@@ -402,7 +402,7 @@ deletion:
 #   - exchange  Exchange to which to publish archival events
 # - threshold   Minimum number of events to accumulate before
 #               draining the queue
-# - handler     Path to archiver binary
+# - handler     Path to archiver/downstream handler executable
 
 # NOTE The consumer of the message queue is intended to perform the
 # archival, and a consumer is provided for this end, however it is not
@@ -416,7 +416,7 @@ archive:
     exchange: vault
 
   threshold: 1000
-  handler: /path/to/binary
+  handler: /path/to/executable
 ```
 
 Note that this schema is subject to change, during design and
@@ -649,8 +649,9 @@ Then, for each regular file in the walk:
     deletion threshold (in days):
 
     * If it has exceeded the threshold:
+      * Log that the deletion is about to happen.
       * Delete the file.&ast;
-      * Log the deletion.
+      * Log that the deletion has completed.
       * Amend the list of deleted files for the file and vault owner.
 
     * If it has yet to exceed the threshold, check the file's age
@@ -667,6 +668,20 @@ Finally:
 * Collate the lists of files scheduled for deletion, files deleted and
   files staged for archive for all users to log a final summary.
 
+For clarity's sake, to facilitate the e-mailing and summary, the sweeper
+will need to maintain the equivalent of the following distinct lists for
+each user and group owner that's relevant:
+
+* *N* lists of files that have passed the appropriate deletion warning
+  checkpoint (where *N* is the number of configured checkpoints in
+  `deletion.warnings`);
+* A list of files that were actually deleted;
+* A list of files that have been staged for archival.
+
+Ideally, these lists should be persisted to disk, rather than kept in
+memory, so that in the event of failure, actions that were performed
+before the failure can still be reported on.
+
 ##### Regarding E-Mails
 
 The sweeper must not send an e-mail for each file that meets the
@@ -682,39 +697,54 @@ template for e-mails should be:
 ```jinja2
 Dear {{ user.name }}
 
-The following vaults contain data that are scheduled for deletion. Full
-listings can be found in the attachments. You MUST act now to avoid
-these files from being deleted!
+The following directories contain data that are scheduled for deletion.
+Full listings can be found in the attachments. You MUST act now to
+prevent these files from being deleted!
 
 {% for warning in deletion.warnings | reverse %}
-Files from the following vaults will be IRRECOVERABLY DELETED within
-{{ warning }} hours:
+Your files will be IRRECOVERABLY DELETED from the following directories
+within {{ warning }} hours:
 
-{% for vault in vaults | to_delete_within(warning) %}
-* {{ vault.root }}: {{ vault.files | count }} files
+{% for file in to_delete if file.age >= warning %}
+* {{ file | group_by(file.group) | common_prefix }}: {{ file | group_by(file.group) | count }} files
 {% else %}
 * None
 {% endfor %}
 {% endfor %}
 
-Space has been recovered from the following vaults:
+Space has been recovered from the following directories:
 
-{% for vault in vaults | deleted %}
-* {{ vault.root }}: {{ vault.files | size | sum }} MiB
+{% for file in deleted %}
+* {{ file | group_by(file.group) | common_prefix }}: {{ file | group_by(file.group) | size | sum }} MiB
 {% else %}
 * None
 {% endfor %}
 
-The following vaults contain data that is staged for archival:
+The following vaults contain your data that is staged for archival:
 
-{% for vault in vaults | staged %}
-* {{ vault.root }}: {{ vault.files | count }} files
+{% for vault in staged %}
+* {{ vault.root }}: {{ vault.files | branch("staged") | count }} files
 {% else %}
 * None
 {% endfor %}
 
 These will be acted upon shortly.
 ```
+
+Note that the above templating tags should be considered pseudocode, to
+describe the intent, rather than the expected underlying structure.
+Where directories are mentioned -- for the deletion warnings and actual
+deletions -- these should be aggregated by Unix group and then
+summarised to their common directory prefix. For example:
+
+    /path/to/foo/file1  user1:group1
+    /path/to/foo/file2  user1:group1
+    /path/to/bar/file3  user1:group2
+
+...would be aggregated and summarised as:
+
+    /path/to/foo: 2 files
+    /path/to/bar: 1 file
 
 Each e-mail will have the following attachments, if they are non-empty:
 
@@ -734,45 +764,48 @@ Each e-mail will have the following attachments, if they are non-empty:
 * `staged.fofn.gz` containing the list of files that have been staged
   for archival in this sweep.
 
-Note that the above templating tags should be considered pseudocode, to
-describe the intent, rather than the expected underlying structure. An
-example e-mail may look like:
+An example e-mail may look like:
 
 > Dear Vault User
 >
-> The following vaults contain data that are scheduled for deletion. Full
-> listings can be found in the attachments. You MUST act now to avoid
-> these files from being deleted!
+> The following directories contain data that are scheduled for
+> deletion. Full listings can be found in the attachments. You MUST act
+> now to prevent these files from being deleted!
 >
-> Files from the following vaults will be IRRECOVERABLY DELETED within
-> 24 hours:
+> Your files will be IRRECOVERABLY DELETED from the following
+> directories within 24 hours:
 >
 > * /path/to/my/project: 10 files
 > * /path/to/another/project: 50 files
 >
-> Files from the following vaults will be IRRECOVERABLY DELETED within
-> 72 hours:
+> Your files will be IRRECOVERABLY DELETED from the following
+> directories within 72 hours:
 >
 > * /path/to/my/project: 85 files
 > * /path/to/another/project: 52 files
 > * /path/to/yet/another/project: 4 files
 >
-> Files from the following vaults will be IRRECOVERABLY DELETED within
-> 700 hours:
+> Your files will be IRRECOVERABLY DELETED from the following
+> directories within 240 hours:
 >
 > * /path/to/my/project: 1252 files
 > * /path/to/another/project: 55 files
 > * /path/to/yet/another/project: 10203 files
 >
-> Space has been recovered from the following vaults:
+> Space has been recovered from the following directories:
 >
 > * /path/to/really/big/project: 12345 MiB
 >
-> The following vaults contain data that is staged for archival:
+> The following vaults contain your data that is staged for archival:
 >
 > * None
 >
 > These will be acted upon shortly.
+>
+> ---
+>
+> Attachments: `delete-24.fofn.gz` `delete-72.fofn.gz`
+> `delete-240.fofn.gz` `deleted.fofn.gz`
 
 ##### Auditing and Logging
 
@@ -799,7 +832,7 @@ The drainer will do the following:
 
 * Check the size of the archival queue exceeds the threshold, or
   `--force` is specified.
-  * If not, log appropraitely and exit.
+  * If not, log appropriately and exit.
 
 * Pull the entire contents of the archival queue, where each message
   represents a vault file staged for archival, and stream these,
@@ -810,7 +843,7 @@ The drainer will do the following:
 The downstream handler will be an executable that provides the following
 interface:
 
-    /path/to/binary [ready]
+    /path/to/executable [ready]
 
 If the `ready` argument is provided, the handler will exit with a zero
 exit code if it is ready to consume the message queue, otherwise it will
@@ -826,16 +859,24 @@ simple handler:
 ```bash
 #!/usr/bin/env bash
 
-exec 123>".lock"
+exec 123>.lock
+flock -nx 123
+locked=$?
 
-if [[ "$1" == "ready" ]]; then
-  flock -nx 123
-  exit $?
-fi
+case $1 in
+  ready)  exit ${locked};;
+  *)      (( locked )) && exit 1;;
+esac
 
-flock -x 123
 xargs -0 tar czf "/archive/$(date +%F).tar.gz" --remove-files
 ```
+
+This toy handler uses `flock` to provide filesystem-based locking, to
+facilitate the `ready` interface (described above), otherwise it slurps
+in standard input (the incoming list of filenames) and sends it to `tar`
+to create an archive file. Clearly this is not production ready (e.g.,
+it is not defensive against failure), but illustrates how a downstream
+handler should operate.
 
 Note that the stream of filenames provided from the message queue will
 be the vault files, with their obfuscated names. It is up to the

@@ -1,11 +1,12 @@
 #!/usr/bin/env bash
 
-exec 123>".lock"
+exec 123>.lock
+flock -nx 123
+locked=$?
 
-if [[ "$1" == "ready" ]]; then
-  flock -nx 123
-  exit $?
-fi
+case $1 in
+  ready)  exit ${locked};;
+  *)      (( locked )) && exit 1;;
+esac
 
-flock -x 123
 xargs -0 tar czf "/archive/$(date +%F).tar.gz" --remove-files

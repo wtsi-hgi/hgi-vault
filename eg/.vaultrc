@@ -55,7 +55,7 @@ deletion:
 #   - exchange  Exchange to which to publish archival events
 # - threshold   Minimum number of events to accumulate before
 #               draining the queue
-# - handler     Path to archiver binary
+# - handler     Path to archiver/downstream handler executable
 
 # NOTE The consumer of the message queue is intended to perform the
 # archival, and a consumer is provided for this end, however it is not
@@ -69,4 +69,4 @@ archive:
     exchange: vault
 
   threshold: 1000
-  handler: /path/to/binary
+  handler: /path/to/executable
