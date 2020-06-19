@@ -269,7 +269,7 @@ do, may be suspect).
 * Within these respective directories, hardlinks of marked files will
   exist in a structured way. Specifically:
 
-  * The big-endian hexidecimal representation of their inode ID will be
+  * The big-endian hexadecimal representation of their inode ID will be
     broken out into 8-bit words (padded, if necessary). All but the
     least significant word will be used to make a heirarchy of
     directories, if they don't already exist. (If the inode ID is less
@@ -489,7 +489,7 @@ regular file provided as an argument:
 * If it doesn't exist in the vault:
   * Hardlink the file into the appropriate branch:
     * Create the hierarchy needed to address the inode ID; specifically
-      its big-endian hexidecimal representation, zero-padded to a
+      its big-endian hexadecimal representation, zero-padded to a
       multiple of 8 and broken into 8-bit words, taking all but the
       least signficiant word to enumerate the tree.
     * Hardlink the file into the leaf of this tree, with its name given

@@ -74,7 +74,7 @@ class _VaultFileKey(os.PathLike):
 
     def _construct(self, inode:int, path:T.Path) -> _PrefixSuffixT:
         """ Construct the vault file key from an inode ID and path """
-        # The byte-padded hexidecimal representation of the inode ID
+        # The byte-padded hexadecimal representation of the inode ID
         if len(inode_hex := f"{inode:x}") % 2:
             inode_hex = f"0{inode_hex}"
 
