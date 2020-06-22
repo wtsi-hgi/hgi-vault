@@ -655,9 +655,10 @@ Then, for each regular file in the walk:
       * Amend the list of deleted files for the file and vault owner.
 
     * If it has yet to exceed the threshold, check the file's age
-      against each of the configured warning checkpoints (in hours). For
-      each checkpoint that is passed, amend the appropriate checkpoint
-      list of files scheduled for deletion for the file and vault owner.
+      against each of the configured warning checkpoints (in hours until
+      deletion). For each checkpoint that is passed, amend the
+      appropriate checkpoint list of files scheduled for deletion for
+      the file and vault owner.
 
 Finally:
 
@@ -678,9 +679,27 @@ each user and group owner that's relevant:
 * A list of files that were actually deleted;
 * A list of files that have been staged for archival.
 
-Ideally, these lists should be persisted to disk, rather than kept in
-memory, so that in the event of failure, actions that were performed
-before the failure can still be reported on.
+These lists will need to be persisted to disk, rather than kept in
+memory, such that:
+
+* When files have exceeded a warning checkpoint, they will only be
+  included in that e-mail once (e.g., if the sweeper runs daily and
+  there are checkpoints at 72 and 24 hours, this will ensure the 72 hour
+  warning won't also be sent during the 48 and 24 hour sweeps).
+* In the event of failure, actions that were performed before the
+  failure can still be reported on retrospectively.
+
+Note that the intended deletion time will also need to be stored, in
+case the `mtime` of a file changes. That is, if this happens, then it's
+possible that a previous warning will become re-eligible. For example:
+
+* A file's age exceeds the 72 hour warning checkpoint and an e-mail is
+  sent.
+* The user updates the file, which changes its `mtime`, no longer making
+  it eligible for automatic deletion.
+* Eventually, the 72 hour warning relative to the new `mtime` is again
+  exceeded; another e-mail is expected, despite a 72 hour warning being
+  previously sent.
 
 ##### Regarding E-Mails
 
