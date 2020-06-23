@@ -484,7 +484,9 @@ regular file provided as an argument:
       * Move the hardlink to the opposite branch, maintaining the
         necessary structure.
       * Log to the user that the file's status has changed,
-        respectively.
+        respectively. If the hardlink is moved to the archive branch,
+        log that staging will happen later and will require the file to
+        be unlocked for writing.
 
 * If it doesn't exist in the vault:
   * Hardlink the file into the appropriate branch:
@@ -497,7 +499,9 @@ regular file provided as an argument:
       base64 encoding of the file's path relative to the vault location,
       concatenated with a `-`.
 
-  * Log to the user that said file has been actioned.
+  * Log to the user that said file has been actioned. If the file was
+    added to the archive branch, log that staging will happen later and
+    will require the file to be unlocked for writing.
 
 #### The `remove` Action
 
@@ -632,6 +636,10 @@ Then, for each regular file in the walk:
         drainer.
 
     * The "archive" branch:
+      * Try to acquire a write lock on the file.
+        * If this fails, then the file is currently being written to and
+          should not yet be archived. Skip the rest of this process and
+          move on to the next file, logging appropriately.
       * Delete the source file (i.e., that which exists outside the
         vault).&ast;
       * Move the vaulted file, recreating its associated hierarchy as
@@ -649,6 +657,11 @@ Then, for each regular file in the walk:
     deletion threshold (in days):
 
     * If it has exceeded the threshold:
+      * Try to acquire a write lock on the file.
+        * If this fails, then the file is currently being written to and
+          should not yet be deleted (presumably the `mtime` has yet to
+          be updated). Skip the rest of this process and move on to the
+          next file, logging appropriately.
       * Log that the deletion is about to happen.
       * Delete the file.&ast;
       * Log that the deletion has completed.
