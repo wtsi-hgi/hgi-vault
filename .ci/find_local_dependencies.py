@@ -58,26 +58,62 @@ def _find_dependency_uses(syntax_tree, import_list):
     in the import list."""
 
     # keywords to scan the tree for
-    modules = {}
+    modules = []
     properties = {} # TODO: name this something more useful probably
 
     for imp in import_list:
         if type(imp) == ast.Import:
             for name in imp.names:
                 if name.asname is None:
-                    modules[name.name] = imp
+                    modules.append(name.name)
                 else:
-                    modules[name.asname] = imp
+                    modules.append(name.asname)
+
         if type(imp) == ast.ImportFrom:
             for name in imp.names:
                 _module = imp.module
+                # 'from . import x' makes imp.module become None
                 if imp.module is None:
                     _module = '.'
-                if imp.module not in properties.keys():
-                    properties[imp.module] = []
-                properties[_module].append(name.name)
-    # TODO
 
+                # If imported under a new name, the new name will be used to
+                # scan the syntax tree but we want the (module, class/method)
+                # tuple to contain the original module name
+                if name.asname is None:
+                    properties[name.name] = _module
+                else:
+                    properties[name.asname] = (_module, name.name)
+
+    # list of (module, class/method) tuples, for testing purposes
+    print("Modules: {}\nProperties: {}".format(modules, properties))
+    # TODO: remove/don't add duplicate tuples
+    use_list = []
+    for node in ast.walk(syntax_tree):
+        if type(node) == ast.Call:
+            # Call without a namespace, like 'something()'
+            if hasattr(node.func, 'id'):
+                # name of the function, ie something() -> 'something'
+                _func = node.func.id
+
+                if _func in properties.keys():
+                    if type(properties[_func]) == tuple:
+                        use_list.append(properties[_func])
+                    else:
+                        use_list.append((properties[_func], _func))
+
+            # Call with a namespace, like 'xyz.something()'
+            elif hasattr(node.func, 'value'):
+                # name of the module, ie xyz.something() -> 'xyz'
+                _mod = node.func.value.id
+                # name of the function, ie xyz.something() -> 'something'
+                _func = node.func.attr
+
+                if _mod in modules:
+                    use_list.append((_mod, _func))
+
+        # TODO: classes, annotated assignments, assignments,
+        # function decorators, abc.xyz.[...].efg() etc form
+    return use_list
 
 def get_local_dependencies(module_path):
     """Return a list of the local dependencies of a module."""
@@ -97,20 +133,14 @@ def get_local_dependencies(module_path):
             import_list.append(node)
 
     local_imports = _remove_non_local_dependencies(str(local_root), import_list)
+    use_list = _find_dependency_uses(tree, local_imports)
 
-    return local_imports
+    return use_list
 
 if __name__ == "__main__":
     path = Path(sys.argv[1])
     module_path = str(path.resolve())
     dependency_list = get_local_dependencies(module_path)
 
-    for dep in dependency_list:
-        if type(dep) == ast.Import:
-            for name in dep.names:
-                print('{}'.format(name.name))
-
-        elif type(dep) == ast.ImportFrom:
-            if dep.module is None:
-                print('.')
-            print('{}'.format(dep.module))
+    for i in dependency_list:
+        print(i)
