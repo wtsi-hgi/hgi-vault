@@ -19,6 +19,21 @@ identity:
     dn: ou=groups,dc=example,dc=com
     attr: cn
 
+# Sandman Persistence
+# - postgres    Host (host) and port (port) of PostgreSQL server
+# - database    Database name
+# - user        Username
+# - password    Password
+
+persistence:
+  postgres:
+    host: postgres.example.com
+    port: 5432
+
+  database: sandman
+  user: a_db_user
+  password: abc123
+
 # E-Mail Configuration
 # - smtp        Host (host) and port (port) of the SMTP server
 # - sender      E-mail address of the sender
@@ -44,29 +59,18 @@ email:
 deletion:
   threshold: 90
   warnings:
-  - 700  # 10 days' notice
+  - 240  # 10 days' notice
   - 72   # 3 days' notice
   - 24   # 24 hours' notice
 
 # Archival/Downstream Control
-# - amqp        AMQP server configuration
-#   - host      Hostname
-#   - port      Port
-#   - exchange  Exchange to which to publish archival events
-# - threshold   Minimum number of events to accumulate before
+# - threshold   Minimum number of staged files to accumulate before
 #               draining the queue
 # - handler     Path to archiver/downstream handler executable
 
-# NOTE The consumer of the message queue is intended to perform the
-# archival, and a consumer is provided for this end, however it is not
-# limited to this purpose.
+# NOTE The consumer of the queue is intended to perform the archival,
+# however it is not # limited to this purpose.
 
 archive:
-  amqp:
-    host: amqp.example.com
-    port: 5672
-    vhost: /
-    exchange: vault
-
   threshold: 1000
   handler: /path/to/executable

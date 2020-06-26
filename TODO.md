@@ -14,18 +14,16 @@ uninterrupted. Actual times will be added when available.
   * [x] Vault abstractions
   * [x] IdM abstractions
   * [ ] Configuration abstractions and interface      <ETA: 2 days>
-  * [ ] E-mailing abstractions                        <ETA: 3 days>
-  * [ ] Persistence and templating abstractions       <ETA: 2 days>
-  * [ ] AMQP abstractions                             <ETA: 3 days>
+  * [ ] Persistence abstractions and interface        <ETA: 2 day>
+  * [ ] E-mailing and templating abstractions         <ETA: 3 days>
   * [ ] *Others?*
 * [ ] API
   * [x] Logging
   * [x] Vault
   * [ ] IdM (LDAP)                                    <ETA: 3 days>
   * [ ] Configuration parsing (YAML)                  <ETA: 2 days>
-  * [ ] Persistence and templating                    <ETA: 2 days>
-  * [ ] E-Mail                                        <ETA: 3 days>
-  * [ ] AMQP                                          <ETA: 4 days>
+  * [ ] Schema design and persistence engine          <ETA: 5 days>
+  * [ ] E-Mail and templating                         <ETA: 3 days>
   * [ ] *Others?*
 * [ ] Hot code
   * [ ] *Unknown*                                     <ETA: 1 day per function>
@@ -45,7 +43,7 @@ uninterrupted. Actual times will be added when available.
   * [ ] Integration testing
     * [ ] LDAP                                        <ETA: 2 days>
     * [ ] E-mail                                      <ETA: 2 days>
-    * [ ] AMQP                                        <ETA: 2 days>
+    * [ ] PostgreSQL                                  <ETA: 2 days>
   * [ ] User acceptance testing                       <ETA: *Unknown*>
 * [ ] Documentation
   * [ ] Core and API                                  <ETA: 1 day per module pair>
