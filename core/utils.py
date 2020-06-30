@@ -20,7 +20,7 @@ with this program. If not, see https://www.gnu.org/licenses/
 from base64 import b64encode, b64decode
 from functools import singledispatch
 
-from core import typing as T
+from . import typing as T
 
 
 @singledispatch

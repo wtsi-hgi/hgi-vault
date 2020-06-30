@@ -20,7 +20,7 @@ with this program. If not, see https://www.gnu.org/licenses/
 from abc import ABCMeta, abstractmethod
 from dataclasses import dataclass
 
-from core import typing as T
+from . import typing as T
 
 
 class exception(T.SimpleNamespace):
