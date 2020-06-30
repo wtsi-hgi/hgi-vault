@@ -13,8 +13,8 @@ uninterrupted. Actual times will be added when available.
     * [ ] *Others?*
   * [x] Vault abstractions
   * [x] IdM abstractions
-  * [ ] Configuration abstractions and interface      <ETA: 2 days>
-  * [ ] Persistence abstractions and interface        <ETA: 2 day>
+  * [x] Configuration abstractions and interface      <ETA: 2 days; Actual: 1 day>
+  * [ ] Persistence abstractions and interface        <ETA: 2 days>
   * [ ] E-mailing and templating abstractions         <ETA: 3 days>
   * [ ] *Others?*
 * [ ] API
@@ -30,8 +30,9 @@ uninterrupted. Actual times will be added when available.
 * [ ] Executables and setup
   * [ ] `vault`                                       <ETA: 2 days>
   * [ ] `sandman`
-    * [ ] Sweeper                                     <ETA: 3 days>
-    * [ ] Drainer                                     <ETA: 2 days>
+    * [ ] Plumbing                                    <ETA: 2 days>
+    * [ ] Sweep phase                                 <ETA: 3 days>
+    * [ ] Drain phase                                 <ETA: 2 days>
   * [ ] `setup.py`                                    <ETA: 1 day>
 * [ ] Tests
   * [ ] Automated testing and certification           <ETA: *Unknown*>
