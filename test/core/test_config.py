@@ -46,8 +46,10 @@ class TestBaseConfig(unittest.TestCase):
             mock_valid.return_value = False
             self.assertRaises(exception.InvalidConfiguration, DummyConfig, 0)
 
+        self.assertRaises(exception.InvalidConfiguration, DummyConfig, None)
+
     def test_tree(self) -> None:
-        cfg = DummyConfig(contents={
+        cfg = DummyConfig({
             "foo": 123,
             "bar": [1, 2, 3],
             "quux": {

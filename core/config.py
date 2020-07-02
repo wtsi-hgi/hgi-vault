@@ -20,6 +20,7 @@ with this program. If not, see https://www.gnu.org/licenses/
 from __future__ import annotations
 
 from abc import ABCMeta, abstractmethod
+from functools import singledispatchmethod
 
 from . import typing as T
 
@@ -34,23 +35,28 @@ class exception(T.SimpleNamespace):
 
 
 ValueT = T.Any
-NodeT = T.Dict[str, ValueT]
+NodeT = T.Mapping[str, ValueT]
 
 class _BaseConfig(metaclass=ABCMeta):
     """ Abstract base class for tree-like configuration container """
     _contents:NodeT
 
-    def __init__(self, source:T.Any = None, *, contents:T.Optional[NodeT] = None) -> None:
-        """ Build the configuration node from source or explicit contents """
-        assert (source is None) ^ (contents is None)
+    @singledispatchmethod
+    def __init__(self, source:T.Any) -> None:
+        """ Build the configuration node from source """
+        self._contents = self.build(source)
+        if not self.is_valid:
+            raise exception.InvalidConfiguration("Configuration did not validate")
 
-        if source is not None:
-            self._contents = self.build(source)
-            if not self.is_valid:
-                raise exception.InvalidConfiguration(f"Configuration is invalid")
+    @__init__.register(dict)
+    def _(self, source:NodeT) -> None:
+        """ Build the configuration node from explicit contents """
+        self._contents = source
 
-        if contents is not None:
-            self._contents = contents
+    @__init__.register
+    def _(self, source:None) -> None:
+        """ Forbid null-configuration """
+        raise exception.InvalidConfiguration("Cannot build configuration from nothing")
 
     def __getattr__(self, item:str) -> T.Union[_BaseConfig, ValueT]:
         try:
@@ -58,15 +64,10 @@ class _BaseConfig(metaclass=ABCMeta):
         except KeyError:
             raise exception.NoSuchSetting(f"No such setting \"{item}\"")
 
-        if isinstance(contents, dict):
-            # Return value container
-            container = self.__class__(contents=contents)
-            return container
-
-        # Return value
-        return contents
+        return type(self)(contents) if isinstance(contents, dict) else contents
 
     def __dir__(self) -> T.List[str]:
+        # Convenience method for REPL use
         return list(self._contents.keys())
 
     @staticmethod
