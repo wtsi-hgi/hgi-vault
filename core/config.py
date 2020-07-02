@@ -19,6 +19,7 @@ with this program. If not, see https://www.gnu.org/licenses/
 
 from __future__ import annotations
 
+import os
 from abc import ABCMeta, abstractmethod
 from functools import singledispatchmethod
 
@@ -32,6 +33,29 @@ class exception(T.SimpleNamespace):
 
     class InvalidConfiguration(Exception):
         """ Raised when configuration validation fails """
+
+    class ConfigurationNotFound(Exception):
+        """ Raised when the configuration file cannot be found """
+
+
+def _path(env:str, *paths:T.Path) -> T.Path:
+    """
+    Return the file path of the configuration file from a number of
+    options in the given precedence
+
+    @param   env     The environment variable to read
+    @param   *paths  Any number of paths
+    @return  The existing configuration file path
+    """
+    # Prepend the value from the environment variable, if it exists
+    if (from_environment := os.getenv(env)) is not None:
+        paths = (from_environment,) + paths
+
+    for from_file in paths:
+        if (cfg := T.Path(from_file).expanduser()).is_file():
+            return cfg.resolve()
+
+    raise exception.ConfigurationNotFound("No configuration found")
 
 
 ValueT = T.Any
@@ -89,3 +113,8 @@ class _BaseConfig(metaclass=ABCMeta):
 class base(T.SimpleNamespace):
     """ Namespace of base classes to make importing easier """
     Config = _BaseConfig
+
+
+class utils(T.SimpleNamespace):
+    """ Namespace of utilities to make importing easier """
+    path = _path

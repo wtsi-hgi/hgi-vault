@@ -17,11 +17,13 @@ You should have received a copy of the GNU General Public License along
 with this program. If not, see https://www.gnu.org/licenses/
 """
 
+import os
 import unittest
 from unittest.mock import PropertyMock, patch
+from tempfile import TemporaryDirectory
 
 from core import typing as T
-from core.config import base, exception
+from core.config import base, exception, utils
 
 
 class DummyConfig(base.Config):
@@ -32,6 +34,31 @@ class DummyConfig(base.Config):
     @property
     def is_valid(self):
         return True
+
+
+class TestUtils(unittest.TestCase):
+    _tmp:TemporaryDirectory
+    _cfg:T.Path
+
+    def setUp(self):
+        self._tmp = tmp = TemporaryDirectory()
+
+        self._cfg = cfg = (T.Path(tmp.name) / "config").resolve()
+        cfg.touch()
+        os.environ["TEST_CONFIG"] = str(cfg)
+
+    def tearDown(self):
+        del os.environ["TEST_CONFIG"]
+        self._tmp.cleanup()
+
+    def test_path(self):
+        cfg = self._cfg
+
+        self.assertEqual(utils.path("TEST_CONFIG"), cfg)
+        self.assertRaises(exception.ConfigurationNotFound, utils.path, "NO_SUCH_ENVVAR")
+        self.assertEqual(utils.path("NO_SUCH_ENVVAR", str(cfg)), cfg)
+        self.assertRaises(exception.ConfigurationNotFound, utils.path, "NO_SUCH_ENVVAR", "no/such/path")
+        self.assertEqual(utils.path("NO_SUCH_ENVVAR", "no/such/path", str(cfg)), cfg)
 
 
 class TestBaseConfig(unittest.TestCase):
