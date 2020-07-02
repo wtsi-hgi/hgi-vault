@@ -44,6 +44,8 @@ def _remove_non_local_dependencies(local_root, import_list):
             # Only interested in the module being imported from
             spec = find_spec(module.module)
             if spec is None:
+                # TODO: This seems to break when the import is of the format
+                # 'from package import script'
                 print("Couldn't find anything for import {}"
                     .format(module.module), file=sys.stderr)
                 continue
@@ -59,7 +61,7 @@ def _find_dependency_uses(syntax_tree, import_list):
 
     # keywords to scan the tree for
     modules = []
-    properties = {} # TODO: name this something more useful probably
+    properties = {}
 
     for imp in import_list:
         if type(imp) == ast.Import:
@@ -89,27 +91,81 @@ def _find_dependency_uses(syntax_tree, import_list):
     # TODO: remove/don't add duplicate tuples
     use_list = []
     for node in ast.walk(syntax_tree):
-        if type(node) == ast.Call:
-            # Call without a namespace, like 'something()'
-            if hasattr(node.func, 'id'):
-                # name of the function, ie something() -> 'something'
-                _func = node.func.id
+        # Documentation for the various nodes can be found here:
+        # https://greentreesnakes.readthedocs.io/en/latest/nodes.html
+        if type(node) == ast.Name:
+            if node.id in properties.keys():
+                if type(properties[node.id]) == tuple:
+                    # the key is the 'import as' name, which isn't relevant
+                    use_list.append(properties[node.id])
+                else:
+                    # the key is the standard module name
+                    use_list.append((properties[node.id], node.id))
 
-                if _func in properties.keys():
-                    if type(properties[_func]) == tuple:
-                        use_list.append(properties[_func])
+        elif type(node) == ast.Attribute:
+            # Attributes can be chained (like 'abc.xyz.something()') so we
+            # have to compare both 'abc' and 'abc.xyz' to the imports list
+            _namespace = []
+            _attribute = node.attr
+
+            _node = node.value
+            while type(_node) in [ast.Attribute, ast.Call]:
+                if type(_node) == ast.Attribute:
+                    _namespace = [_node.attr] + _namespace
+                    _node = _node.value
+                elif type(_node) == ast.Call:
+                    _namespace = [_node.func.attr + '()'] + _namespace
+                    _node = _node.func.value
+
+            try:
+                _namespace = [_node.id] + _namespace
+            except AttributeError:
+                print(list(ast.iter_child_nodes(_node)))
+                print("attribute node ended up as a call: {}.{}"
+                    .format(_node.func.value.id, _node.func.attr))
+
+            for i in reversed(range(len(_namespace))):
+                to_try = '.'.join(_namespace[:i+1])
+
+                remaining_namespace = '.'.join(_namespace[i+1:])
+                if len(remaining_namespace) > 0:
+                    full_attribute = '.'.join(_namespace[i+1:]) + '.' + _attribute
+                else:
+                    full_attribute = _attribute
+
+                if to_try in modules:
+                    use_list.append((to_try, full_attribute))
+                    break
+                elif to_try in properties.keys():
+                    if type(properties[to_try]) == tuple:
+                        use_list.append(properties[to_try])
                     else:
-                        use_list.append((properties[_func], _func))
+                        use_list.append((properties[to_try]),
+                            "{}.{}".format(to_try, full_attribute))
+                    break
 
-            # Call with a namespace, like 'xyz.something()'
-            elif hasattr(node.func, 'value'):
-                # name of the module, ie xyz.something() -> 'xyz'
-                _mod = node.func.value.id
-                # name of the function, ie xyz.something() -> 'something'
-                _func = node.func.attr
-
-                if _mod in modules:
-                    use_list.append((_mod, _func))
+        
+        # if type(node) == ast.Call:
+        #     # Call without a namespace, like 'something()'
+        #     if hasattr(node.func, 'id'):
+        #         # name of the function, ie something() -> 'something'
+        #         _func = node.func.id
+        #
+        #         if _func in properties.keys():
+        #             if type(properties[_func]) == tuple:
+        #                 use_list.append(properties[_func])
+        #             else:
+        #                 use_list.append((properties[_func], _func))
+        #
+        #     # Call with a namespace, like 'xyz.something()'
+        #     elif hasattr(node.func, 'value'):
+        #         # name of the module, ie xyz.something() -> 'xyz'
+        #         _mod = node.func.value.id
+        #         # name of the function, ie xyz.something() -> 'something'
+        #         _func = node.func.attr
+        #
+        #         if _mod in modules:
+        #             use_list.append((_mod, _func))
 
         # TODO: classes, annotated assignments, assignments,
         # function decorators, abc.xyz.[...].efg() etc form
