@@ -26,36 +26,36 @@ class DummyConfig(config.base.Config):
         return {
             "identity": {
                 "ldap": {
-                    "host": "ldap.example.com",
-                    "port": 389},
+                    "host":   "ldap.example.com",
+                    "port":   389},
                 "users": {
-                    "attr": "uid",
-                    "dn":   "ou=users,dc=example,dc=com"},
+                    "attr":   "uid",
+                    "dn":     "ou=users,dc=example,dc=com"},
                 "groups": {
-                    "attr": "cn",
-                    "dn":   "ou=groups,dc=example,dc=com"}},
+                    "attr":   "cn",
+                    "dn":     "ou=groups,dc=example,dc=com"}},
 
             "persistence": {
                 "postgres": {
-                    "host": "postgres.example.com",
-                    "port": 5432},
-                "database": "sandman",
-                "user":     "a_db_user",
-                "password": "abc123"},
+                    "host":   "postgres.example.com",
+                    "port":   5432},
+                "database":   "sandman",
+                "user":       "a_db_user",
+                "password":   "abc123"},
 
             "email": {
                 "smtp": {
-                    "host": "mail.example.com",
-                    "port": 25},
-                "sender": "vault@example.com"},
+                    "host":   "mail.example.com",
+                    "port":   25},
+                "sender":     "vault@example.com"},
 
             "deletion": {
-                "threshold": 90,
-                "warnings": [240, 72, 24]},
+                "threshold":  90,
+                "warnings":   [240, 72, 24]},
 
             "archive": {
-                "threshold": 1000,
-                "handler": "/path/to/executable"}}
+                "threshold":  1000,
+                "handler":    "/path/to/executable"}}
 
     @property
     def is_valid(self):

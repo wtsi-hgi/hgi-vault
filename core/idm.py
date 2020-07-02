@@ -40,6 +40,16 @@ class _User(_Identity, metaclass=ABCMeta):
     def uid(self) -> int:
         return self._id
 
+    @property
+    @abstractmethod
+    def name(self) -> str:
+        """ Return the user's real name """
+
+    @property
+    @abstractmethod
+    def email(self) -> T.Optional[str]:
+        """ Return the user's e-mail address """
+
 class _Group(_Identity, metaclass=ABCMeta):
     """ Abstract base class for group identities """
     @property
