@@ -20,10 +20,6 @@ with this program. If not, see https://www.gnu.org/licenses/
 from core import config
 
 
-# Configuration path
-path = config.utils.path("VAULTRC", "~/.vaultrc", "/etc/vaultrc")
-
-
 class DummyConfig(config.base.Config):
     @staticmethod
     def build(source):
