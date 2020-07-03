@@ -1,0 +1,95 @@
+"""
+Copyright (c) 2020 Genome Research Limited
+
+Author: Christopher Harrison <ch12@sanger.ac.uk>
+
+This program is free software: you can redistribute it and/or modify it
+under the terms of the GNU General Public License as published by the
+Free Software Foundation, either version 3 of the License, or (at your
+option) any later version.
+
+This program is distributed in the hope that it will be useful, but
+WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General
+Public License for more details.
+
+You should have received a copy of the GNU General Public License along
+with this program. If not, see https://www.gnu.org/licenses/
+"""
+
+import argparse
+from dataclasses import dataclass
+
+from core import typing as T
+from ..common import version
+
+
+@dataclass
+class _ActionText:
+    help:str
+    list_help:T.Optional[str] = None
+
+_actions = {
+    "keep":    _ActionText("file retention operations",
+                           "list files for retention"),
+
+    "archive": _ActionText("file archival operations",
+                           "list files for archival"),
+
+    "remove":  _ActionText("remove files from their vault")
+}
+
+def _parser_factory():
+    """ Build an argument parser meeting requirements """
+    top_level = argparse.ArgumentParser("vault")
+    top_level.add_argument("--version", action="version", version=f"%(prog)s {version.vault}")
+
+    sub_level = top_level.add_subparsers(
+        description="Operations on files against their respective vault",
+        required=True,
+        dest="action",
+        metavar="ACTION")
+
+    action_level = {}
+    for action, text in _actions.items():
+        action_level[action] = sub_level.add_parser(action, help=text.help)
+
+        # We can't have a mutually exclusive group containing a --list
+        # argument or at least one positional argument, so we have to
+        # roll our own with a bit of downstream processing
+        file_nargs = "+"
+        if text.list_help is not None:
+            file_nargs = "*"
+            action_level[action].usage = "%(prog)s [-h] (--list | FILE [FILE...])"
+            action_level[action].add_argument(
+                "--list",
+                action="store_true",
+                help=text.list_help)
+
+        action_level[action].add_argument(
+            "files",
+            nargs=file_nargs,
+            type=T.Path,
+            help=f"file to {action}",
+            metavar="FILE")
+
+    def parser(args:T.List[str]) -> argparse.Namespace:
+        # Parse the given arguments and ensure mutual exclusivity
+        parsed = top_level.parse_args(args)
+
+        text = _actions[parsed.action]
+        if text.list_help is not None:
+            if parsed.list:
+                # Nullify file arguments if asked to list
+                parsed.files = None
+
+            if not parsed.list and not parsed.files:
+                # Must have either --list or FILEs
+                action_level[parsed.action].error("one of the arguments --list or FILE is required")
+
+        return parsed
+
+    return parser
+
+
+parse_args = _parser_factory()

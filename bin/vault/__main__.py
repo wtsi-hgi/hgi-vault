@@ -17,16 +17,17 @@ You should have received a copy of the GNU General Public License along
 with this program. If not, see https://www.gnu.org/licenses/
 """
 
-from core import config, typing as T
-from api.config import DummyConfig as Config
+import sys
+
+from core import typing as T
+from . import usage
+from ..common import config
 
 
-# Executable versioning
-class version(T.SimpleNamespace):
-    vault   = "0.0.1"
-    sandman = "0.0.1"
+def main(argv:T.List[str] = sys.argv):
+    args = usage.parse_args(argv[1:])
+    print(args)
 
 
-# Common configuration
-_cfg_path = config.utils.path("VAULTRC", T.Path("~/.vaultrc"), T.Path("/etc/vaultrc"))
-config = Config(_cfg_path)
+if __name__ == "__main__":
+    main()
