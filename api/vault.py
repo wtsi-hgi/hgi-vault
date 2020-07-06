@@ -33,7 +33,7 @@ class Branch(base.Branch):
     """ HGI vault branches """
     Keep    = T.Path("keep")
     Archive = T.Path("archive")
-    Staged  = T.Path("staged")
+    Staged  = T.Path(".staged")
 
 
 _PrefixSuffixT = T.Tuple[T.Optional[T.Path], str]

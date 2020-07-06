@@ -20,7 +20,7 @@ with this program. If not, see https://www.gnu.org/licenses/
 from abc import ABCMeta, abstractmethod
 from dataclasses import dataclass
 
-from . import typing as T
+from . import config, typing as T
 
 
 class exception(T.SimpleNamespace):
@@ -69,6 +69,10 @@ class _Group(_Identity, metaclass=ABCMeta):
 
 class _IdentityManager(metaclass=ABCMeta):
     """ Abstract base class for identity management interface """
+    @abstractmethod
+    def __init__(self, cfg:config.base.Config) -> None:
+        """ Construct from configuration """
+
     @abstractmethod
     def user(self, *, uid:int) -> T.Optional[_User]:
         """

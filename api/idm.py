@@ -19,7 +19,7 @@ with this program. If not, see https://www.gnu.org/licenses/
 
 import os
 
-from core import idm, typing as T
+from core import config, idm, typing as T
 
 
 class DummyUser(idm.base.User):
@@ -48,6 +48,9 @@ class DummyGroup(idm.base.Group):
 
 
 class DummyIdentityManager(idm.base.IdentityManager):
+    def __init__(self, cfg:config.base.Config) -> None:
+        pass
+
     def user(self, *, uid:int) -> T.Optional[DummyUser]:
         return DummyUser(uid)
 
