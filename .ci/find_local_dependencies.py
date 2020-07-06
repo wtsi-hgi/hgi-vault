@@ -2,6 +2,7 @@ import sys
 import os
 
 import ast
+import importlib
 from importlib.util import find_spec
 from pathlib import Path
 
@@ -12,7 +13,6 @@ from pathlib import Path
 def _remove_non_local_dependencies(local_root, import_list):
     """Check import_list against the contents of the local_root path to see
     which modules are local. Return a list only containing local imports."""
-
     # Assume that relative imports are always local (ast.Import/ImportFrom
     # objects with relative imports have a 'level' attribute)
     local_imports = [module for module in import_list if
@@ -20,17 +20,21 @@ def _remove_non_local_dependencies(local_root, import_list):
 
     import_list = [module for module in import_list if module not in local_imports]
 
-    script_paths = []
-    for _path, _subdirs, _files in os.walk(local_root):
-        for _file in _files:
-            if _file[-3:] == '.py':
-                script_paths.append("{}/{}".format(_path, _file))
+    # modfinder.find_spec is used to find local imports relative to local_root
+    loader_details = (importlib.machinery.SourceFileLoader,
+        importlib.machinery.SOURCE_SUFFIXES)
+    modfinder = importlib.machinery.FileFinder(local_root, loader_details)
 
     for module in import_list:
         if type(module) == ast.Import:
             for name in module.names:
 
-                spec = find_spec(name.name)
+                # search locally
+                spec = modfinder.find_spec(name.name)
+                # if not found locally, search in the gobal namespace
+                if spec is None:
+                    spec = find_spec(name.name)
+
                 if spec is None:
                     print("Couldn't find anything for import {}"
                         .format(name.name), file=sys.stderr)
@@ -42,10 +46,13 @@ def _remove_non_local_dependencies(local_root, import_list):
 
         elif type(module) == ast.ImportFrom:
             # Only interested in the module being imported from
-            spec = find_spec(module.module)
+            # search locally
+            spec = modfinder.find_spec(module.module)
+            # if not found locally, search in the global namespace
             if spec is None:
-                # TODO: This seems to break when the import is of the format
-                # 'from package import script'
+                spec = find_spec(module.module)
+
+            if spec is None:
                 print("Couldn't find anything for import {}"
                     .format(module.module), file=sys.stderr)
                 continue
@@ -144,31 +151,6 @@ def _find_dependency_uses(syntax_tree, import_list):
                             "{}.{}".format(to_try, full_attribute))
                     break
 
-        
-        # if type(node) == ast.Call:
-        #     # Call without a namespace, like 'something()'
-        #     if hasattr(node.func, 'id'):
-        #         # name of the function, ie something() -> 'something'
-        #         _func = node.func.id
-        #
-        #         if _func in properties.keys():
-        #             if type(properties[_func]) == tuple:
-        #                 use_list.append(properties[_func])
-        #             else:
-        #                 use_list.append((properties[_func], _func))
-        #
-        #     # Call with a namespace, like 'xyz.something()'
-        #     elif hasattr(node.func, 'value'):
-        #         # name of the module, ie xyz.something() -> 'xyz'
-        #         _mod = node.func.value.id
-        #         # name of the function, ie xyz.something() -> 'something'
-        #         _func = node.func.attr
-        #
-        #         if _mod in modules:
-        #             use_list.append((_mod, _func))
-
-        # TODO: classes, annotated assignments, assignments,
-        # function decorators, abc.xyz.[...].efg() etc form
     return use_list
 
 def get_local_dependencies(module_path):
@@ -196,7 +178,7 @@ def get_local_dependencies(module_path):
 if __name__ == "__main__":
     path = Path(sys.argv[1])
     module_path = str(path.resolve())
-    dependency_list = get_local_dependencies(module_path)
+    dependency_list = set(get_local_dependencies(module_path))
 
     for i in dependency_list:
         print(i)
