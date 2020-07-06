@@ -19,6 +19,7 @@ with this program. If not, see https://www.gnu.org/licenses/
 
 from core import config, typing as T
 from api.config import DummyConfig as Config
+from api.idm import DummyIdentityManager as IdentityManager
 
 
 # Executable versioning
@@ -30,3 +31,7 @@ class version(T.SimpleNamespace):
 # Common configuration
 _cfg_path = config.utils.path("VAULTRC", T.Path("~/.vaultrc"), T.Path("/etc/vaultrc"))
 config = Config(_cfg_path)
+
+
+# Common identity manager
+idm = IdentityManager(config.identity)

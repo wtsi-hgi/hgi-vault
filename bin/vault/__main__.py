@@ -19,29 +19,16 @@ with this program. If not, see https://www.gnu.org/licenses/
 
 import sys
 
-from api.idm import DummyIdentityManager as IdentityManager
 from api.logging import log
 from api.vault import Branch, Vault
-from core import typing as T
+from core import file, typing as T
 from . import usage
-from ..common import config
-
-
-# Global identity manager
-_IdM = IdentityManager(config.identity)
-
-# Map actions to branch enumeration
-_action_to_branch = {
-    "keep":    Branch.Keep,
-    "archive": Branch.Archive
-}
+from ..common import idm
 
 
 def view(branch:Branch) -> None:
     """ List the contents of the given branch """
-    cwd = T.Path.cwd()
-
-    vault = Vault(cwd, idm=_IdM)
+    vault = Vault(file.cwd(), idm=idm)
     for path in vault.list(branch):
         log.info(path)
 
@@ -49,17 +36,23 @@ def view(branch:Branch) -> None:
 def add(branch:Branch, files:T.List[T.Path]) -> None:
     """ Add the given files to the appropriate branch """
     for f in files:
-        vault = Vault(f, idm=_IdM)
+        vault = Vault(f, idm=idm)
         vault.add(branch, f)
 
 
 def remove(files:T.List[T.Path]) -> None:
     """ Remove the given files """
     for f in files:
-        vault = Vault(f, idm=_IdM)
+        vault = Vault(f, idm=idm)
         if (branch := vault.branch(f)) is not None:
             vault.remove(branch, f)
 
+
+# Mapping of actions to branch enumeration
+_action_to_branch = {
+    "keep":    Branch.Keep,
+    "archive": Branch.Archive
+}
 
 def main(argv:T.List[str] = sys.argv):
     args = usage.parse_args(argv[1:])
@@ -69,7 +62,6 @@ def main(argv:T.List[str] = sys.argv):
 
         if args.view:
             view(branch)
-
         else:
             add(branch, args.files)
 

@@ -17,9 +17,12 @@ You should have received a copy of the GNU General Public License along
 with this program. If not, see https://www.gnu.org/licenses/
 """
 
-import os
-
 from . import typing as T
+
+
+def cwd() -> T.Path:
+    """ Return the current working directory """
+    return T.Path.cwd()
 
 
 def inode_id(path:T.Path) -> int:
