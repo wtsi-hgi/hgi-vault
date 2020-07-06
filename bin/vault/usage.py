@@ -27,14 +27,14 @@ from ..common import version
 @dataclass
 class _ActionText:
     help:str
-    list_help:T.Optional[str] = None
+    view_help:T.Optional[str] = None
 
 _actions = {
     "keep":    _ActionText("file retention operations",
-                           "list files for retention"),
+                           "view files annotated for retention"),
 
     "archive": _ActionText("file archival operations",
-                           "list files for archival"),
+                           "view files annotated for archival"),
 
     "remove":  _ActionText("remove files from their vault")
 }
@@ -54,17 +54,17 @@ def _parser_factory():
     for action, text in _actions.items():
         action_level[action] = sub_level.add_parser(action, help=text.help)
 
-        # We can't have a mutually exclusive group containing a --list
+        # We can't have a mutually exclusive group containing a --view
         # argument or at least one positional argument, so we have to
         # roll our own with a bit of downstream processing
         file_nargs = "+"
-        if text.list_help is not None:
+        if text.view_help is not None:
             file_nargs = "*"
-            action_level[action].usage = "%(prog)s [-h] (--list | FILE [FILE...])"
+            action_level[action].usage = "%(prog)s [-h] (--view | FILE [FILE...])"
             action_level[action].add_argument(
-                "--list",
+                "--view",
                 action="store_true",
-                help=text.list_help)
+                help=text.view_help)
 
         action_level[action].add_argument(
             "files",
@@ -78,14 +78,14 @@ def _parser_factory():
         parsed = top_level.parse_args(args)
 
         text = _actions[parsed.action]
-        if text.list_help is not None:
-            if parsed.list:
-                # Nullify file arguments if asked to list
-                parsed.files = None
+        if text.view_help is not None:
+            if parsed.view:
+                # Nullify file arguments if asked to view
+                del parsed.files
 
-            if not parsed.list and not parsed.files:
-                # Must have either --list or FILEs
-                action_level[parsed.action].error("one of the arguments --list or FILE is required")
+            if not parsed.view and not parsed.files:
+                # Must have either --view or FILEs
+                action_level[parsed.action].error("one of the arguments --view or FILE is required")
 
         return parsed
 
