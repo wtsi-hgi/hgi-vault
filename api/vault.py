@@ -333,7 +333,7 @@ class Vault(base.Vault, logging.base.LoggableMixin):
         if not self.location.is_dir():
             try:
                 self.location.mkdir(_PERMS)
-                log.info(f"Vault created in {root}")
+                self.log.info(f"Vault created in {root}")
             except FileExistsError:
                 raise exception.VaultConflict(f"Cannot create a vault in {root}; user file already exists")
 
@@ -345,7 +345,7 @@ class Vault(base.Vault, logging.base.LoggableMixin):
             if not (bpath := self.location / branch).is_dir():
                 try:
                     bpath.mkdir(_PERMS)
-                    log.info(f"{branch} branch created in the vault in {root}")
+                    self.log.info(f"{branch} branch created in the vault in {root}")
                 except FileExistsError:
                     raise exception.VaultConflict(f"Cannot create a {branch} branch in the vault in {root}; user file already exists")
 
