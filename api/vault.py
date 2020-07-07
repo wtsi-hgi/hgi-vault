@@ -325,10 +325,9 @@ class Vault(base.Vault, logging.base.LoggableMixin):
 
         self.root = root  # NOTE self.root can only be set once
 
-        # Logging configuration for the vault
+        # Initialise TTY logging for the vault
         self._logger = str(root)
         self.log.to_tty()
-        self.log.to_file(self.location / ".audit")
 
         # Create vault, if it doesn't already exist
         if not self.location.is_dir():
@@ -337,6 +336,9 @@ class Vault(base.Vault, logging.base.LoggableMixin):
                 log.info(f"Vault created in {root}")
             except FileExistsError:
                 raise exception.VaultConflict(f"Cannot create a vault in {root}; user file already exists")
+
+        # The vault must exist at this point, so persist the log to disk
+        self.log.to_file(self.location / ".audit")
 
         # Create branches, if they don't already exists
         for branch in Branch:
