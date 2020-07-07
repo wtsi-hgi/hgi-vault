@@ -28,7 +28,7 @@ uninterrupted. Actual times will be added when available.
 * [ ] Hot code
   * [ ] *Unknown*                                     <ETA: 1 day per function>
 * [ ] Executables and setup
-  * [ ] `vault`                                       <ETA: 2 days>
+  * [x] `vault`                                       <ETA: 2 days; Actual: 2 days>
   * [ ] `sandman`
     * [ ] Plumbing                                    <ETA: 2 days>
     * [ ] Sweep phase                                 <ETA: 3 days>
