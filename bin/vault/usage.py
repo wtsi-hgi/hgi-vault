@@ -83,9 +83,13 @@ def _parser_factory():
                 # Nullify file arguments if asked to view
                 del parsed.files
 
-            if not parsed.view and not parsed.files:
-                # Must have either --view or FILEs
-                action_level[parsed.action].error("one of the arguments --view or FILE is required")
+            else:
+                if not parsed.files:
+                    # Must have either --view or FILEs
+                    action_level[parsed.action].error("one of the arguments --view or FILE is required")
+
+                # Resolve all paths
+                parsed.files = [path.resolve() for path in parsed.files]
 
         return parsed
 

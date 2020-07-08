@@ -41,8 +41,13 @@ def _create_vault(relative_to:T.Path) -> Vault:
 def view(branch:Branch) -> None:
     """ List the contents of the given branch """
     vault = _create_vault(file.cwd())
+
+    count = 0
     for path in vault.list(branch):
-        log.info(path)
+        print(path)
+        count += 1
+
+    log.info(f"{branch} branch of the vault in {vault.root} contains {count} files")
 
 
 def add(branch:Branch, files:T.List[T.Path]) -> None:
