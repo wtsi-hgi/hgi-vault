@@ -357,7 +357,7 @@ class Vault(base.Vault, logging.base.LoggableMixin):
     @cached_property
     def owners(self) -> T.Iterator[int]:
         """ Return an iterator of group owners' user IDs """
-        if group := self._idm.group(gid=self.group) is None:
+        if (group := self._idm.group(gid=self.group)) is None:
             raise IdM.exception.NoSuchIdentity(f"No group found with ID {self.group}")
 
         return (user.uid for user in group.owners)
