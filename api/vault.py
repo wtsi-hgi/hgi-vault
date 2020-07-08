@@ -246,7 +246,7 @@ class VaultFile(base.VaultFile):
 
     @property
     def source(self) -> T.Path:
-        return self.vault.location / self._key.source
+        return self.vault.root / self._key.source
 
     @property
     def can_add(self) -> bool:
