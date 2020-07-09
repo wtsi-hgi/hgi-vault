@@ -365,10 +365,7 @@ class Vault(base.Vault, logging.base.LoggableMixin):
     def add(self, branch:Branch, path:T.Path) -> None:
         log = self.log
 
-        if not (to_add := self.file(branch, path)).can_add:
-            raise exception.PermissionDenied(f"Cannot add {path} to the vault in {self.root}")
-
-        if to_add.exists:
+        if (to_add := self.file(branch, path)).exists:
             # File is already in the vault
             if to_add.source.resolve() != path.resolve() or to_add.branch != branch:
                 # If the file is in the vault, but it's been renamed or
@@ -384,6 +381,9 @@ class Vault(base.Vault, logging.base.LoggableMixin):
 
         else:
             # File is not in the vault
+            if not to_add.can_add:
+                raise exception.PermissionDenied(f"Cannot add {path} to the vault in {self.root}")
+
             to_add.path.parent.mkdir(_PERMS, parents=True, exist_ok=True)
             to_add.source.link_to(to_add.path)
 
