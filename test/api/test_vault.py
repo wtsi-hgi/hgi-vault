@@ -23,7 +23,7 @@ from tempfile import TemporaryDirectory
 
 from core import typing as T, idm as IdM
 from core.utils import base64
-from models.vault import _VaultFileKey
+from api.vault import _VaultFileKey
 
 
 _DUMMY = T.Path("foo/bar/quux")

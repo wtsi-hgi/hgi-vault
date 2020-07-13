@@ -22,7 +22,7 @@ From the repository root, set the Git commit template with:
 
 ## Python Virtual Environment
 
-You will need to create and activate a Python 3.7 (or newer) virtual
+You will need to create and activate a Python 3.8 (or newer) virtual
 environment. For example:
 
     python -m venv .venv

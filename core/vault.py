@@ -24,7 +24,7 @@ from enum import Enum
 from dataclasses import dataclass
 from os import PathLike
 
-from core import typing as T
+from . import typing as T
 
 
 class exception(T.SimpleNamespace):

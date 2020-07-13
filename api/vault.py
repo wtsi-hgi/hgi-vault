@@ -33,6 +33,7 @@ class Branch(base.Branch):
     """ HGI vault branches """
     Keep    = T.Path("keep")
     Archive = T.Path("archive")
+    Staged  = T.Path(".staged")
 
 
 _PrefixSuffixT = T.Tuple[T.Optional[T.Path], str]
@@ -73,7 +74,7 @@ class _VaultFileKey(os.PathLike):
 
     def _construct(self, inode:int, path:T.Path) -> _PrefixSuffixT:
         """ Construct the vault file key from an inode ID and path """
-        # The byte-padded hexidecimal representation of the inode ID
+        # The byte-padded hexadecimal representation of the inode ID
         if len(inode_hex := f"{inode:x}") % 2:
             inode_hex = f"0{inode_hex}"
 
@@ -164,18 +165,25 @@ class VaultFile(base.VaultFile):
                 if check != branch:
                     # Branch differs from expectation
                     log.info(f"{path} was found in the {check} branch, rather than {branch}")
-                    self._branch = check
+                    self.branch = check
 
                 if alternate_key.source != path:
                     # Path differs from expectation
                     # (i.e., source was moved or renamed)
                     log.info(f"{path} was found in the vault as {alternate_key.source}")
 
-        # If a key already exists in the vault, then it must have at
-        # least two hardlinks. If it has one, then the source file has
-        # been removed...which is bad :P
-        if self.exists and file.hardlinks(self.path) == 1:
-            raise exception.VaultCorruption(f"The vault in {vault.root} contains {self.source}, but this no longer exists outside the vault")
+        # If a key already exists in the vault, then it must have:
+        # * At least two hardlinks, when in the Keep or Archive branch
+        # * Exactly one hardlink, when in the Staged branch
+        if self.exists:
+            staged = self.branch == Branch.Staged
+            single_hardlink = file.hardlinks(self.path) == 1
+
+            if not staged and single_hardlink:
+                raise exception.VaultCorruption(f"The vault in {vault.root} contains {self.source}, but this no longer exists outside the vault")
+
+            if staged and not single_hardlink:
+                raise exception.VaultCorruption(f"{self.source} is staged in the vault in {vault.root}, but also exists outside the vault")
 
     def _relative_path(self, path:T.Path) -> T.Path:
         """
@@ -238,7 +246,7 @@ class VaultFile(base.VaultFile):
 
     @property
     def source(self) -> T.Path:
-        return self.vault.location / self._key.source
+        return self.vault.root / self._key.source
 
     @property
     def can_add(self) -> bool:
@@ -317,25 +325,27 @@ class Vault(base.Vault, logging.base.LoggableMixin):
 
         self.root = root  # NOTE self.root can only be set once
 
-        # Logging configuration for the vault
+        # Initialise TTY logging for the vault
         self._logger = str(root)
         self.log.to_tty()
-        self.log.to_file(self.location / ".audit")
 
         # Create vault, if it doesn't already exist
         if not self.location.is_dir():
             try:
                 self.location.mkdir(_PERMS)
-                log.info(f"Vault created in {root}")
+                self.log.info(f"Vault created in {root}")
             except FileExistsError:
                 raise exception.VaultConflict(f"Cannot create a vault in {root}; user file already exists")
+
+        # The vault must exist at this point, so persist the log to disk
+        self.log.to_file(self.location / ".audit")
 
         # Create branches, if they don't already exists
         for branch in Branch:
             if not (bpath := self.location / branch).is_dir():
                 try:
                     bpath.mkdir(_PERMS)
-                    log.info(f"{branch} branch created in the vault in {root}")
+                    self.log.info(f"{branch} branch created in the vault in {root}")
                 except FileExistsError:
                     raise exception.VaultConflict(f"Cannot create a {branch} branch in the vault in {root}; user file already exists")
 
@@ -347,7 +357,7 @@ class Vault(base.Vault, logging.base.LoggableMixin):
     @cached_property
     def owners(self) -> T.Iterator[int]:
         """ Return an iterator of group owners' user IDs """
-        if group := self._idm.group(gid=self.group) is None:
+        if (group := self._idm.group(gid=self.group)) is None:
             raise IdM.exception.NoSuchIdentity(f"No group found with ID {self.group}")
 
         return (user.uid for user in group.owners)
@@ -355,10 +365,7 @@ class Vault(base.Vault, logging.base.LoggableMixin):
     def add(self, branch:Branch, path:T.Path) -> None:
         log = self.log
 
-        if not (to_add := self.file(branch, path)).can_add:
-            raise exception.PermissionDenied(f"Cannot add {path} to the vault in {self.root}")
-
-        if to_add.exists:
+        if (to_add := self.file(branch, path)).exists:
             # File is already in the vault
             if to_add.source.resolve() != path.resolve() or to_add.branch != branch:
                 # If the file is in the vault, but it's been renamed or
@@ -374,6 +381,9 @@ class Vault(base.Vault, logging.base.LoggableMixin):
 
         else:
             # File is not in the vault
+            if not to_add.can_add:
+                raise exception.PermissionDenied(f"Cannot add {path} to the vault in {self.root}")
+
             to_add.path.parent.mkdir(_PERMS, parents=True, exist_ok=True)
             to_add.source.link_to(to_add.path)
 

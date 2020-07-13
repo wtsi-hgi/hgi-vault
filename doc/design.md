@@ -33,7 +33,7 @@ criteria for the system will be:
 * The test suite **must** achieve:
   * 100% coverage for hot code;
   * At least 90% coverage for warm code;
-  * And average no less than 80% coverage, elsewhere.
+  * And be no less than 80% coverage, elsewhere.
 
 * The system's code **must** be fully type annotated and satisfy static
   analysis.
@@ -115,7 +115,7 @@ Notes:
 * Any of the Added, Removed, Changed or Fixed lists can be omitted in a
   commit message, if they are empty.
 
-* Ideally, each lists should contain only one or two items, with no more
+* Ideally, each list should contain only one or two items, with no more
   than five items across all lists; any more implies the commit it too
   large and should be done more frequently.
 
@@ -124,6 +124,20 @@ Notes:
   number.
 
 ## Specification
+
+The system will be comprised of two components, which may share common
+code:
+
+1. A user-facing CLI.
+2. A batch process that actions requests, run periodically. Some actions
+   may need to be deferred, for efficiency's sake, which will be acted
+   upon asynchronously by means of intermediary state.
+
+The purpose of the system is to mark files to be kept or archived,
+action that respectively, and to delete files that have passed a
+threshold age. Files will be marked by virtue of being hardlinked into
+special "vault" directories, thus utilising the filesystem as an in-band
+record of state.
 
 ### Change Process
 
@@ -148,13 +162,12 @@ process:
 
 ### Test Driven Development
 
-Test cases for any new functionality must be written upfront, where
-functionality and interfaces will be [defined later](#detail). Tests
-must cover the Cartesian product of all options and, where external
-state is required, this must be specified upfront (again, [defined
-later](#detail)) and cover all expected (per design) eventualities. The
-test suite may be amended and altered afterwards to conform to
-unexpected implementation details required for certification.
+Test cases for any new functionality must be written upfront. Tests must
+cover the Cartesian product of all options and, where external state is
+required, this must be specified upfront and cover all expected (per
+design) eventualities. The test suite may be amended and altered
+afterwards to conform to unexpected implementation details required for
+certification.
 
 The Cartesian product of options has the potential of making the test
 space very large. To therefore avoid intractability, options ought to be
@@ -224,13 +237,16 @@ can_deletes = [ch12.can_delete, fm12.can_delete, pa11.can_delete]
 
 if not all(can_delete(file) for can_delete in can_deletes):
   # Fail immediately
+  raise Exception("Consensus not reached!")
 
 # Deletion code
+file.unlink()
 ```
 
 Note that, in this case, it isn't the deletion code itself that is "hot"
--- as this will almost certainly be a single standard library call --
-but rather the code that facilitates or guards against it.
+-- as this will almost certainly be a single standard library call and
+necessarily mutates state -- but rather the code that facilitates or
+guards against it.
 
 Any `can_delete` implementation might refer to a library function named
 `is_in_vault`, which would therefore be mentioned in the respective
@@ -239,32 +255,19 @@ same reference in multiple implementations can serve as a sanity check
 (e.g., an implementation that doesn't use this function, where others
 do, may be suspect).
 
-### Overview
-
-The system will be comprised of two components, which may share common
-code:
-
-1. A user-facing CLI.
-2. A batch process that actions requests, run periodically.
-
-The purpose of the system is to mark files to be kept or archived,
-action that respectively, and to delete files that have passed a
-threshold age. Files will be marked by virtue of being hardlinked into
-special "vault" directories, thus utilising the filesystem an in-band
-record of state.
-
-#### The Vault
+### The Vault
 
 * The vault directory will be a single directory named `.vault` in the
   root of a group's directory ([defined later](#vault-location)).
 
-* The vault directory will contain two subdirectories ("branches"):
-  `keep` and `archive`.
+* The vault directory will contain three subdirectories ("branches"):
+  `keep`, `archive` and `staged`. (Note that the `staged` branch is for
+  internal use.)
 
 * Within these respective directories, hardlinks of marked files will
   exist in a structured way. Specifically:
 
-  * The big-endian hexidecimal representation of their inode ID will be
+  * The big-endian hexadecimal representation of their inode ID will be
     broken out into 8-bit words (padded, if necessary). All but the
     least significant word will be used to make a heirarchy of
     directories, if they don't already exist. (If the inode ID is less
@@ -290,23 +293,23 @@ This structure is justified by:
 
 2. Splitting the inode ID into 8-bit words means, at each level, there
    will never be more that 512 entries (256 hardlinks and 256
-   directories).
+   directories) in any directory.
 
 3. Encoding the original filename into the link provides information to
-   the sweep when archiving data. Clearly the directory structure and
-   naming of files could change in the meantime, but corrective
-   procedures can be applied ad hoc if such an inconsistency is found.
+   the batch processes. Clearly the directory structure and naming of
+   files could change in the meantime, but corrective procedures can be
+   applied ad hoc if such an inconsistency is found.
 
 4. The obfuscation of hardlinks in the vault will raise the bar to end
-   users who might be curious. It won't stop them, but it may be enough
-   to deter most attempts at tampering.
+   users who might be "curious". It won't stop them, but it may be
+   enough to deter most attempts at tampering.
 
 Note that hardlinks cannot span physical devices. On a distributed
 system, such as Lustre, this means the vault must reside on the same MDS
 as the files that are to be marked. Enforcement of this constraint is
 outside the scope of this project.
 
-##### Vault Location
+#### Vault Location
 
 The location of the vault will be as a child of the highest directory up
 the tree, from a reference point (e.g., the current working directory or
@@ -324,21 +327,125 @@ If the file to be kept is `/projects/my_project/foo/bar.xyzzy`, then the
 vault will be located in `/projects/my_project/.vault` and the hardlink
 will be `/projects/my_project/.vault/keep/30/3d-Zm9vL2Jhci54eXp6eQ==`.
 
-#### CLI
+### Configuration
 
-The CLI will have the following interface:
+All components will share common configuration, read from file, in the
+following precedence (highest first):
 
-    hgi-vault ACTION [OPTIONS]
+1. The file at the path in the environment variable `VAULTRC`;
+2. `~/.vaultrc` (i.e., in the running user's home directory);
+3. `/etc/vaultrc`
+
+If no configuration is found, or is incomplete, then the process with
+fail immediately.
+
+The configuration will be [YAML](https://yaml.org)-based, with the
+following schema:
+
+```yaml
+# Identity Management
+# - ldap        Host (host) and port (port) of the LDAP server
+# - users       Base DN (dn) and search attribute (attr) for users
+# - groups      Base DN (dn) and search attribute (attr) for groups
+
+# NOTE Group LDAP records are assumed to have owner and member
+# attributes, containing the DNs of users.
+
+identity:
+  ldap:
+    host: ldap.example.com
+    port: 389
+
+  users:
+    dn: ou=users,dc=example,dc=com
+    attr: uid
+
+  groups:
+    dn: ou=groups,dc=example,dc=com
+    attr: cn
+
+# Sandman Persistence
+# - postgres    Host (host) and port (port) of PostgreSQL server
+# - database    Database name
+# - user        Username
+# - password    Password
+
+persistence:
+  postgres:
+    host: postgres.example.com
+    port: 5432
+
+  database: sandman
+  user: a_db_user
+  password: abc123
+
+# E-Mail Configuration
+# - smtp        Host (host) and port (port) of the SMTP server
+# - sender      E-mail address of the sender
+
+email:
+  smtp:
+    host: mail.example.com
+    port: 25
+
+  sender: vault@example.com
+
+# Deletion Control
+# - threshold   Age (in days) at which a file can be deleted
+# - warnings    List of warning times (in hours before the deletion age)
+#               at which a file's owner and group owner should be
+#               notified
+
+# NOTE These timings are relative to the fidelity in which the batch
+# process is run. For example, if it's only run once per week and a
+# warning time of one hour is specified, it's very likely that this
+# warning will never be triggered.
+
+deletion:
+  threshold: 90
+  warnings:
+  - 240  # 10 days' notice
+  - 72   # 3 days' notice
+  - 24   # 24 hours' notice
+
+# Archival/Downstream Control
+# - threshold   Minimum number of staged files to accumulate before
+#               draining the queue
+# - handler     Path to archiver/downstream handler executable
+
+# NOTE The consumer of the queue is intended to perform the archival,
+# however it is not # limited to this purpose.
+
+archive:
+  threshold: 1000
+  handler: /path/to/executable
+```
+
+Note that this schema is subject to change, during design and
+implementation.
+
+#### File Age
+
+The age of a file is defined to be the duration from the file's `mtime`
+to present. We use modification time, rather than change time, as it's a
+better indicator of usage. (Unfortunately, access time is not reliably
+available to us on all filesystems.)
+
+### The User-Facing CLI
+
+The user-facing CLI will have the following interface:
+
+    vault ACTION [OPTIONS]
 
 Where the CLI's first argument is an action of either `keep`, `archive`
 or `remove`. The usual `--help` option will be available, both to the
 base command and all the actions, which will show the respective usage
 instructions.
 
-##### The `keep` and `archive` Actions
+#### The `keep` and `archive` Actions
 
-    hgi-vault keep --view|FILE...
-    hgi-vault archive --view|FILE...
+    vault keep --view|FILE...
+    vault archive --view|FILE...
 
 The `keep` and `archive` actions take two forms, which perform the same
 function on the respective branch of the appropriate vaults:
@@ -379,12 +486,14 @@ regular file provided as an argument:
       * Move the hardlink to the opposite branch, maintaining the
         necessary structure.
       * Log to the user that the file's status has changed,
-        respectively.
+        respectively. If the hardlink is moved to the archive branch,
+        log that staging will happen later and will require the file to
+        be unlocked for writing.
 
 * If it doesn't exist in the vault:
   * Hardlink the file into the appropriate branch:
     * Create the hierarchy needed to address the inode ID; specifically
-      its big-endian hexidecimal representation, zero-padded to a
+      its big-endian hexadecimal representation, zero-padded to a
       multiple of 8 and broken into 8-bit words, taking all but the
       least signficiant word to enumerate the tree.
     * Hardlink the file into the leaf of this tree, with its name given
@@ -392,11 +501,13 @@ regular file provided as an argument:
       base64 encoding of the file's path relative to the vault location,
       concatenated with a `-`.
 
-  * Log to the user that said file has been actioned.
+  * Log to the user that said file has been actioned. If the file was
+    added to the archive branch, log that staging will happen later and
+    will require the file to be unlocked for writing.
 
-##### The `remove` Action
+#### The `remove` Action
 
-    hgi-vault remove FILE...
+    vault remove FILE...
 
 The `remove` action will remove the given files from either branch of
 the vault respective to said file ([see earlier](#vault-location)).
@@ -423,7 +534,7 @@ For each file:
     not a group owner:
     * Log a permission denied error.
 
-##### Permissions
+#### Permissions
 
 All files within HGI managed project and team directories _should_ have
 identical user and group POSIX permissions. This component will need to
@@ -451,77 +562,356 @@ appropriately:
 kernel parameter `fs.protected_hardlinks = 1`. We fallback to the lowest
 common denominator for simplicity's sake.)
 
-##### Auditing and Logging
+#### Auditing and Logging
 
 All above actions will be logged to the user, as described. In addition,
 these logs will be appended to a `.audit` file that exists in the root
 of the respective vault. The persisted log messages will be amended with
 the username of whoever invoked the action.
 
-#### Batch Process
+### The Batch Process
 
-The batch process is intended to be run periodically (e.g., from a
-`cron` job) and will have the following interface:
+The batch process is separated into two phases -- "sweep" and "drain" --
+and is intended to be run periodically (e.g., from a `cron` job).
+Because the draining phase is designed to facilitate the archival -- or
+some other long-running process -- the two phases must run sequentially
+to avoid race conditions.
 
-    vault-sweep [--dry-run] VAULTED_DIR...
+For example, the sweep may run across several vaults and stage files for
+archiving. The archive itself may take multiple days to complete,
+whereas another sweep could be due to run again in the meantime. In the
+proposed set up, this becomes possible and any additional archive events
+can be added, by subsequent sweeps, to the backlog.
 
-Where at least one `VAULTED_DIR`, representing paths to directories
-(either relative or absolute) that contain a `.vault` directory, is
-supplied. An optional `--dry-run` argument may also be provided, which
-will cause the batch process to log what it would do, without affecting
-the filesystem.
+The batch process will have the following interface:
 
-**TODO** What the sweep should do and in what order.
+    sandman [--dry-run] [--force-drain] [--stats=FILE] DIR...
 
-##### Configuration
+It must be called with at least one `DIR`, representing a path to a
+directory (either relative or absolute) that is covered by a vault. It
+may optionally be specified with a `FILE` representing the file listings
+and `stat`s of the volume containing each `DIR` and its contents, such
+as the output generated by [`mpistat`](https://github.com/wtsi-hgi/mpistat);
+this will be used to guide the sweep, rather than walking the filesystem.
 
-The batch process will read its configuration from file, following the
-following precedence (highest first):
+An optional `--dry-run` argument may be provided, which will cause the
+process to log what it would do, without affecting the filesystem. In
+the following outline of the process, such actions are marked with an
+asterisk (&ast;).
 
-1. The file at the path in the environment variable `VAULTRC`;
-2. `~/.vaultrc` (i.e., in the running user's home directory);
-3. `/etc/vaultrc`
+#### Sweep Phase
 
-If no configuration is found, or is incomplete, then the process with
-fail immediately.
+For each `DIR` provided as an argument, the sweep phase consists of the
+following, in the given order:
 
-The configuration will be [YAML](https://yaml.org)-based, with the
-following schema:
+* Establish that `DIR` is covered by a vault (i.e., there exists a vault
+  in `DIR`, or in a direct ancestor to `DIR`).
+  * If `DIR` is not covered by a vault, then log an error and skip this
+    `DIR`.
+  * If `DIR` is a vault itself, then log an error and skip this `DIR`.
 
-```yaml
-threshold:
-  age: <Age, in days, at which to delete>
-  grace: <Days warning to give each file's owner and group owner>
+* Walk the contents of `DIR`, either directly via the filesystem
+  interface, or using the `stat` listings given by `FILE`, if provided.
+  Files in the walk that are physically located within the vault must be
+  skipped.
 
-ldap:
-  host: <LDAP Server>
-  port: <LDAP Port>
-  # TODO How to specify LDAP base DN/search string for users and groups
+Note that, for efficiency's sake, the walking of every provided `DIR` is
+preferred, rather than walking each `DIR` separately.
 
-email:
-  sender: <E-mail address of sender>
-  smtp:
-    host: <SMTP host>
-    port: <SMTP port>
+Then, for each regular file in the walk:
 
-# TODO How to specify archiver/archive queue...
+* If it is contained within the respective vault:
+
+  * Check the vault file for consistency (i.e., if the external file has
+    been renamed or moved) and update it appropriately&ast; and log, if
+    necessary.
+
+  * Check which branch the file is in:
+
+    * The "keep" and "staged" branch:
+      * Do nothing: If the file is marked for keeping, then nothing
+        needs to happen; if the file is staged for archival, then it is
+        the responsibility of the downstream process invoked in the
+        draining phase.
+
+    * The "archive" branch:
+      * Try to acquire a write lock on the file.
+        * If this fails, then the file is currently being written to and
+          should not yet be archived. Skip the rest of this process and
+          move on to the next file, logging appropriately.
+      * Delete the source file (i.e., that which exists outside the
+        vault).&ast;
+      * Move the vaulted file, recreating its associated hierarchy as
+        needed, into the "staged" branch.&ast;
+      * Log that the file has been staged for archival.
+      * Amend the list of files staged for archival for the file and
+        vault owner.
+
+* If it is not contained within the respective vault:
+
+  * Take the file's age ([defined earlier](#file-age)) against the
+    deletion threshold (in days):
+
+    * If it has exceeded the threshold:
+      * Try to acquire a write lock on the file.
+        * If this fails, then the file is currently being written to and
+          should not yet be deleted (presumably the `mtime` has yet to
+          be updated). Skip the rest of this process and move on to the
+          next file, logging appropriately.
+      * Log that the deletion is about to happen.
+      * Delete the file.&ast;
+      * Log that the deletion has completed.
+      * Amend the list of deleted files for the file and vault owner.
+
+    * If it has yet to exceed the threshold, check the file's age
+      against each of the configured warning checkpoints (in hours until
+      deletion). For each checkpoint that is passed, amend the
+      appropriate checkpoint list of files scheduled for deletion for
+      the file and vault owner.
+
+Finally:
+
+* For each user, collate the lists of files scheduled for deletion,
+  files deleted and files staged for archival and use them to render and
+  send an appropriate e-mail ([defined later](#regarding-e-mails)).&ast;
+
+* Collate the lists of files scheduled for deletion, files deleted and
+  files staged for archive for all users to log a summary.
+
+* Invoke the [drain phase](#drain-phase).&ast;
+
+For clarity's sake, to facilitate the e-mailing and summary, the sweep
+will need to maintain the equivalent of the following distinct lists for
+each user and group owner that's relevant:
+
+* *N* lists of files that have passed the appropriate deletion warning
+  checkpoint (where *N* is the number of configured checkpoints in
+  `deletion.warnings`);
+* A list of files that were actually deleted;
+* A list of files that have been staged for archival.
+
+These lists will need to be persisted to disk, rather than kept in
+memory, such that:
+
+* Importantly, the list of files that have been staged for archival will
+  be used in the draining phase (the way in which they're stored must
+  therefore take this into account).
+* When files have exceeded a warning checkpoint, they will only be
+  included in that e-mail once (e.g., if the sweep is run daily and
+  there are checkpoints at 72 and 24 hours, this will ensure the 72 hour
+  warning won't also be sent during the 48 and 24 hour sweeps).
+* In the event of failure, actions that were performed before the
+  failure can still be reported on retrospectively.
+
+Note that the intended deletion time will also need to be stored, in
+case the `mtime` of a file changes. That is, if this happens, then it's
+possible that a previous warning will become re-eligible. For example:
+
+* A file's age exceeds the 72 hour warning checkpoint and an e-mail is
+  sent.
+* The user updates the file, which changes its `mtime`, no longer making
+  it eligible for automatic deletion.
+* Eventually, the 72 hour warning relative to the new `mtime` is again
+  exceeded; another e-mail is expected, despite a 72 hour warning being
+  previously sent.
+
+##### Regarding E-Mails
+
+The batch process must not send an e-mail for each file that meets the
+criteria for e-mailing. Instead, it should build up the contents of the
+e-mail for each user and send them once it's completed its sweep, such
+that each relevant user gets exactly one e-mail each.
+
+The format of the e-mail should not be an intractable list of files for
+the user to wade through. Rather it should be summarised into a
+convenient form, with full listings provided as attachments. The
+template for e-mails should be:
+
+```jinja2
+Dear {{ user.name }}
+
+The following directories contain data that are scheduled for deletion.
+Full listings can be found in the attachments. You MUST act now to
+prevent these files from being deleted!
+
+{% for warning in deletion.warnings | reverse %}
+Your files will be IRRECOVERABLY DELETED from the following directories
+within {{ warning }} hours:
+
+{% for file in to_delete if file.age >= warning %}
+* {{ file | group_by(file.group) | common_prefix }}: {{ file | group_by(file.group) | count }} files
+{% else %}
+* None
+{% endfor %}
+{% endfor %}
+
+Space has been recovered from the following directories:
+
+{% for file in deleted %}
+* {{ file | group_by(file.group) | common_prefix }}: {{ file | group_by(file.group) | size | sum }} MiB
+{% else %}
+* None
+{% endfor %}
+
+The following vaults contain your data that is staged for archival:
+
+{% for vault in staged %}
+* {{ vault.root }}: {{ vault.files | branch("staged") | count }} files
+{% else %}
+* None
+{% endfor %}
+
+These will be acted upon shortly.
 ```
 
-##### File Age
+Note that the above templating tags should be considered pseudocode, to
+describe the intent, rather than the expected underlying structure.
+Where directories are mentioned -- for the deletion warnings and actual
+deletions -- these should be aggregated by Unix group and then
+summarised to their common directory prefix. For example:
 
-The age of a file is defined to be the duration from the file's `mtime`
-to present. We use modification time, rather than change time, as it's a
-better indicator of usage. (Access time is not reliably available to us
-on all filesystems.)
+    /path/to/foo/file1  user1:group1
+    /path/to/foo/file2  user1:group1
+    /path/to/bar/file3  user1:group2
 
-##### Auditing and Logging
+...would be aggregated and summarised as:
 
-The sweep will be logged to the user, as described. In addition, these
-logs will be appended to a `.audit` file that exists in the root of the
-respective vault. The persisted log messages will be amended with the
-username of whoever invoked the batch process.
+    /path/to/foo: 2 files
+    /path/to/bar: 1 file
 
-### Detail
+Each e-mail will have the following attachments, if they are non-empty:
 
-**TODO** Detailed design should be worked on after the above has been
-polished and finalised.
+* `delete-WARNING.fofn.gz`, where `WARNING` is the hours' warning
+  checkpoint, containing the list of files due for deletion within that
+  time (e.g., `delete-24.fofn.gz` for files to be deleted within 24
+  hours, etc.). There should be as many of these files as there are
+  configured deletion warning checkpoints.
+
+  Note that, necessarily, the later checkpoint files will be supersets
+  of the earlier ones (e.g., everything due to be deleted within 24
+  hours is also due to be deleted within 72 hours).
+
+* `deleted.fofn.gz` containing the list of files that were deleted in
+  this sweep.
+
+* `staged.fofn.gz` containing the list of files that have been staged
+  for archival in this sweep.
+
+An example e-mail may look like:
+
+> Dear Vault User
+>
+> The following directories contain data that are scheduled for
+> deletion. Full listings can be found in the attachments. You MUST act
+> now to prevent these files from being deleted!
+>
+> Your files will be IRRECOVERABLY DELETED from the following
+> directories within 24 hours:
+>
+> * /path/to/my/project: 10 files
+> * /path/to/another/project: 50 files
+>
+> Your files will be IRRECOVERABLY DELETED from the following
+> directories within 72 hours:
+>
+> * /path/to/my/project: 85 files
+> * /path/to/another/project: 52 files
+> * /path/to/yet/another/project: 4 files
+>
+> Your files will be IRRECOVERABLY DELETED from the following
+> directories within 240 hours:
+>
+> * /path/to/my/project: 1252 files
+> * /path/to/another/project: 55 files
+> * /path/to/yet/another/project: 10203 files
+>
+> Space has been recovered from the following directories:
+>
+> * /path/to/really/big/project: 12345 MiB
+>
+> The following vaults contain your data that is staged for archival:
+>
+> * None
+>
+> These will be acted upon shortly.
+>
+> ---
+>
+> Attachments: `delete-24.fofn.gz` `delete-72.fofn.gz`
+> `delete-240.fofn.gz` `deleted.fofn.gz`
+
+#### Drain Phase
+
+The only argument that is of interest to the drain phase is
+`--force-drain`, which will drain the queue of staged files regardless
+of it reaching its configured threshold. Note that if `--dry-run` is
+specified, then the drain phase will not run at all.
+
+The drain phase consists of the following:
+
+* Check the downstream handler is ready ([defined
+  later](#downstream-handler)).
+  * If not, log appropriately and exit.
+
+* Check the size of the archival queue exceeds the threshold, or
+  `--force-drain` is specified.
+  * If not, log appropriately and exit.
+
+* Pull the list of staged files that have yet to be acted upon by the
+  downstream handler. Stream these, `\0`-delimited, into the standard
+  input of the downstream handler and marked them as acted upon.
+
+##### Downstream Handler
+
+The downstream handler will be an executable that provides the following
+interface:
+
+    /path/to/executable [ready]
+
+If the `ready` argument is provided, the handler will exit with a zero
+exit code if it is ready to consume the queue, otherwise it will exit
+with 1.
+
+If no arguments are provided, then the handler will read `\0`-delimited
+filenames from standard input. These will be the files to archive and
+delete.
+
+For example, something like the following Bash script might suffice as a
+simple handler:
+
+```bash
+#!/usr/bin/env bash
+
+exec 123>.lock
+flock -nx 123
+locked=$?
+
+case $1 in
+  ready)  exit ${locked};;
+  *)      (( locked )) && exit 1;;
+esac
+
+xargs -0 tar czf "/archive/$(date +%F).tar.gz" --remove-files
+```
+
+This toy handler uses `flock` to provide filesystem-based locking, to
+facilitate the `ready` interface (described above), otherwise it slurps
+in standard input (the incoming list of filenames) and sends it to `tar`
+to create an archive file. Clearly this is not production ready (e.g.,
+it is not defensive against failure), but illustrates how a downstream
+handler should operate.
+
+Note that the stream of filenames provided from the drain phase will
+be the vault files, with their obfuscated names. It is up to the
+downstream handler to decode these, if necessary.
+
+Note that, it is the downstream handler's responsibility to delete
+staged files from vaults, once they are dealt with. Failing to delete
+staged files will cause the vault to increase in size in perpetuity.
+
+#### Auditing and Logging
+
+The batch process will be logged to the user, as described. In addition,
+these logs will be appended to a `.audit` file that exists in the root
+of the respective vault. The persisted log messages will be amended with
+the username of whoever invoked the batch process.
