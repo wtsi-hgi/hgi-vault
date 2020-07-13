@@ -205,7 +205,7 @@ def get_dependencies(module_path):
 if __name__ == "__main__":
     path = Path(sys.argv[1])
     module_path = str(path.resolve())
-    dependency_list = _get_local_dependencies(module_path)
+    dependency_list = get_dependencies(module_path)
 
     for i in dependency_list:
         print(i)
