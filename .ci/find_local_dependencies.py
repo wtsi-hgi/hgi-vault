@@ -62,6 +62,7 @@ def _remove_non_local_dependencies(local_root, import_list):
 
     return local_imports
 
+
 def _find_dependency_uses(syntax_tree, import_list):
     """Scans the syntax tree for uses of methods and classes from each module
     in the import list."""
@@ -93,9 +94,6 @@ def _find_dependency_uses(syntax_tree, import_list):
                 else:
                     properties[name.asname] = (_module, name.name)
 
-    # list of (module, class/method) tuples, for testing purposes
-    print("Modules: {}\nProperties: {}".format(modules, properties))
-    # TODO: remove/don't add duplicate tuples
     use_list = []
     for node in ast.walk(syntax_tree):
         # Documentation for the various nodes can be found here:
@@ -117,6 +115,8 @@ def _find_dependency_uses(syntax_tree, import_list):
 
             _node = node.value
             while type(_node) in [ast.Attribute, ast.Call]:
+                # Have to use different properties depending on whether we've
+                # got an Attribute or Call node
                 if type(_node) == ast.Attribute:
                     _namespace = [_node.attr] + _namespace
                     _node = _node.value
@@ -124,13 +124,21 @@ def _find_dependency_uses(syntax_tree, import_list):
                     _namespace = [_node.func.attr + '()'] + _namespace
                     _node = _node.func.value
 
+            # TODO: Sometimes, an attribute chain can have a method call in it,
+            # like in 'abc.get_something().property'. I'm not sure how to
+            # resolve this at the moment, so the node is just skipped.
             try:
                 _namespace = [_node.id] + _namespace
             except AttributeError:
                 print(list(ast.iter_child_nodes(_node)))
-                print("attribute node ended up as a call: {}.{}"
+                print("attribute node ended up as a call, skipping...: {}.{}"
                     .format(_node.func.value.id, _node.func.attr))
+                continue
 
+            # In an attribute chain, an arbitrary amount of the initial
+            # attributes can be part of the namespace. For abc.efg.ijk.mno(),
+            # this checks whether 'abc' is in the modules list. If it isn't,
+            # it checks 'abc.efg', and so on.
             for i in reversed(range(len(_namespace))):
                 to_try = '.'.join(_namespace[:i+1])
 
@@ -153,10 +161,12 @@ def _find_dependency_uses(syntax_tree, import_list):
 
     return use_list
 
-def get_local_dependencies(module_path):
+
+def _get_local_dependencies(module_path):
     """Return a list of the local dependencies of a module."""
     # Assumes the local scope is the parent of the file's directory
     local_root = Path(os.path.realpath(__file__)).parents[1]
+    module_path = Path(module_path)
 
     # Assumes that the file is valid Python code
     module_code = ''
@@ -173,12 +183,29 @@ def get_local_dependencies(module_path):
     local_imports = _remove_non_local_dependencies(str(local_root), import_list)
     use_list = _find_dependency_uses(tree, local_imports)
 
-    return use_list
+    return set(use_list)
+
+
+def get_dependencies(module_path):
+    """Returns a list of the local dependencies for a module, or for each
+    valid module in a directory. The list contains tuples in the form
+    (module, property)."""
+    path = Path(module_path)
+
+    if path.is_file():
+        dependency_list = _get_local_dependencies(path)
+    else:
+        dependency_list = set()
+        for file in path.rglob('*.py'):
+            dependency_list.update(_get_local_dependencies(file))
+
+    return dependency_list
+
 
 if __name__ == "__main__":
     path = Path(sys.argv[1])
     module_path = str(path.resolve())
-    dependency_list = set(get_local_dependencies(module_path))
+    dependency_list = _get_local_dependencies(module_path)
 
     for i in dependency_list:
         print(i)
