@@ -6,6 +6,10 @@ include=
 
 omit=
     hot/*
+    .venv/*
+    test/*
+    */__init__.py
+    /home/travis/virtualenv/*
     
 skip_covered=true
 
