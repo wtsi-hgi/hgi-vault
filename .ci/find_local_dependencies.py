@@ -121,19 +121,15 @@ def _find_dependency_uses(syntax_tree, import_list):
                     _namespace = [_node.attr] + _namespace
                     _node = _node.value
                 elif type(_node) == ast.Call:
-                    _namespace = [_node.func.attr + '()'] + _namespace
+                    try:
+                        _namespace = [_node.func.attr + '()'] + _namespace
+                    except AttributeError:
+                        # This happens if there's a chain of non-Attribute
+                        # nodes, like multiple Calls chained together. At this
+                        # point we can assume that they're not relevant to the
+                        # namespace.
+                        break
                     _node = _node.func.value
-
-            # TODO: Sometimes, an attribute chain can have a method call in it,
-            # like in 'abc.get_something().property'. I'm not sure how to
-            # resolve this at the moment, so the node is just skipped.
-            try:
-                _namespace = [_node.id] + _namespace
-            except AttributeError:
-                print(list(ast.iter_child_nodes(_node)))
-                print("attribute node ended up as a call, skipping...: {}.{}"
-                    .format(_node.func.value.id, _node.func.attr))
-                continue
 
             # In an attribute chain, an arbitrary amount of the initial
             # attributes can be part of the namespace. For abc.efg.ijk.mno(),
@@ -155,8 +151,8 @@ def _find_dependency_uses(syntax_tree, import_list):
                     if type(properties[to_try]) == tuple:
                         use_list.append(properties[to_try])
                     else:
-                        use_list.append((properties[to_try]),
-                            "{}.{}".format(to_try, full_attribute))
+                        use_list.append((properties[to_try],
+                            "{}.{}".format(to_try, full_attribute)))
                     break
 
     return use_list
@@ -174,7 +170,12 @@ def _get_local_dependencies(module_path):
         module_code += line + '\n'
 
     import_list = []
-    tree = ast.parse(module_code)
+    try:
+        tree = ast.parse(module_code)
+    except Exception as e:
+        print("\tModule {} could not be parsed. Skipping.".format(module_path))
+        print("Parsing failed with error: {}".format(e))
+        return False
 
     for node in ast.walk(tree):
         if type(node) in (ast.Import, ast.ImportFrom):
@@ -189,7 +190,12 @@ def _get_local_dependencies(module_path):
 def get_dependencies(module_path):
     """Returns a list of the local dependencies for a module, or for each
     valid module in a directory. The list contains tuples in the form
-    (module, property)."""
+    (module, property).
+
+    If finding the dependencies for a single file fails, False is returned.
+    If finding the dependencies for one file in a directory fails, it is
+    simply skipped and not included in the output, but a warning is printed
+    to stderr."""
     path = Path(module_path)
 
     if path.is_file():
@@ -197,7 +203,9 @@ def get_dependencies(module_path):
     else:
         dependency_list = set()
         for file in path.rglob('*.py'):
-            dependency_list.update(_get_local_dependencies(file))
+            file_dependencies = _get_local_dependencies(file)
+            if file_dependencies != False:
+                dependency_list.update(file_dependencies)
 
     return dependency_list
 
