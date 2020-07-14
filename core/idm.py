@@ -20,11 +20,7 @@ with this program. If not, see https://www.gnu.org/licenses/
 from abc import ABCMeta, abstractmethod
 from dataclasses import dataclass
 
-<<<<<<< HEAD
-from core import typing as T
-=======
 from . import config, typing as T
->>>>>>> develop
 
 
 class exception(T.SimpleNamespace):
@@ -44,8 +40,6 @@ class _User(_Identity, metaclass=ABCMeta):
     def uid(self) -> int:
         return self._id
 
-<<<<<<< HEAD
-=======
     @property
     @abstractmethod
     def name(self) -> str:
@@ -56,7 +50,6 @@ class _User(_Identity, metaclass=ABCMeta):
     def email(self) -> T.Optional[str]:
         """ Return the user's e-mail address """
 
->>>>>>> develop
 class _Group(_Identity, metaclass=ABCMeta):
     """ Abstract base class for group identities """
     @property
@@ -77,13 +70,10 @@ class _Group(_Identity, metaclass=ABCMeta):
 class _IdentityManager(metaclass=ABCMeta):
     """ Abstract base class for identity management interface """
     @abstractmethod
-<<<<<<< HEAD
-=======
     def __init__(self, cfg:config.base.Config) -> None:
         """ Construct from configuration """
 
     @abstractmethod
->>>>>>> develop
     def user(self, *, uid:int) -> T.Optional[_User]:
         """
         Return the user identity given by the specified ID
