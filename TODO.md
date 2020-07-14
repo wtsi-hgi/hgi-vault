@@ -21,7 +21,7 @@ uninterrupted. Actual times will be added when available.
   * [x] Logging
   * [x] Vault
   * [ ] IdM (LDAP)                                    <ETA: 3 days>
-  * [ ] Configuration parsing (YAML)                  <ETA: 2 days>
+  * [x] Configuration parsing (YAML)                  <ETA: 2 days; Actual: 1 day>
   * [ ] Schema design and persistence engine          <ETA: 5 days>
   * [ ] E-Mail and templating                         <ETA: 3 days>
   * [ ] *Others?*

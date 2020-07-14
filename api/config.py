@@ -17,46 +17,126 @@ You should have received a copy of the GNU General Public License along
 with this program. If not, see https://www.gnu.org/licenses/
 """
 
-from core import config
+from dataclasses import dataclass
+
+import yaml
+
+from core import config, typing as T
 
 
-class DummyConfig(config.base.Config):
+# Convenience type constructors for days and hours
+_Days = lambda days: T.TimeDelta(days=days)
+_Hours = lambda hours: T.TimeDelta(hours=hours)
+
+@dataclass
+class _ListOf:
+    """ Homogeneous Collection Type Constructor """
+    cast:T.Type
+
+    def __call__(self, data:T.Any):
+        if not isinstance(data, list):
+            data = [] if data is None else [data]
+
+        return [self.cast(value) for value in data]
+
+
+_TypeConstructor = T.Callable[[T.Any], T.Any]
+
+class _Required:
+    """ Sentinel object to mark required settings """
+
+@dataclass
+class _Setting:
+    cast:_TypeConstructor = str
+    default:T.Any = _Required()
+
+    @property
+    def is_scalar(self):
+        return not isinstance(self.cast, _ListOf)
+
+
+_schema = {
+    "identity": {
+        "ldap": {
+            "host":   _Setting(),
+            "port":   _Setting(cast=int, default=389)},
+        "users": {
+            "attr":   _Setting(),
+            "dn":     _Setting()},
+        "groups": {
+            "attr":   _Setting(),
+            "dn":     _Setting()}},
+
+    "persistence": {
+        "postgres": {
+            "host":   _Setting(),
+            "port":   _Setting(cast=int, default=5432)},
+        "database":   _Setting(),
+        "user":       _Setting(),
+        "password":   _Setting()},
+
+    "email": {
+        "smtp": {
+            "host":   _Setting(),
+            "port":   _Setting(cast=int, default=25)},
+        "sender":     _Setting()},
+
+    "deletion": {
+        "threshold":  _Setting(cast=_Days),
+        "warnings":   _Setting(cast=_ListOf(_Hours), default=[])},
+
+    "archive": {
+        "threshold":  _Setting(),
+        "handler":    _Setting(cast=T.Path)}}
+
+def _validate(data:T.Dict, schema:T.Dict) -> bool:
+    """
+    Recursively validate and type cast the input data in-place against
+    the given schema, returning the validity of the input
+    """
+    # FIXME This works, but it creates benign phantom entries ??
+    for key, setting in schema.items():
+        if isinstance(setting, dict):
+            # Descend the tree when we encounter a sub-schema
+            if not key in data:
+                data[key] = {}
+
+            if not _validate(data[key], schema[key]):
+                return False
+
+        else:
+            if key not in data:
+                # Check for optional settings
+                if isinstance(setting.default, _Required):
+                    return False
+
+                data[key] = setting.default
+
+            if setting.is_scalar and isinstance(data[key], list):
+                # Scalar settings must not be lists
+                return False
+
+            try:
+                # Cast input to expected type
+                data[key] = setting.cast(data[key])
+            except (ValueError, TypeError):
+                return False
+
+    return True
+
+
+class Config(config.base.Config):
     @staticmethod
-    def build(source):
-        return {
-            "identity": {
-                "ldap": {
-                    "host":   "ldap.example.com",
-                    "port":   389},
-                "users": {
-                    "attr":   "uid",
-                    "dn":     "ou=users,dc=example,dc=com"},
-                "groups": {
-                    "attr":   "cn",
-                    "dn":     "ou=groups,dc=example,dc=com"}},
+    def build(source:T.Path):
+        with source.open() as stream:
+            try:
+                if not isinstance(parsed := yaml.safe_load(stream), dict):
+                    raise config.exception.InvalidConfiguration(f"Configuration in {source.name} is not a mapping")
+                return parsed
 
-            "persistence": {
-                "postgres": {
-                    "host":   "postgres.example.com",
-                    "port":   5432},
-                "database":   "sandman",
-                "user":       "a_db_user",
-                "password":   "abc123"},
-
-            "email": {
-                "smtp": {
-                    "host":   "mail.example.com",
-                    "port":   25},
-                "sender":     "vault@example.com"},
-
-            "deletion": {
-                "threshold":  90,
-                "warnings":   [240, 72, 24]},
-
-            "archive": {
-                "threshold":  1000,
-                "handler":    "/path/to/executable"}}
+            except yaml.YAMLError:
+                raise config.exception.InvalidConfiguration(f"Could not parse {source.name}")
 
     @property
     def is_valid(self):
-        return True
+        return _validate(self._contents, _schema)

@@ -20,7 +20,7 @@ with this program. If not, see https://www.gnu.org/licenses/
 import sys
 
 from core import config, typing as T
-from api.config import DummyConfig as Config
+from api.config import Config
 from api.idm import DummyIdentityManager as IdentityManager
 from api.logging import log
 
