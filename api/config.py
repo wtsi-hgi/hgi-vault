@@ -17,11 +17,26 @@ You should have received a copy of the GNU General Public License along
 with this program. If not, see https://www.gnu.org/licenses/
 """
 
+from abc import ABCMeta
 from dataclasses import dataclass
 
 import yaml
 
 from core import config, typing as T
+
+
+class _YAMLConfig(config.base.Config, metaclass=ABCMeta):
+    """ Abstract base class for building configuration from YAML """
+    @staticmethod
+    def build(source:T.Path) -> T.Dict:
+        with source.open() as stream:
+            try:
+                if not isinstance(parsed := yaml.safe_load(stream), dict):
+                    raise config.exception.InvalidConfiguration(f"Configuration in {source.name} is not a mapping")
+                return parsed
+
+            except yaml.YAMLError:
+                raise config.exception.InvalidConfiguration(f"Could not parse {source.name}")
 
 
 # Convenience type constructors for days and hours
@@ -130,19 +145,7 @@ def _validate(data:T.Dict, schema:T.Dict) -> bool:
 
     return True
 
-
-class Config(config.base.Config):
-    @staticmethod
-    def build(source:T.Path):
-        with source.open() as stream:
-            try:
-                if not isinstance(parsed := yaml.safe_load(stream), dict):
-                    raise config.exception.InvalidConfiguration(f"Configuration in {source.name} is not a mapping")
-                return parsed
-
-            except yaml.YAMLError:
-                raise config.exception.InvalidConfiguration(f"Could not parse {source.name}")
-
+class Config(_YAMLConfig):
     @property
     def is_valid(self):
         return _validate(self._contents, _schema)
