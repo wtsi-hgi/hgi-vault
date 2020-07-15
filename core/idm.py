@@ -74,21 +74,21 @@ class _IdentityManager(metaclass=ABCMeta):
         """ Construct from configuration """
 
     @abstractmethod
-    def user(self, *, uid:int) -> T.Optional[_User]:
+    def user(self, *, uid:int) -> _User:
         """
         Return the user identity given by the specified ID
 
         @param   uid  User ID
-        @return  User identity (None, if not found)
+        @return  User identity
         """
 
     @abstractmethod
-    def group(self, *, gid:int) -> T.Optional[_Group]:
+    def group(self, *, gid:int) -> _Group:
         """
         Return the group identity given by the specified ID
 
         @param   gid  Group ID
-        @return  Group identity (None, if not found)
+        @return  Group identity
         """
 
 
