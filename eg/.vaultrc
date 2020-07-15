@@ -1,10 +1,14 @@
 # Identity Management
 # - ldap        Host (host) and port (port) of the LDAP server
-# - users       Base DN (dn) and search attribute (attr) for users
-# - groups      Base DN (dn) and search attribute (attr) for groups
+# - users       Base DN (dn) and mappings (attributes) for users
+# - groups      Base DN (dn) and mappings (attributes) for groups
 
-# NOTE Group LDAP records are assumed to have owner and member
-# attributes, containing the DNs of users.
+# NOTE The following assumptions are made:
+# * The server uses simple, bind-less authentication over cleartext
+# * The search space of the User and Group trees are their respective
+#   subtrees, in their entirety
+# * The Group records' owners and members contain the fully qualified
+#   DNs of users
 
 identity:
   ldap:
@@ -13,11 +17,17 @@ identity:
 
   users:
     dn: ou=users,dc=example,dc=com
-    attr: uid
+    attributes:
+      uid: uidNumber   # POSIX user ID
+      name: cn         # Full name
+      email: mail      # E-mail address
 
   groups:
     dn: ou=groups,dc=example,dc=com
-    attr: cn
+    attributes:
+      gid: gidNumber   # POSIX group ID
+      owners: owner    # Group owner(s)
+      members: member  # Group member(s)
 
 # Sandman Persistence
 # - postgres    Host (host) and port (port) of PostgreSQL server
