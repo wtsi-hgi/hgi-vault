@@ -18,14 +18,27 @@ with this program. If not, see https://www.gnu.org/licenses/
 """
 
 from abc import ABCMeta, abstractmethod
+from enum import Enum, auto
 
 import ldap3
 
 from core import config, typing as T
 
 
+# NOTE This is a quick-and-dirty LDAP interface and implementation to
+# provide the functionality we specifically need. It is not meant for
+# general-purpose use.
+
+
 class NoResultsFound(Exception):
-    """ Raised on no matching search results """
+    """ Raised upon no matching search results """
+
+
+class Scope(Enum):
+    """ LDAP search scope enumeration """
+    Base     = auto()
+    OneLevel = auto()
+    SubTree  = auto()
 
 
 _EntryT = T.Dict[str, T.List[T.Any]]
@@ -33,17 +46,24 @@ _EntryT = T.Dict[str, T.List[T.Any]]
 class _BaseLDAP(metaclass=ABCMeta):
     """ Quick-and-dirty abstract base class for LDAP searching """
     @abstractmethod
-    def search(self, dn:str, query:str) -> T.Iterator[_EntryT]:
+    def search(self, dn:str, query:str, scope:Scope = Scope.SubTree) -> T.Iterator[_EntryT]:
         """
-        Search the full subtree of the given base DN with the specified
-        query and return the results, or raise _NoResultsFound if no
-        matches are found
+        Search the base DN at the given scope with the specified query
+        and return the results, or raise NoResultsFound if no matches
+        are found
 
         @param   dn     Base DN
         @param   query  LDAP filter
+        @param   scope  Search scope
         @return  Iterator of matching entries
         """
 
+
+_scope_map = {
+    Scope.Base:     ldap3.BASE,
+    Scope.OneLevel: ldap3.LEVEL,
+    Scope.SubTree:  ldap3.SUBTREE
+}
 
 class LDAP(_BaseLDAP):
     """ ldap3 implementation of _BaseLDAP """
@@ -56,9 +76,12 @@ class LDAP(_BaseLDAP):
                                                           read_only=True,
                                                           lazy=True)
 
-    def search(self, dn:str, query:str) -> T.Iterator[_EntryT]:
+    def search(self, dn:str, query:str, scope:Scope = Scope.SubTree) -> T.Iterator[_EntryT]:
         with self._connection as ldap:
-            if not ldap.search(search_base=dn, search_filter=query, search_scope=ldap3.SUBTREE, attributes=ldap3.ALL_ATTRIBUTES):
-                raise NoResultsFound()
+            if not ldap.search(search_base=dn,
+                               search_filter=query,
+                               search_scope=_scope_map[scope],
+                               attributes=ldap3.ALL_ATTRIBUTES):
+                raise NoResultsFound(f"No entries found under DN {dn} matching filter {query}")
 
             return (entry.entry_attributes_as_dict for entry in ldap.entries)
