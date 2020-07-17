@@ -19,59 +19,132 @@ with this program. If not, see https://www.gnu.org/licenses/
 
 from __future__ import annotations
 
+import grp
+import pwd
+from abc import ABCMeta, abstractmethod
+from dataclasses import dataclass
+from string import Template
+
 from core import config, idm, typing as T
-from .ldap import LDAP, Scope, NoResultsFound
+from .ldap import LDAP, NoResultsFound
 
 
-class LDAPUser(idm.base.User):
-    _name:str
-    _email:str
+@dataclass(init=False)
+class _LDAPIdentity:
+    _idm:LDAPIdentityManager
+    _exc:T.ClassVar[Template]
 
-    def __init__(self, _:LDAPIdentityManager, entry:T.Dict, mapping:config.base.Config) -> None:
-        self._id, *_    = entry[mapping.uid]
-        self._name, *_  = entry[mapping.name]
-        self._email, *_ = entry[mapping.email]
+class _LazyLDAPIdentity(_LDAPIdentity, metaclass=ABCMeta):
+    """ Abstract base class for lazy LDAP identity loading """
+    def __init__(self, idm:LDAPIdentityManager, identity:int) -> None:
+        self._idm = idm
+
+        try:
+            self._id = self._check_id(identity)
+        except KeyError:
+            raise idm.exception.NoSuchIdentity(self._exc.substitute(identity=identity))
+
+    @staticmethod
+    @abstractmethod
+    def _check_id(identity:int) -> int:
+        """ Check that the given identity exists """
+
+    @abstractmethod
+    def _fetch_details(self) -> None:
+        """ Fetch details from LDAP when required """
+        # TODO There's scope for further abstraction here
+
+
+class LDAPUser(_LazyLDAPIdentity, idm.base.User):
+    _exc = Template("User with POSIX ID $identity was not found")
+
+    _name:T.Optional[str]  = None
+    _email:T.Optional[str] = None
+
+    @staticmethod
+    def _check_id(identity:int) -> int:
+        return pwd.getpwuid(identity).pw_uid
+
+    def _fetch_details(self) -> None:
+        config  = self._idm._config.users
+        mapping = config.attributes
+
+        try:
+            user = next(self._idm._ldap.search(config.dn, f"({mapping.uid}={self.uid})"))
+            self._name, *_  = user[mapping.name]
+            self._email, *_ = user[mapping.email]
+
+        except NoResultsFound:
+            raise idm.exception.NoSuchIdentity(self._exc.substitute(identity=self.uid))
 
     @property
     def name(self) -> str:
+        if self._name is None:
+            self._fetch_details()
+
         return self._name
 
     @property
     def email(self) -> str:
+        if self._email is None:
+            self._fetch_details()
+
         return self._email
 
 
-class LDAPGroup(idm.base.Group):
-    _owners:T.List[LDAPUser]
-    _members:T.List[LDAPUser]
+class LDAPGroup(_LazyLDAPIdentity, idm.base.Group):
+    _exc = Template("Group with POSIX ID $identity was not found")
 
-    def __init__(self, idm:LDAPIdentityManager, entry:T.Dict, mapping:config.base.Config) -> None:
-        self._id, *_  = entry[mapping.gid]
+    _owners:T.Optional[T.List[LDAPUser]]  = None
+    _members:T.Optional[T.List[LDAPUser]] = None
 
-        # Dereference owners and members
-        self._owners  = [user for u in entry[mapping.owners]  if (user := self._user(idm, u)) is not None]
-        self._members = [user for u in entry[mapping.members] if (user := self._user(idm, u)) is not None]
+    @staticmethod
+    def _check_id(identity:int) -> int:
+        return grp.getgrgid(identity).gr_gid
 
-    def _user(self, idm:LDAPIdentityManager, dn:str) -> T.Optional[LDAPUser]:
-        """ Fetch the LDAP user by its DN """
+    def _user_from_dn(self, dn:str) -> T.Optional[LDAPUser]:
+        """ Convert a user DN to a User object, skipping over errors  """
+        base_suffix = f",{self._idm._config.users.dn}"
+        if not dn.endswith(base_suffix):
+            # This is not a known user DN
+            return None
+
         try:
-            user = LDAPUser(
-                idm,
-                next(idm._ldap.search(dn, "(objectClass=*)", Scope.Base)),
-                idm._config.users.attributes)
+            # Strip the base DN suffix, then split the key-value pair
+            _, username = dn[:-len(base_suffix)].split("=")
+            uid = pwd.getpwnam(username).pw_uid
+        except KeyError:
+            # This is an unknown username
+            return None
 
-            idm._users[user.uid] = user  # Add to cache (FWIW)
-            return user
+        return self._idm.user(uid=uid)
+
+    def _fetch_details(self) -> None:
+        config  = self._idm._config.groups
+        mapping = config.attributes
+
+        try:
+            # Dereference owners and members, skipping over any that
+            # can't be found in the passwd database
+            group = next(self._idm._ldap.search(config.dn, f"({mapping.gid}={self.gid})"))
+            self._owners  = [user for dn in group[mapping.owners]  if (user := self._user_from_dn(dn)) is not None]
+            self._members = [user for dn in group[mapping.members] if (user := self._user_from_dn(dn)) is not None]
 
         except NoResultsFound:
-            return None
+            raise idm.exception.NoSuchIdentity(self._exc.substitute(identity=self.gid))
 
     @property
     def owners(self) -> T.Iterator[LDAPUser]:
+        if self._owners is None:
+            self._fetch_details()
+
         yield from self._owners
 
     @property
     def members(self) -> T.Iterator[LDAPUser]:
+        if self._members is None:
+            self._fetch_details()
+
         yield from self._members
 
 
@@ -80,14 +153,12 @@ class LDAPIdentityManager(idm.base.IdentityManager):
     _ldap:LDAP
 
     # Cache of users and groups
-    _users:T.Dict[int, LDAPUser]
-    _groups:T.Dict[int, LDAPGroup]
+    _cache:T.Dict[T.Tuple[T.Type[_LazyLDAPIdentity], int], _LazyLDAPIdentity]
 
     def __init__(self, config:config.base.Config) -> None:
         self._config = config
         self._ldap   = LDAP(config.ldap)
-        self._users  = {}
-        self._groups = {}
+        self._cache  = {}
 
     @T.overload
     def _fetch(self, cls:T.Type[LDAPUser], entity_id:int) -> LDAPUser: ...
@@ -96,35 +167,14 @@ class LDAPIdentityManager(idm.base.IdentityManager):
     def _fetch(self, cls:T.Type[LDAPGroup], entity_id:int) -> LDAPGroup: ...
 
     def _fetch(self, cls, entity_id):
-        # Set up appropriate references for the given class
-        cache, config, search_key, exception = {
-            LDAPUser: (
-                self._users,
-                self._config.users,
-                self._config.users.attributes.uid,
-                f"User with POSIX ID {entity_id} was not found"),
+        key = cls, entity_id
+        cache = self._cache
 
-            LDAPGroup: (
-                self._groups,
-                self._config.groups,
-                self._config.groups.attributes.gid,
-                f"Group with POSIX ID {entity_id} was not found")}[cls]
+        if key not in cache:
+            # Add to cache, when it doesn't exist
+            cache[key] = cls(self, entity_id)
 
-        if entity_id in cache:
-            # Fetch from cache, if it exists
-            return cache[entity_id]
-
-        try:
-            # Add entry to cache, if it exists
-            cache[entity_id] = cls(
-                self,
-                next(self._ldap.search(config.dn, f"({search_key}={entity_id})")),
-                config.attributes)
-
-        except NoResultsFound:
-            raise idm.exception.NoSuchIdentity(exception)
-
-        return self._fetch(cls, entity_id)
+        return cache[key]
 
     def user(self, *, uid:int) -> LDAPUser:
         return self._fetch(LDAPUser, uid)
