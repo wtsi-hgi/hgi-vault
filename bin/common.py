@@ -21,7 +21,7 @@ import sys
 
 from core import config, typing as T
 from api.config import Config
-from api.idm import LDAPIdentityManager as IdentityManager
+from api.idm import IdentityManager
 from api.logging import log
 
 
