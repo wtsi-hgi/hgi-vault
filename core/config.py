@@ -68,8 +68,8 @@ class _BaseConfig(metaclass=ABCMeta):
     @singledispatchmethod
     def __init__(self, source:T.Any) -> None:
         """ Build the configuration node from source """
-        self._contents = self.build(source)
-        if not self.is_valid:
+        self._contents = self._build(source)
+        if not self._is_valid:
             raise exception.InvalidConfiguration("Configuration did not validate")
 
     @__init__.register(dict)
@@ -98,7 +98,7 @@ class _BaseConfig(metaclass=ABCMeta):
 
     @staticmethod
     @abstractmethod
-    def build(source:T.Any) -> NodeT:
+    def _build(source:T.Any) -> NodeT:
         """
         Build contents from some external source
 
@@ -108,7 +108,7 @@ class _BaseConfig(metaclass=ABCMeta):
 
     @property
     @abstractmethod
-    def is_valid(self) -> bool:
+    def _is_valid(self) -> bool:
         """ Are the contents valid? """
 
 

@@ -29,7 +29,7 @@ from core import config, typing as T
 class _YAMLConfig(config.base.Config, metaclass=ABCMeta):
     """ Abstract base class for building configuration from YAML """
     @staticmethod
-    def build(source:T.Path) -> T.Dict:
+    def _build(source:T.Path) -> T.Dict:
         with source.open() as stream:
             try:
                 if not isinstance(parsed := yaml.safe_load(stream), dict):
@@ -151,5 +151,5 @@ def _validate(data:T.Dict, schema:T.Dict) -> bool:
 
 class Config(_YAMLConfig):
     @cached_property
-    def is_valid(self):
+    def _is_valid(self):
         return _validate(self._contents, _schema)
