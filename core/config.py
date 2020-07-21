@@ -88,7 +88,9 @@ class _BaseConfig(metaclass=ABCMeta):
         except KeyError:
             raise exception.NoSuchSetting(f"No such setting \"{item}\"")
 
-        return type(self)(contents) if isinstance(contents, dict) else contents
+        # We create a (shallow) copy for sub-branches, to avoid
+        # downstream changes to the contents
+        return type(self)(contents.copy()) if isinstance(contents, dict) else contents
 
     def __dir__(self) -> T.List[str]:
         # Convenience method for REPL use
