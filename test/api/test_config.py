@@ -20,7 +20,6 @@ along with this program. If not, see https://www.gnu.org/licenses/
 import os
 import unittest
 from tempfile import TemporaryDirectory
-
 from core import typing as T, time
 from core.config import exception
 from api.config import Config, _validate, _schema
@@ -88,6 +87,7 @@ identity:
 
     def test_validation(self) -> None:
         _path = self._path / "config"
+        #This test is expected to pass but fails
         config_test = Config(T.Path("eg/.vaultrc"))
         self.assertTrue(config_test._is_valid)
 
@@ -115,21 +115,56 @@ email:
     sender: vault@example.com
 deletion:
     threshold: 90
+archive:
+    threshold: 1000
+    handler: /path/to/executable
+"""
+
+        _added_info_schema = """
+identity:
+    ldap:
+        host: ldap.example.com
+    users:
+        dn: ou=users,dc=example,dc=com
+        attributes:
+            uid: uidNumber
+    groups:
+        dn: ou=groups,dc=example,dc=com
+        attributes:
+            gid: gidNumber
+persistence:
+    postgres:
+        host: postgres.example.com
+    database: sandman
+    data: information
+    user: a_db_user
+    password: abc123
+email:
+    smtp:
+        host: mail.example.com
+    sender: vault@example.com
+deletion:
+    threshold: 90
     warnings:
         - 240
         - 72
         - 24
 archive:
     threshold: 1000
+    data: more information
     handler: /path/to/executable
 """
+
         with open(_path, 'w') as file:
             file.write(_basic_schema)
 
         config_test = Config(T.Path(_path))
         self.assertTrue(config_test._is_valid)
 
+        with open(_path, 'w') as file:
+            file.write(_added_info_schema)
 
+        self.assertTrue(Config(T.Path(_path))._is_valid)
 
 if __name__ == "__main__":
     unittest.main()
