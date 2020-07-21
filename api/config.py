@@ -19,7 +19,7 @@ with this program. If not, see https://www.gnu.org/licenses/
 
 from abc import ABCMeta
 from dataclasses import dataclass
-
+from functools import cached_property
 import yaml
 
 from core import config, typing as T
@@ -140,12 +140,13 @@ def _validate(data:T.Dict, schema:T.Dict) -> bool:
             try:
                 # Cast input to expected type
                 data[key] = setting.cast(data[key])
+
             except (ValueError, TypeError):
                 return False
 
     return True
 
 class Config(_YAMLConfig):
-    @property
+    @cached_property
     def is_valid(self):
         return _validate(self._contents, _schema)
