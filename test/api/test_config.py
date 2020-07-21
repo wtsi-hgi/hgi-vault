@@ -20,6 +20,7 @@ along with this program. If not, see https://www.gnu.org/licenses/
 import os
 import unittest
 from tempfile import TemporaryDirectory
+
 from core import typing as T, time
 from core.config import exception
 from api.config import Config, _validate, _schema
@@ -76,20 +77,19 @@ identity:
         with open(_path, 'w') as file:
             file.write(_not_a_config)
 
-        self.assertRaises(exception.InvalidConfiguration, Config.build, _path)
+        self.assertRaises(exception.InvalidConfiguration, Config._build, _path)
 
         with open(_path, 'w') as file:
             file.write(_bad_YAML)
 
-        self.assertRaises(exception.InvalidConfiguration, Config.build, _path)
+        self.assertRaises(exception.InvalidConfiguration, Config._build, _path)
 
 
 
     def test_validation(self) -> None:
         _path = self._path / "config"
-        #This test is expected to pass but fails
         config_test = Config(T.Path("eg/.vaultrc"))
-        self.assertTrue(config_test.is_valid)
+        self.assertTrue(config_test._is_valid)
 
         _basic_schema = """
 identity:
@@ -127,7 +127,7 @@ archive:
             file.write(_basic_schema)
 
         config_test = Config(T.Path(_path))
-        self.assertTrue(config_test.is_valid)
+        self.assertTrue(config_test._is_valid)
 
 
 

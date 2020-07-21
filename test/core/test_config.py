@@ -28,11 +28,11 @@ from core.config import base, exception, utils
 
 class DummyConfig(base.Config):
     @staticmethod
-    def build(source):
+    def _build(source):
         return {"foo": "bar"}
 
     @property
-    def is_valid(self):
+    def _is_valid(self):
         return True
 
 
@@ -69,7 +69,7 @@ class TestBaseConfig(unittest.TestCase):
             _ = cfg.does_not_exist
 
     def test_invalid(self) -> None:
-        with patch("test.core.test_config.DummyConfig.is_valid", new_callable=PropertyMock) as mock_valid:
+        with patch("test.core.test_config.DummyConfig._is_valid", new_callable=PropertyMock) as mock_valid:
             mock_valid.return_value = False
             self.assertRaises(exception.InvalidConfiguration, DummyConfig, 0)
 
