@@ -108,7 +108,7 @@ _schema = {
         "warnings":          _Setting(cast=_ListOf(_Hours), default=[])},
 
     "archive": {
-        "threshold":         _Setting(),
+        "threshold":         _Setting(cast=int),
         "handler":           _Setting(cast=T.Path)}}
 
 def _validate(data:T.Dict, schema:T.Dict) -> bool:
