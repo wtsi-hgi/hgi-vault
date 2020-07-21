@@ -16,12 +16,13 @@ General Public License for more details.
 You should have received a copy of the GNU General Public License
 along with this program. If not, see https://www.gnu.org/licenses/
 """
+
 import os
 import unittest
 from tempfile import TemporaryDirectory
 from core import typing as T, time
 from core.config import exception
-from api.config import Config
+from api.config import Config, _validate, _schema
 
 
 class TestLoader(unittest.TestCase):
@@ -62,11 +63,8 @@ class TestLoader(unittest.TestCase):
 
         self.assertTrue(Config(T.Path("eg/.vaultrc")))
 
-        _incomplete_config = """
-identity:
-    ldap:
-        host: baz
-        port: quux
+        _not_a_config = """
+This is an example
 """
         _bad_YAML = """
 identity:
@@ -76,14 +74,61 @@ identity:
 """
 
         with open(_path, 'w') as file:
-            file.write(_incomplete_config)
+            file.write(_not_a_config)
 
-        self.assertRaises(exception.InvalidConfiguration, Config, _path)
+        self.assertRaises(exception.InvalidConfiguration, Config.build, _path)
 
         with open(_path, 'w') as file:
             file.write(_bad_YAML)
 
-        self.assertRaises(exception.InvalidConfiguration, Config, _path)
+        self.assertRaises(exception.InvalidConfiguration, Config.build, _path)
+
+
+
+    def test_validation(self) -> None:
+        _path = self._path / "config"
+        #This test is expected to pass but fails
+        config_test = Config(T.Path("eg/.vaultrc"))
+        self.assertTrue(config_test.is_valid)
+
+        _basic_schema = """
+identity:
+    ldap:
+        host: ldap.example.com
+    users:
+        dn: ou=users,dc=example,dc=com
+        attributes:
+            uid: uidNumber
+    groups:
+        dn: ou=groups,dc=example,dc=com
+        attributes:
+            gid: gidNumber
+persistence:
+    postgres:
+        host: postgres.example.com
+    database: sandman
+    user: a_db_user
+    password: abc123
+email:
+    smtp:
+        host: mail.example.com
+    sender: vault@example.com
+deletion:
+    threshold: 90
+    warnings:
+        - 240
+        - 72
+        - 24
+archive:
+    threshold: 1000
+    handler: /path/to/executable
+"""
+        with open(_path, 'w') as file:
+            file.write(_basic_schema)
+
+        config_test = Config(T.Path(_path))
+        self.assertTrue(config_test.is_valid)
+
 
 
 if __name__ == "__main__":
