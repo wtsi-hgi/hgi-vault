@@ -167,7 +167,7 @@ def _get_local_dependencies(module_path):
     # Assumes that the file is valid Python code
     module_code = ''
     for line in open(module_path, 'r'):
-        module_code += line + '\n'
+        module_code += line
 
     import_list = []
     try:
