@@ -135,6 +135,7 @@ _incorrect_type_config = """
 identity:
     ldap:
         host: ldap.example.com
+        port: here is a string
     users:
         dn: ou=users,dc=example,dc=com
         attributes:
@@ -163,7 +164,7 @@ deletion:
 archive:
     threshold: 1000
     data: more information
-    handler: 1234
+    handler: /path/to/executable
 """
 _missing_key_config = """
 identity:
@@ -265,13 +266,13 @@ class TestLoader(unittest.TestCase):
         self.assertTrue(Config(T.Path(_path))._is_valid)
 
         _path.write_text(_scalar_list_config)
-        self.assertRaises(exception.InvalidConfiguration.InvalidSemanticConfiguration, Config, T.Path(_path))
+        self.assertRaises(exception.InvalidSemanticConfiguration, Config, T.Path(_path))
 
         _path.write_text(_incorrect_type_config)
-        self.assertRaises(exception.InvalidConfiguration.InvalidSemanticConfiguration, Config, T.Path(_path))
+        self.assertRaises(exception.InvalidSemanticConfiguration, Config, T.Path(_path))
 
         _path.write_text(_missing_key_config)
-        self.assertRaises(exception.InvalidConfiguration.InvalidSemanticConfiguration, Config, T.Path(_path))
+        self.assertRaises(exception.InvalidSemanticConfiguration, Config, T.Path(_path))
 
 if __name__ == "__main__":
     unittest.main()
