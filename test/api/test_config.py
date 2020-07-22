@@ -87,9 +87,8 @@ identity:
 
     def test_validation(self) -> None:
         _path = self._path / "config"
-        #This test is expected to pass but fails
-        config_test = Config(T.Path("eg/.vaultrc"))
-        self.assertTrue(config_test._is_valid)
+        
+        self.assertTrue(Config(T.Path("eg/.vaultrc"))._is_valid)
 
         _basic_schema = """
 identity:
@@ -158,8 +157,7 @@ archive:
         with open(_path, 'w') as file:
             file.write(_basic_schema)
 
-        config_test = Config(T.Path(_path))
-        self.assertTrue(config_test._is_valid)
+        self.assertTrue(Config(T.Path(_path))._is_valid)
 
         with open(_path, 'w') as file:
             file.write(_added_info_schema)
