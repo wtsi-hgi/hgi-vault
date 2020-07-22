@@ -1,7 +1,9 @@
 """
 Copyright (c) 2020 Genome Research Limited
 
-Author: Aiden Neale <an12@sanger.ac.uk>
+Authors:
+* Aiden Neale <an12@sanger.ac.uk>
+* Christopher Harrison <ch12@sanger.ac.uk>
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -17,202 +19,69 @@ You should have received a copy of the GNU General Public License
 along with this program. If not, see https://www.gnu.org/licenses/
 """
 
-import os
 import unittest
-from tempfile import TemporaryDirectory
+from tempfile import NamedTemporaryFile
 
-from core import typing as T, time
-from core.config import exception
-from api.config import Config, _validate, _schema
+from core import config, time, typing as T
+from api.config import Config
 
-_not_a_config = """ This is an example """
-_bad_YAML = """
+
+_EXAMPLE_CONFIG = T.Path("eg/.vaultrc")
+_EXAMPLE_CONFIG_TEXT = _EXAMPLE_CONFIG.read_text()
+
+_NOT_A_CONFIG = "This is an example"
+
+_BAD_YAML = """
 identity:
     ldap:
             host: baz
         port: quux
 """
-_basic_config = """
-identity:
-    ldap:
-        host: ldap.example.com
-    users:
-        dn: ou=users,dc=example,dc=com
-        attributes:
-            uid: uidNumber
-    groups:
-        dn: ou=groups,dc=example,dc=com
-        attributes:
-            gid: gidNumber
-persistence:
-    postgres:
-        host: postgres.example.com
-    database: sandman
-    user: a_db_user
-    password: abc123
-email:
-    smtp:
-        host: mail.example.com
-    sender: vault@example.com
-deletion:
-    threshold: 90
-archive:
-    threshold: 1000
-    handler: /path/to/executable
-"""
-_added_info_config = """
-identity:
-    ldap:
-        host: ldap.example.com
-    users:
-        dn: ou=users,dc=example,dc=com
-        attributes:
-            uid: uidNumber
-    groups:
-        dn: ou=groups,dc=example,dc=com
-        attributes:
-            gid: gidNumber
-persistence:
-    postgres:
-        host: postgres.example.com
-    database: sandman
-    data: information
-    user: a_db_user
-    password: abc123
-email:
-    smtp:
-        host: mail.example.com
-    sender: vault@example.com
-deletion:
-    threshold: 90
-    warnings:
-    - 240
-    - 72
-    - 24
-archive:
-    threshold: 1000
-    data: more information
-    handler: /path/to/executable
-"""
-_scalar_list_config = """
-identity:
-    ldap:
-        host: ldap.example.com
-    users:
-        dn: ou=users,dc=example,dc=com
-        attributes:
-            uid: uidNumber
-    groups:
-        dn: ou=groups,dc=example,dc=com
-        attributes:
-            gid: gidNumber
-persistence:
-    postgres:
-        host: postgres.example.com
-        port:
-            - 1
-            - 2
-    database: sandman
-    data: information
-    user: a_db_user
-    password: abc123
-email:
-    smtp:
-        host: mail.example.com
-    sender: vault@example.com
-deletion:
-    threshold: 90
-    warnings:
-    - 240
-    - 72
-    - 24
-archive:
-    threshold: 1000
-    data: more information
-    handler: /path/to/executable
-"""
-_incorrect_type_config = """
-identity:
-    ldap:
-        host: ldap.example.com
-        port: here is a string
-    users:
-        dn: ou=users,dc=example,dc=com
-        attributes:
-            uid: uidNumber
-    groups:
-        dn: ou=groups,dc=example,dc=com
-        attributes:
-            gid: gidNumber
-persistence:
-    postgres:
-        host: postgres.example.com
-    database: sandman
-    data: information
-    user: a_db_user
-    password: abc123
-email:
-    smtp:
-        host: mail.example.com
-    sender: vault@example.com
-deletion:
-    threshold: 90
-    warnings:
-    - 240
-    - 72
-    - 24
-archive:
-    threshold: 1000
-    data: more information
-    handler: /path/to/executable
-"""
-_missing_key_config = """
-identity:
-    users:
-        dn: ou=users,dc=example,dc=com
-        attributes:
-            uid: uidNumber
-    groups:
-        dn: ou=groups,dc=example,dc=com
-        attributes:
-            gid: gidNumber
-persistence:
-    postgres:
-        host: postgres.example.com
-    database: sandman
-    data: information
-    user: a_db_user
-    password: abc123
-email:
-    smtp:
-        host: mail.example.com
-    sender: vault@example.com
-deletion:
-    threshold: 90
-    warnings:
-    - 240
-    - 72
-    - 24
-archive:
-    threshold: 1000
-    data: more information
-    handler: /path/to/executable
+
+# Extra stuff should be ignored
+_ADDED_INFO_CONFIG = f"""{_EXAMPLE_CONFIG_TEXT}
+here:
+  is: some extra stuff
 """
 
-class TestLoader(unittest.TestCase):
-    _tmp:TemporaryDirectory
-    _path:T.Path
+# A list where a scalar is expected
+_SCALAR_LIST_CONFIG = _EXAMPLE_CONFIG_TEXT.replace(
+    "port: 5432",
+    "port: [1, 2, 3]")
+
+# Incorrect data type
+_INCORRECT_TYPE_CONFIG = _EXAMPLE_CONFIG_TEXT.replace(
+    "port: 389",
+    "port: Three hundred and eighty nine")
+
+# A required key not present
+_MISSING_KEY_CONFIG = _EXAMPLE_CONFIG_TEXT.replace(
+    "host: ldap.example.com",
+    "")
+
+# An optional key not present
+_MISSING_OPTIONAL_CONFIG = _EXAMPLE_CONFIG_TEXT.replace(
+    "port: 25",
+    "")
+
+
+class TestConfig(unittest.TestCase):
+    _tmp:NamedTemporaryFile
+    temp_config:T.Path
 
     def setUp(self) -> None:
-        self._tmp = TemporaryDirectory()
-        self._path = path = T.Path(self._tmp.name)
+        self._tmp = NamedTemporaryFile()
+        self.temp_config = T.Path(self._tmp.name)
 
     def tearDown(self) -> None:
-        self._tmp.cleanup()
-        del self._path
+        self._tmp.close()
+        del self.temp_config
 
-    def test_branch_contents(self) -> None:
-        config = Config(T.Path("eg/.vaultrc"))
+    def test_example_config(self) -> None:
+        # NOTE This is coupled to eg/.vaultrc
+        # Any changes there must be reflected in these tests
+        config = Config(_EXAMPLE_CONFIG)
+
         self.assertEqual(config.identity.ldap.host, "ldap.example.com")
         self.assertEqual(config.identity.ldap.port, 389)
 
@@ -243,36 +112,34 @@ class TestLoader(unittest.TestCase):
         self.assertEqual(config.archive.threshold, 1000)
         self.assertEqual(config.archive.handler, T.Path("/path/to/executable"))
 
-    def test_build(self) -> None:
-        _path = self._path / "config"
+    def test_builder(self) -> None:
+        self.assertIsInstance(Config(_EXAMPLE_CONFIG), Config)
 
-        self.assertTrue(Config(T.Path("eg/.vaultrc")))
+        self.temp_config.write_text(_NOT_A_CONFIG)
+        self.assertRaises(config.exception.InvalidConfiguration, Config._build, self.temp_config)
 
-        _path.write_text(_not_a_config)
-        self.assertRaises(exception.InvalidConfiguration, Config._build, _path)
+        self.temp_config.write_text(_BAD_YAML)
+        self.assertRaises(config.exception.InvalidConfiguration, Config._build, self.temp_config)
 
-        _path.write_text(_bad_YAML)
-        self.assertRaises(exception.InvalidConfiguration, Config._build, _path)
+    def test_validator(self) -> None:
+        self.assertTrue(Config(_EXAMPLE_CONFIG)._is_valid)
 
-    def test_validation(self) -> None:
-        _path = self._path / "config"
+        self.temp_config.write_text(_ADDED_INFO_CONFIG)
+        self.assertTrue(Config(self.temp_config)._is_valid)
 
-        self.assertTrue(Config(T.Path("eg/.vaultrc"))._is_valid)
+        self.temp_config.write_text(_SCALAR_LIST_CONFIG)
+        self.assertRaises(config.exception.InvalidSemantics, Config, self.temp_config)
 
-        _path.write_text(_basic_config)
-        self.assertTrue(Config(T.Path(_path))._is_valid)
+        self.temp_config.write_text(_INCORRECT_TYPE_CONFIG)
+        self.assertRaises(config.exception.InvalidSemantics, Config, self.temp_config)
 
-        _path.write_text(_added_info_config)
-        self.assertTrue(Config(T.Path(_path))._is_valid)
+        self.temp_config.write_text(_MISSING_KEY_CONFIG)
+        self.assertRaises(config.exception.InvalidSemantics, Config, self.temp_config)
 
-        _path.write_text(_scalar_list_config)
-        self.assertRaises(exception.InvalidSemanticConfiguration, Config, T.Path(_path))
+        self.temp_config.write_text(_MISSING_OPTIONAL_CONFIG)
+        self.assertTrue((c := Config(self.temp_config))._is_valid)
+        self.assertEqual(c.email.smtp.port, 25)
 
-        _path.write_text(_incorrect_type_config)
-        self.assertRaises(exception.InvalidSemanticConfiguration, Config, T.Path(_path))
-
-        _path.write_text(_missing_key_config)
-        self.assertRaises(exception.InvalidSemanticConfiguration, Config, T.Path(_path))
 
 if __name__ == "__main__":
     unittest.main()

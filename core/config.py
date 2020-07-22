@@ -1,7 +1,9 @@
 """
 Copyright (c) 2020 Genome Research Limited
 
-Author: Christopher Harrison <ch12@sanger.ac.uk>
+Authors:
+* Christopher Harrison <ch12@sanger.ac.uk>
+* Aiden Neale <an12@sanger.ac.uk>
 
 This program is free software: you can redistribute it and/or modify it
 under the terms of the GNU General Public License as published by the
@@ -33,8 +35,10 @@ class exception(T.SimpleNamespace):
 
     class InvalidConfiguration(Exception):
         """ Raised when configuration validation fails """
-    class InvalidSemanticConfiguration(InvalidConfiguration):
-        """ Raised when configuration validation fails due to semantic errors """
+
+    class InvalidSemantics(InvalidConfiguration):
+        """ Raised when validation fails due to semantic error """
+
     class ConfigurationNotFound(Exception):
         """ Raised when the configuration file cannot be found """
 
@@ -71,7 +75,7 @@ class _BaseConfig(metaclass=ABCMeta):
         """ Build the configuration node from source """
         self._contents = self._build(source)
         if not self._is_valid:
-            raise exception.InvalidSemanticConfiguration("Configuration did not validate")
+            raise exception.InvalidSemantics("Configuration did not validate")
 
     @__init__.register(dict)
     def _(self, source:NodeT) -> None:

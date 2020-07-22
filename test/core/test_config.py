@@ -71,7 +71,7 @@ class TestBaseConfig(unittest.TestCase):
     def test_invalid(self) -> None:
         with patch("test.core.test_config.DummyConfig._is_valid", new_callable=PropertyMock) as mock_valid:
             mock_valid.return_value = False
-            self.assertRaises(exception.InvalidConfiguration, DummyConfig, 0)
+            self.assertRaises(exception.InvalidSemantics, DummyConfig, 0)
 
         self.assertRaises(exception.InvalidConfiguration, DummyConfig, None)
 
