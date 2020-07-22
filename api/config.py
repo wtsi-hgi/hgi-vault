@@ -19,6 +19,7 @@ with this program. If not, see https://www.gnu.org/licenses/
 
 from abc import ABCMeta
 from dataclasses import dataclass
+from functools import cached_property
 
 import yaml
 
@@ -28,7 +29,7 @@ from core import config, typing as T
 class _YAMLConfig(config.base.Config, metaclass=ABCMeta):
     """ Abstract base class for building configuration from YAML """
     @staticmethod
-    def build(source:T.Path) -> T.Dict:
+    def _build(source:T.Path) -> T.Dict:
         with source.open() as stream:
             try:
                 if not isinstance(parsed := yaml.safe_load(stream), dict):
@@ -107,7 +108,7 @@ _schema = {
         "warnings":          _Setting(cast=_ListOf(_Hours), default=[])},
 
     "archive": {
-        "threshold":         _Setting(),
+        "threshold":         _Setting(cast=int),
         "handler":           _Setting(cast=T.Path)}}
 
 def _validate(data:T.Dict, schema:T.Dict) -> bool:
@@ -115,7 +116,6 @@ def _validate(data:T.Dict, schema:T.Dict) -> bool:
     Recursively validate and type cast the input data in-place against
     the given schema, returning the validity of the input
     """
-    # FIXME This works, but it creates benign phantom entries ??
     for key, setting in schema.items():
         if isinstance(setting, dict):
             # Descend the tree when we encounter a sub-schema
@@ -139,13 +139,17 @@ def _validate(data:T.Dict, schema:T.Dict) -> bool:
 
             try:
                 # Cast input to expected type
+                # NOTE Type constructors cannot be guaranteed to be
+                # idempotent, so _validate can only be run against the
+                # input data at most once
                 data[key] = setting.cast(data[key])
+
             except (ValueError, TypeError):
                 return False
 
     return True
 
 class Config(_YAMLConfig):
-    @property
-    def is_valid(self):
+    @cached_property
+    def _is_valid(self):
         return _validate(self._contents, _schema)

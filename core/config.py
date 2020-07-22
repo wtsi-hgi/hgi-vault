@@ -33,7 +33,8 @@ class exception(T.SimpleNamespace):
 
     class InvalidConfiguration(Exception):
         """ Raised when configuration validation fails """
-
+    class InvalidSemanticConfiguration(InvalidConfiguration):
+        """ Raised when configuration validation fails due to semantic errors """
     class ConfigurationNotFound(Exception):
         """ Raised when the configuration file cannot be found """
 
@@ -68,9 +69,9 @@ class _BaseConfig(metaclass=ABCMeta):
     @singledispatchmethod
     def __init__(self, source:T.Any) -> None:
         """ Build the configuration node from source """
-        self._contents = self.build(source)
-        if not self.is_valid:
-            raise exception.InvalidConfiguration("Configuration did not validate")
+        self._contents = self._build(source)
+        if not self._is_valid:
+            raise exception.InvalidSemanticConfiguration("Configuration did not validate")
 
     @__init__.register(dict)
     def _(self, source:NodeT) -> None:
@@ -88,7 +89,9 @@ class _BaseConfig(metaclass=ABCMeta):
         except KeyError:
             raise exception.NoSuchSetting(f"No such setting \"{item}\"")
 
-        return type(self)(contents) if isinstance(contents, dict) else contents
+        # We create a (shallow) copy for sub-branches, to avoid
+        # downstream changes to the contents
+        return type(self)(contents.copy()) if isinstance(contents, dict) else contents
 
     def __dir__(self) -> T.List[str]:
         # Convenience method for REPL use
@@ -96,7 +99,7 @@ class _BaseConfig(metaclass=ABCMeta):
 
     @staticmethod
     @abstractmethod
-    def build(source:T.Any) -> NodeT:
+    def _build(source:T.Any) -> NodeT:
         """
         Build contents from some external source
 
@@ -106,7 +109,7 @@ class _BaseConfig(metaclass=ABCMeta):
 
     @property
     @abstractmethod
-    def is_valid(self) -> bool:
+    def _is_valid(self) -> bool:
         """ Are the contents valid? """
 
 
