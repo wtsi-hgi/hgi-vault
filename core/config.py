@@ -33,7 +33,8 @@ class exception(T.SimpleNamespace):
 
     class InvalidConfiguration(Exception):
         """ Raised when configuration validation fails """
-
+        class InvalidSemanticConfiguration(Exception):
+            """ Raised when configuration validation fails due to syntactic errors """
     class ConfigurationNotFound(Exception):
         """ Raised when the configuration file cannot be found """
 
@@ -70,7 +71,7 @@ class _BaseConfig(metaclass=ABCMeta):
         """ Build the configuration node from source """
         self._contents = self._build(source)
         if not self._is_valid:
-            raise exception.InvalidConfiguration("Configuration did not validate")
+            raise exception.InvalidConfiguration.InvalidSemanticConfiguration("Configuration did not validate")
 
     @__init__.register(dict)
     def _(self, source:NodeT) -> None:
