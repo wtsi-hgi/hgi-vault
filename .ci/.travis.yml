@@ -1,14 +1,18 @@
 language: python
 
 python:
-  - 3.8
+- 3.8
 
 install:
-  - pip install -r .ci/test-requirements.txt
-  - pip install -r requirements.txt
+- pip install -r .ci/test-requirements.txt
+- pip install -r requirements.txt
 
 script:
-  - .ci/run-tests.sh
+- .ci/run-tests.sh
 
 after_success:
-  - codecov
+- codecov
+
+notifications:
+  slack:
+    secure: DR9RX/ek3DVmmMF6Sy6DLqoFhFNaVrHHgnBLUnOXS/ul/Q665FqUXTMK8LJaa7an+pO+defqefvYK+9qEdvoQj/P0IWm52iLxBspeeOO2fdz9JZGatVufPUI4Y3P9lHfv62MCVCkl5oG4y5LaWXzDmi6CynNoMsNQRzUxctiga+6ZtROhfZMQ6G5+PiPbxlUs/BTEWcfr+WpQTE1zVboYzja/G4z9uaWoFCRZL4zxdy0CTZg7IDtwXViVrIskeymUYXvi2ynAizLI0exuAkDMXkHMbsBCvM1GuPP/FAhb9l1l1+NfSfq2hcSyHn/b6j18pPsqVEAc36uyUi978a6iwDGX1kk/m6nyem5LE/jW7juidW4Qkp3nFA6iFFoeQfrEvi+S7bCVKfOuO7htKp0ClN8l6Q3vxnKbsgAYjzMWNRxeHYquVBxyftUO/XEtNVb7C/d1gJR3THrrK+w9ikjLe0aJM6ZF3kJp6bvxS8Zg1z7puAKG4A8KbpxA9Ql6cAda7FqDdHw4xFeY4qMHfoxQjUak+6v32Q7weRnjihuqKAu+ZzMDDricxF4CyEuwYJpuuRLg/EugAnz2e0yoNz6NWCR5OMPEiJ5y7T1hli0f9tao94DeyaTXXffr1wnt6ew7LRdYK9SOlF/fHRX6dZvquHMbyMgttVQiAJDaVo8Tkg=
