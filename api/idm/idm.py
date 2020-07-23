@@ -22,6 +22,7 @@ from __future__ import annotations
 import grp
 import pwd
 from abc import ABCMeta, abstractmethod
+from contextlib import suppress
 from dataclasses import dataclass
 from string import Template
 
@@ -44,10 +45,18 @@ class _LazyLDAPIdentity(_LDAPIdentity, metaclass=ABCMeta):
         except KeyError:
             raise idm.exception.NoSuchIdentity(self._exc.substitute(identity=identity))
 
+    @classmethod
+    @abstractmethod
+    def from_dn(cls, idm:LDAPIdentityManager, dn:str) -> _LazyLDAPIdentity:
+        """ Construct the identity object from a DN """
+
     @staticmethod
     @abstractmethod
     def _check_id(identity:int) -> int:
-        """ Check that the given identity exists """
+        """
+        Check that the given identity exists: Acting as the identity
+        function, if an identity exists, or raising KeyError otherwise
+        """
 
     @abstractmethod
     def _fetch_details(self) -> None:
@@ -60,6 +69,31 @@ class LDAPUser(_LazyLDAPIdentity, idm.base.User):
 
     _name:T.Optional[str]  = None
     _email:T.Optional[str] = None
+
+    @classmethod
+    def from_dn(cls, idm:LDAPIdentityManager, dn:str) -> LDAPUser:
+        # NOTE Here we make the assumption that user DNs have the form:
+        #
+        #   KEY=USERNAME,BASE_DN
+        #
+        # Where KEY is arbitrary, USERNAME is the POSIX username and
+        # BASE_DN is per the configuration definition. We extract the
+        # USERNAME and run it through the passwd database to convert it
+        # to its respective POSIX user ID.
+        base_suffix = f",{idm._config.users.dn}"
+        if not dn.endswith(base_suffix):
+            # This is not a known user DN
+            raise idm.exception.NoSuchIdentity(f"The DN {dn} is not a subordinate of {idm._config.users.dn}")
+
+        try:
+            # Strip the base DN suffix, then split the key-value pair
+            _, username = dn[:-len(base_suffix)].split("=")
+            uid = pwd.getpwnam(username).pw_uid
+        except KeyError:
+            # This is an unknown username
+            raise idm.exception.NoSuchIdentity(f"User with POSIX username {username} was not found")
+
+        return idm.user(uid=uid)
 
     @staticmethod
     def _check_id(identity:int) -> int:
@@ -98,37 +132,29 @@ class LDAPGroup(_LazyLDAPIdentity, idm.base.Group):
     _owners:T.Optional[T.List[LDAPUser]]  = None
     _members:T.Optional[T.List[LDAPUser]] = None
 
+    @classmethod
+    def from_dn(cls, idm:LDAPIdentityManager, dn:str) -> LDAPGroup:
+        # This is not (currently) needed
+        raise NotImplementedError
+
     @staticmethod
     def _check_id(identity:int) -> int:
         return grp.getgrgid(identity).gr_gid
-
-    def _user_from_dn(self, dn:str) -> T.Optional[LDAPUser]:
-        """ Convert a user DN to a User object, skipping over errors  """
-        base_suffix = f",{self._idm._config.users.dn}"
-        if not dn.endswith(base_suffix):
-            # This is not a known user DN
-            return None
-
-        try:
-            # Strip the base DN suffix, then split the key-value pair
-            _, username = dn[:-len(base_suffix)].split("=")
-            uid = pwd.getpwnam(username).pw_uid
-        except KeyError:
-            # This is an unknown username
-            return None
-
-        return self._idm.user(uid=uid)
 
     def _fetch_details(self) -> None:
         config  = self._idm._config.groups
         mapping = config.attributes
 
+        def user_from_dn(dn:str) -> T.Optional[LDAPUser]:
+            with suppress(idm.exception.NoSuchIdentity):
+                return LDAPUser.from_dn(self._idm, dn)
+
         try:
             # Dereference owners and members, skipping over any that
             # can't be found in the passwd database
             group = next(self._idm._ldap.search(config.dn, f"({mapping.gid}={self.gid})"))
-            self._owners  = [user for dn in group[mapping.owners]  if (user := self._user_from_dn(dn)) is not None]
-            self._members = [user for dn in group[mapping.members] if (user := self._user_from_dn(dn)) is not None]
+            self._owners  = [user for dn in group[mapping.owners]  if (user := user_from_dn(dn)) is not None]
+            self._members = [user for dn in group[mapping.members] if (user := user_from_dn(dn)) is not None]
 
         except NoResultsFound:
             raise idm.exception.NoSuchIdentity(self._exc.substitute(identity=self.gid))
