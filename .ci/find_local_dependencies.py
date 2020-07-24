@@ -68,31 +68,43 @@ def _find_dependency_uses(syntax_tree, import_list):
     in the import list."""
 
     # keywords to scan the tree for
-    modules = []
+    modules = {}
     properties = {}
 
     for imp in import_list:
         if type(imp) == ast.Import:
             for name in imp.names:
                 if name.asname is None:
-                    modules.append(name.name)
+                    #modules.append(name.name)
+                    # I know this is redundant, but it makes things easier later
+                    modules[name.name] = name.name
                 else:
-                    modules.append(name.asname)
+                    #modules.append(name.asname)
+                    modules[name.asname] = name.name
 
         if type(imp) == ast.ImportFrom:
             for name in imp.names:
                 _module = imp.module
                 # 'from . import x' makes imp.module become None
+                # TODO: 'x' will usually be a namespace of its own, so treating
+                # it like 'import x' should work. Ideally we would find where
+                # '.' is in this context and prepend it to 'x', but that's
+                # not a high priority
                 if imp.module is None:
-                    _module = '.'
-
-                # If imported under a new name, the new name will be used to
-                # scan the syntax tree but we want the (module, class/method)
-                # tuple to contain the original module name
-                if name.asname is None:
-                    properties[name.name] = _module
+                    if name.asname is None:
+                        #modules.append(name.name)
+                        modules[name.name] = name.name
+                    else:
+                        #modules.append(name.asname)
+                        modules[name.asname] = name.name
                 else:
-                    properties[name.asname] = (_module, name.name)
+                    # If imported under a new name, the new name will be used to
+                    # scan the syntax tree but we want the (module, class/method)
+                    # tuple to contain the original module name
+                    if name.asname is None:
+                        properties[name.name] = _module
+                    else:
+                        properties[name.asname] = (_module, name.name)
 
     use_list = []
     for node in ast.walk(syntax_tree):
@@ -110,6 +122,13 @@ def _find_dependency_uses(syntax_tree, import_list):
         elif type(node) == ast.Attribute:
             # Attributes can be chained (like 'abc.xyz.something()') so we
             # have to compare both 'abc' and 'abc.xyz' to the imports list
+
+            if type(node.parent) == ast.Attribute:
+                # Attribute nodes with an Attribute parent should be skipped
+                # so that the same attribute chain isn't repeatedly checked
+                # with parts cut off
+                continue
+
             _namespace = []
             _attribute = node.attr
 
@@ -131,10 +150,15 @@ def _find_dependency_uses(syntax_tree, import_list):
                         break
                     _node = _node.func.value
 
+            if type(_node) == ast.Name:
+                # Name nodes are terminal in terminal in attribute chains
+                _namespace = [_node.id] + _namespace
+
             # In an attribute chain, an arbitrary amount of the initial
             # attributes can be part of the namespace. For abc.efg.ijk.mno(),
             # this checks whether 'abc' is in the modules list. If it isn't,
             # it checks 'abc.efg', and so on.
+            test = 0
             for i in reversed(range(len(_namespace))):
                 to_try = '.'.join(_namespace[:i+1])
 
@@ -144,8 +168,8 @@ def _find_dependency_uses(syntax_tree, import_list):
                 else:
                     full_attribute = _attribute
 
-                if to_try in modules:
-                    use_list.append((to_try, full_attribute))
+                if to_try in modules.keys():
+                    use_list.append((modules[to_try], full_attribute))
                     break
                 elif to_try in properties.keys():
                     if type(properties[to_try]) == tuple:
@@ -180,6 +204,10 @@ def _get_local_dependencies(module_path):
     for node in ast.walk(tree):
         if type(node) in (ast.Import, ast.ImportFrom):
             import_list.append(node)
+
+        # Makes each node aware of its parent
+        for child in ast.iter_child_nodes(node):
+            child.parent = node
 
     local_imports = _remove_non_local_dependencies(str(local_root), import_list)
     use_list = _find_dependency_uses(tree, local_imports)
