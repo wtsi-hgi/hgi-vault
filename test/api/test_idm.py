@@ -18,12 +18,13 @@ You should have received a copy of the GNU General Public License along
 with this program. If not, see https://www.gnu.org/licenses/
 """
 
+import pwd
 import unittest
 from unittest.mock import patch
 
 from core import typing as T
 from api.config import Config
-from api.idm import IdentityManager
+from api.idm import IdentityManager, LDAPGroup, LDAPUser
 
 
 # NOTE This ties our tests to the example configuration
@@ -34,9 +35,12 @@ def _DUMMY_PASSWD(uid):
     # Dummy passwd interface, that acts as an identity function
     return T.SimpleNamespace(pw_uid=uid)
 
-def _DUMMY_PASSWD1(gid):
-    # Dummy passwd interface, that acts as an identity function
+def _DUMMY_GROUPDB(gid):
+    # Dummy group interface, that acts as an identity function
     return T.SimpleNamespace(gr_gid=gid)
+
+def _DUMMY_PWNAM(username):
+    return T.SimpleNamespace(pw_uid=321)
 
 class TestIDM(unittest.TestCase):
     def setUp(self):
@@ -68,16 +72,19 @@ class TestIDM(unittest.TestCase):
         # We can manipulate the LDAP search function's return value to
         # return what we want, for the purposes of testing
         idm._ldap.search.return_value = iter([{
-            "owners":        ["uid=ch12,ou=people,dc=sanger,dc=ac,dc=uk", "uid=an12,ou=people,dc=sanger,dc=ac,dc=uk"],
-            "members":      ["an12"]
+            "owner":       ["uid=ch12,ou=users,dc=example,dc=com"],
+            "member":      ["uid=an12,ou=users,dc=example,dc=com",
+                            "uid=fm12,ou=users,dc=example,dc=com"]
         }])
 
-        with patch("grp.getgrgid", spec=_DUMMY_PASSWD1):
-            # We have to mock the passwd interface too
+        with patch("grp.getgrgid", spec=_DUMMY_GROUPDB):
+            # We have to mock the group db interface too
             group = idm.group(gid=123)
 
-        self.assertEqual(group.owners,  ["uid=ch12,ou=people,dc=sanger,dc=ac,dc=uk", "uid=an12,ou=people,dc=sanger,dc=ac,dc=uk"])
-        self.assertEqual(group.members, "an12")
+        with patch("pwd.getpwnam", spec = _DUMMY_PWNAM):
+            self.assertEqual([user.uid for user in group.owners], [321])
+
+        #self.assertEqual(group.members, "uid=an12,ou=people,dc=sanger,dc=ac,dc=uk")
 
 
 if __name__ == "__main__":
