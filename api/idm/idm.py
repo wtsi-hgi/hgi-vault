@@ -37,8 +37,8 @@ class _LDAPIdentity:
 
 class _LazyLDAPIdentity(_LDAPIdentity, metaclass=ABCMeta):
     """ Abstract base class for lazy LDAP identity loading """
-    def __init__(self, idm:LDAPIdentityManager, identity:int) -> None:
-        self._idm = idm
+    def __init__(self, ldap_idm:LDAPIdentityManager, identity:int) -> None:
+        self._idm = ldap_idm
 
         try:
             self._id = self._check_id(identity)
@@ -47,7 +47,7 @@ class _LazyLDAPIdentity(_LDAPIdentity, metaclass=ABCMeta):
 
     @classmethod
     @abstractmethod
-    def from_dn(cls, idm:LDAPIdentityManager, dn:str) -> _LazyLDAPIdentity:
+    def from_dn(cls, ldap_idm:LDAPIdentityManager, dn:str) -> _LazyLDAPIdentity:
         """ Construct the identity object from a DN """
 
     @staticmethod
@@ -71,7 +71,7 @@ class LDAPUser(_LazyLDAPIdentity, idm.base.User):
     _email:T.Optional[str] = None
 
     @classmethod
-    def from_dn(cls, idm:LDAPIdentityManager, dn:str) -> LDAPUser:
+    def from_dn(cls, ldap_idm:LDAPIdentityManager, dn:str) -> LDAPUser:
         # NOTE Here we make the assumption that user DNs have the form:
         #
         #   KEY=USERNAME,BASE_DN
@@ -80,10 +80,10 @@ class LDAPUser(_LazyLDAPIdentity, idm.base.User):
         # BASE_DN is per the configuration definition. We extract the
         # USERNAME and run it through the passwd database to convert it
         # to its respective POSIX user ID.
-        base_suffix = f",{idm._config.users.dn}"
+        base_suffix = f",{ldap_idm._config.users.dn}"
         if not dn.endswith(base_suffix):
             # This is not a known user DN
-            raise idm.exception.NoSuchIdentity(f"The DN {dn} is not a subordinate of {idm._config.users.dn}")
+            raise idm.exception.NoSuchIdentity(f"The DN {dn} is not a subordinate of {ldap_idm._config.users.dn}")
 
         try:
             # Strip the base DN suffix, then split the key-value pair
@@ -93,7 +93,7 @@ class LDAPUser(_LazyLDAPIdentity, idm.base.User):
             # This is an unknown username
             raise idm.exception.NoSuchIdentity(f"User with POSIX username {username} was not found")
 
-        return idm.user(uid=uid)
+        return ldap_idm.user(uid=uid)
 
     @staticmethod
     def _check_id(identity:int) -> int:
@@ -133,7 +133,7 @@ class LDAPGroup(_LazyLDAPIdentity, idm.base.Group):
     _members:T.Optional[T.List[LDAPUser]] = None
 
     @classmethod
-    def from_dn(cls, idm:LDAPIdentityManager, dn:str) -> LDAPGroup:
+    def from_dn(cls, ldap_idm:LDAPIdentityManager, dn:str) -> LDAPGroup:
         # This is not (currently) needed
         raise NotImplementedError
 
