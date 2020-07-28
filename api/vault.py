@@ -29,6 +29,11 @@ from core.utils import base64
 from core.vault import base, exception
 
 
+# NOTE It's essential that any umask that the process is running under
+# is reset, so the permissions that we set are honoured faithfully
+os.umask(0)
+
+
 class Branch(base.Branch):
     """ HGI vault branches """
     Keep    = T.Path("keep")
