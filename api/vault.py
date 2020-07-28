@@ -31,7 +31,7 @@ from core.vault import base, exception
 
 # NOTE It's essential that any umask that the process is running under
 # is reset, so the permissions that we set are honoured faithfully
-os.umask(0)
+_ = os.umask(0)
 
 
 class Branch(base.Branch):
@@ -338,7 +338,12 @@ class Vault(base.Vault, logging.base.LoggableMixin):
         if not self.location.is_dir():
             try:
                 self.location.mkdir(_PERMS)
+
+                # Make sure the ownership and permissions on the vault
+                # directory are correct...or it won't work!
+                os.chown(self.location, uid=-1, gid=self.group)
                 self.location.chmod(_PERMS)  # See Python issue 41419
+
                 self.log.info(f"Vault created in {root}")
             except FileExistsError:
                 raise exception.VaultConflict(f"Cannot create a vault in {root}; user file already exists")
