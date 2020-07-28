@@ -22,10 +22,11 @@ with this program. If not, see https://www.gnu.org/licenses/
 import unittest
 from unittest.mock import patch
 
+import core.idm
 from core import typing as T
 from api.config import Config
-from api.idm import IdentityManager
-from api.idm.idm import LDAPGroup, LDAPUser
+from api.idm.idm import LDAPIdentityManager, LDAPUser, LDAPGroup
+from api.idm.ldap import NoResultsFound
 
 
 # NOTE This ties our tests to the example configuration
@@ -52,7 +53,7 @@ class TestIDM(unittest.TestCase):
     def setUp(self):
         with patch("api.idm.idm.LDAP", autospec=True):
             # Instantiate an identity manager with a mocked LDAP class
-            self.mocked_ldap_idm = IdentityManager(_EXAMPLE_CONFIG)
+            self.mocked_ldap_idm = LDAPIdentityManager(_EXAMPLE_CONFIG)
 
     def test_ldap_user(self):
         idm = self.mocked_ldap_idm
@@ -65,27 +66,63 @@ class TestIDM(unittest.TestCase):
         with patch("pwd.getpwuid", new=_DUMMY_PWUID):
             user = idm.user(uid=123)
 
+        self.assertIsInstance(user, LDAPUser)
+        self.assertEqual(user.uid, 123)
+
+        # Check laziness; i.e., these attributes are placeholders...
+        self.assertIsNone(user._name)
+        self.assertIsNone(user._email)
+
+        # ...until they're requested
         self.assertEqual(user.name,  "Testy McTestface")
         self.assertEqual(user.email, "test@example.com")
+        self.assertEqual(user.name,  user._name)
+        self.assertEqual(user.email, user._email)
 
     def test_ldap_group(self):
         idm = self.mocked_ldap_idm
 
-        mock_search = {
-            "owner":  [f"uid={user},{idm._config.users.dn}" for user in ["foo", "bar"]],
-            "member": [f"uid={user},{idm._config.users.dn}" for user in ["bar", "quux", "xyzzy"]]
-        }
-        idm._ldap.search.return_value = iter([mock_search])
+        user_dn = lambda user: f"uid={user},{idm._config.users.dn}"
+        idm._ldap.search.return_value = iter([mock_results := {
+            "owner":  map(user_dn, ["foo", "bar"]),
+            "member": map(user_dn, ["bar", "quux", "xyzzy"])
+        }])
 
         with patch("grp.getgrgid", new=_DUMMY_GRGID):
             group = idm.group(gid=123)
 
+        self.assertIsInstance(group, LDAPGroup)
+        self.assertEqual(group.gid, 123)
+
         with patch.multiple("pwd", getpwnam=_DUMMY_PWNAM, getpwuid=_DUMMY_PWUID):
-            for dn in mock_search["owner"]:
+            for dn in mock_results["owner"]:
                 self.assertIn(LDAPUser.from_dn(idm, dn), group.owners)
 
-            for dn in mock_search["member"]:
+            for dn in mock_results["member"]:
                 self.assertIn(LDAPUser.from_dn(idm, dn), group.members)
+
+    def test_bad_identity(self):
+        idm = self.mocked_ldap_idm
+        NoSuchIdentity = core.idm.exception.NoSuchIdentity
+
+        with patch("pwd.getpwuid", side_effect=KeyError):
+            self.assertRaises(NoSuchIdentity, idm.user, uid=123)
+            self.assertRaises(NoSuchIdentity, LDAPUser.from_dn, idm, f"uid=foo,{idm._config.users.dn}")
+
+        self.assertRaises(NoSuchIdentity, LDAPUser.from_dn, idm, "This is not the DN you are looking for")
+
+        # Test LDAP search failure
+        idm._ldap.search.side_effect = NoResultsFound
+
+        with self.assertRaises(NoSuchIdentity):
+            with patch("pwd.getpwuid", new=_DUMMY_PWUID):
+                user = idm.user(uid=123)
+                _ = user.email
+
+        with self.assertRaises(NoSuchIdentity):
+            with patch("grp.getgrgid", new=_DUMMY_GRGID):
+                group = idm.group(gid=123)
+                _ = next(group.members)
 
 
 if __name__ == "__main__":
