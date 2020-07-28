@@ -338,6 +338,7 @@ class Vault(base.Vault, logging.base.LoggableMixin):
         if not self.location.is_dir():
             try:
                 self.location.mkdir(_PERMS)
+                self.location.chmod(_PERMS)  # See Python issue 41419
                 self.log.info(f"Vault created in {root}")
             except FileExistsError:
                 raise exception.VaultConflict(f"Cannot create a vault in {root}; user file already exists")
