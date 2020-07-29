@@ -25,13 +25,8 @@ import stat
 from functools import cached_property
 
 from core import typing as T, file, idm as IdM, logging
-from core.utils import base64
+from core.utils import base64, umask
 from core.vault import base, exception
-
-
-# NOTE It's essential that any umask that the process is running under
-# is reset, so the permissions that we set are honoured faithfully
-_ = os.umask(0)
 
 
 class Branch(base.Branch):
@@ -304,6 +299,7 @@ class VaultFile(base.VaultFile):
 
 # Vault permissions: ug+rwx, g+s (i.e., 02770)
 _PERMS = stat.S_ISGID | stat.S_IRWXU | stat.S_IRWXG
+_UMASK = stat.S_IRWXO
 
 class Vault(base.Vault, logging.base.LoggableMixin):
     """ HGI vault implementation """
@@ -334,31 +330,33 @@ class Vault(base.Vault, logging.base.LoggableMixin):
         self._logger = str(root)
         self.log.to_tty()
 
-        # Create vault, if it doesn't already exist
-        if not self.location.is_dir():
-            try:
-                self.location.mkdir(_PERMS)
-
-                # Make sure the ownership and permissions on the vault
-                # directory are correct...or it won't work!
-                os.chown(self.location, uid=-1, gid=self.group)
-                self.location.chmod(_PERMS)  # See Python issue 41419
-
-                self.log.info(f"Vault created in {root}")
-            except FileExistsError:
-                raise exception.VaultConflict(f"Cannot create a vault in {root}; user file already exists")
-
-        # The vault must exist at this point, so persist the log to disk
-        self.log.to_file(self.location / ".audit")
-
-        # Create branches, if they don't already exists
-        for branch in Branch:
-            if not (bpath := self.location / branch).is_dir():
+        with umask(_UMASK):
+            # Create vault, if it doesn't already exist
+            if not self.location.is_dir():
                 try:
-                    bpath.mkdir(_PERMS)
-                    self.log.info(f"{branch} branch created in the vault in {root}")
+                    self.location.mkdir(_PERMS)
+
+                    # Make sure the ownership and permissions on the
+                    # vault directory are correct...or it won't work!
+                    os.chown(self.location, uid=-1, gid=self.group)
+                    self.location.chmod(_PERMS)  # See Python issue 41419
+
+                    self.log.info(f"Vault created in {root}")
                 except FileExistsError:
-                    raise exception.VaultConflict(f"Cannot create a {branch} branch in the vault in {root}; user file already exists")
+                    raise exception.VaultConflict(f"Cannot create a vault in {root}; user file already exists")
+
+            # The vault must exist at this point, so persist log to disk
+            (log_file := self.location / ".audit").touch()
+            self.log.to_file(log_file)
+
+            # Create branches, if they don't already exists
+            for branch in Branch:
+                if not (bpath := self.location / branch).is_dir():
+                    try:
+                        bpath.mkdir(_PERMS)
+                        self.log.info(f"{branch} branch created in the vault in {root}")
+                    except FileExistsError:
+                        raise exception.VaultConflict(f"Cannot create a {branch} branch in the vault in {root}; user file already exists")
 
     @cached_property
     def group(self) -> int:
@@ -395,8 +393,9 @@ class Vault(base.Vault, logging.base.LoggableMixin):
             if not to_add.can_add:
                 raise exception.PermissionDenied(f"Cannot add {path} to the vault in {self.root}")
 
-            to_add.path.parent.mkdir(_PERMS, parents=True, exist_ok=True)
-            to_add.source.link_to(to_add.path)
+            with umask(_UMASK):
+                to_add.path.parent.mkdir(_PERMS, parents=True, exist_ok=True)
+                to_add.source.link_to(to_add.path)
 
             log.info(f"{to_add.source} added to the {to_add.branch} branch of the vault in {self.root}")
 

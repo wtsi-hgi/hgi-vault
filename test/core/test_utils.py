@@ -17,11 +17,13 @@ You should have received a copy of the GNU General Public License along
 with this program. If not, see https://www.gnu.org/licenses/
 """
 
+import stat
 import unittest
 from dataclasses import dataclass
+from tempfile import TemporaryDirectory
 
 from core import typing as T
-from core.utils import base64
+from core.utils import base64, umask
 
 
 @dataclass
@@ -41,6 +43,29 @@ class TestBase64(unittest.TestCase):
         self.assertEqual(base64.decode("Zm9v"),  b"foo")
         self.assertEqual(base64.decode(b"Zm9v"), b"foo")
         self.assertRaises(TypeError, base64.decode, 123)
+
+
+S_IRWXA = stat.S_IRWXU | stat.S_IRWXG | stat.S_IRWXO
+
+class TestUmask(unittest.TestCase):
+    _tmp:TemporaryDirectory
+
+    def setUp(self):
+        self._tmp = TemporaryDirectory()
+
+    def tearDown(self):
+        self._tmp.cleanup()
+
+    def test_umask(self):
+        tmp = T.Path(self._tmp.name)
+
+        with umask(0):
+            (zero := tmp / "zero").touch(S_IRWXA)
+            self.assertEqual(zero.stat().st_mode & S_IRWXA, S_IRWXA)
+
+        with umask(stat.S_IRWXG | stat.S_IRWXO):
+            (user := tmp / "user").touch(S_IRWXA)
+            self.assertEqual(user.stat().st_mode & S_IRWXA, stat.S_IRWXU)
 
 
 if __name__ == "__main__":

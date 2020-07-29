@@ -10,6 +10,7 @@ uninterrupted. Actual times will be added when available.
   * [x] Typing interface
   * [ ] Utilities
     * [x] `base64` interface
+    * [x] umask context manager
     * [ ] *Others?*
   * [x] Vault abstractions
   * [x] IdM abstractions
