@@ -17,7 +17,10 @@ You should have received a copy of the GNU General Public License along
 with this program. If not, see https://www.gnu.org/licenses/
 """
 
+import os
 from base64 import b64encode, b64decode
+from contextlib import ContextDecorator
+from dataclasses import dataclass
 from functools import singledispatch
 
 from . import typing as T
@@ -51,3 +54,18 @@ class base64(T.SimpleNamespace):
     """ base64 wrapper that handles strings properly (imo) """
     encode = _b64encode
     decode = _b64decode
+
+
+@dataclass
+class umask(T.ContextManager[int], ContextDecorator):
+    """ umask context manager/decorator """
+    umask:int
+
+    def __enter__(self) -> None:
+        # Set the umask and preserve the displaced value
+        self.umask = os.umask(self.umask)
+
+    def __exit__(self, *exc) -> bool:
+        # Reset the umask
+        self.umask = os.umask(self.umask)
+        return False
