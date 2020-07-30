@@ -41,8 +41,13 @@ def _remove_non_local_dependencies(local_root, import_list):
                     continue
 
                 # Checks module path against local root
-                if spec.origin.startswith(local_root):
-                    local_imports.append(module)
+                try:
+                    if spec.origin.startswith(local_root):
+                        local_imports.append(module)
+                except AttributeError:
+                    # Some namespace packages have no origin property, but
+                    # we know they should be skipped anyway
+                    continue
 
         elif type(module) == ast.ImportFrom:
             # Only interested in the module being imported from
@@ -52,6 +57,9 @@ def _remove_non_local_dependencies(local_root, import_list):
             if spec is None:
                 spec = find_spec(module.module)
 
+            # TODO: 'from module import *' doesn't work, you would need to
+            # individually find each item in the 'module' namespace and
+            # add it to the local_imports list
             if spec is None:
                 print("Couldn't find anything for import {}"
                     .format(module.module), file=sys.stderr)
