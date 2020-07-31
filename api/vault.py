@@ -317,14 +317,8 @@ class Vault(base.Vault, logging.base.LoggableMixin):
     def __init__(self, relative_to:T.Path, *, idm:IdM.base.IdentityManager) -> None:
         self._idm = idm
 
-        # The vault's location is the root of the homogroupic subtree
-        # that contains relative_to; that's where we start and traverse up
-        relative_to = relative_to.resolve()
-        root = relative_to.parent if not relative_to.is_dir() else relative_to
-        while root != T.Path("/") and root.group() == root.parent.group():
-            root = root.parent
-
-        self.root = root  # NOTE self.root can only be set once
+        # NOTE self.root can only be set once
+        self.root = root = self._find_root(relative_to)
 
         # Initialise TTY logging for the vault
         self._logger = str(root)
@@ -357,6 +351,19 @@ class Vault(base.Vault, logging.base.LoggableMixin):
                         self.log.info(f"{branch} branch created in the vault in {root}")
                     except FileExistsError:
                         raise exception.VaultConflict(f"Cannot create a {branch} branch in the vault in {root}; user file already exists")
+
+    @staticmethod
+    def _find_root(relative_to:T.Path) -> T.Path:
+        """
+        The vault's location is the root of the homogroupic subtree that
+        contains relative_to; that's where we start and traverse up
+        """
+        relative_to = relative_to.resolve()
+        root = relative_to.parent if not relative_to.is_dir() else relative_to
+        while root != T.Path("/") and root.group() == root.parent.group():
+            root = root.parent
+
+        return root
 
     @cached_property
     def group(self) -> int:
