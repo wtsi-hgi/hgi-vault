@@ -19,6 +19,7 @@ with this program. If not, see https://www.gnu.org/licenses/
 
 import os
 import unittest
+from unittest.mock import MagicMock
 from tempfile import TemporaryDirectory
 
 from core import typing as T, idm as IdM
@@ -128,30 +129,21 @@ class TestVault(unittest.TestCase):
         self.parent_dir = path / "parent_dir"
         self.child_dir_one = self.parent_dir / "child_dir_one"
         self.child_dir_two = self.parent_dir / "child_dir_two"
-        self.tmp_file_one = self.child_dir_one / "a"
-        self.tmp_file_two = self.child_dir_one / "b"
-        self.tmp_file_three = self.child_dir_two / "c"
-
-
+        self.tmp_file_a = self.child_dir_one / "a"
+        self.tmp_file_b = self.child_dir_one / "b"
+        self.tmp_file_c = self.child_dir_two / "c"
         self.child_dir_one.mkdir(parents=True, exist_ok=True)
         self.child_dir_two.mkdir(parents=True, exist_ok=True)
-        self.tmp_file_one.touch()
-        self.tmp_file_two.touch()
-        self.tmp_file_three.touch()
-        # tmp_file.chmod(0o777)
-        # child_dir.chmod(0o777)
-        # parent_dir.chmod(0o777)
-        # self.vault.root = self._path / T.Path("foo/bar")
-
-        os.chown(self.parent_dir, uid=2, gid=2) 
-        os.chown(self.child_dir_one, 1, 1) 
-        os.chown(self.child_dir_two, 1, 2) 
-        os.chown(self.tmp_file_one, 1, 1) 
-        os.chown(self.tmp_file_two, 2, 1) 
-        os.chown(self.tmp_file_three, 2, 2) 
+        self.tmp_file_a.touch()
+        self.tmp_file_b.touch()
+        self.tmp_file_c.touch()
+        self.tmp_file_a.chmod(0o777)
+        self.tmp_file_b.chmod(0o777)
+        self.tmp_file_c.chmod(0o777)
+        self.child_dir_one.chmod(0o777)
+        self.parent_dir.chmod(0o777)
+        Vault._find_root = MagicMock(return_value = self._path / T.Path("parent_dir/child_dir_one"))
         self.vault = Vault(relative_to = self._path / T.Path("parent_dir/child_dir_one/a"), idm = self.idm_user_one)
-
-
 
     def tearDown(self) -> None:
         self._tmp.cleanup()
@@ -162,18 +154,25 @@ class TestVault(unittest.TestCase):
         self.assertTrue(os.path.isdir(self._path / T.Path("parent_dir/child_dir_one/.vault/keep")))
         self.assertTrue(os.path.isdir(self._path / T.Path("parent_dir/child_dir_one/.vault/archive")))
         self.assertTrue(os.path.isdir(self._path / T.Path("parent_dir/child_dir_one/.vault/.staged")))
-        self.assertEqual(self.vault.group, 1)
-       
-        # self.assertEqual(self.vault.owners, iter([1]))
-     
 
     def test_add(self):
-        self.vault.add(Branch.Keep, self.tmp_file_two)
-        vault_file_key = self._path / T.Path("parent_dir/child_dir_one/.vault/keep") / VFK(0x1234, T.Path("b")).path
-        self.assertTrue(os.path.isfile(vault_file_key))    
+        self.vault.add(Branch.Keep, self.tmp_file_b)
+        inode_no = self.tmp_file_b.stat().st_ino
+        vault_file_key_path = VFK(inode_no, T.Path("b")).path
+        vault_file_path = self._path / T.Path("parent_dir/child_dir_one/.vault/keep") / vault_file_key_path
+        self.assertTrue(os.path.isfile(vault_file_path))    
+
+    def test_list(self):
+        self.vault.add(Branch.Keep, self.tmp_file_b)
+        inode_no = self.tmp_file_b.stat().st_ino
+        vault_file_path = self._path / T.Path("parent_dir/child_dir_one/.vault/keep") / VFK(inode_no, T.Path("b")).path  
+        self.assertEqual(next(self.vault.list(Branch.Keep)), self.tmp_file_b) 
 
     def test_remove(self):
-        self.vault.remove(Branch.Keep, self.tmp_file_two)
+        self.vault.remove(Branch.Keep, self.tmp_file_b)
+        inode_no = self.tmp_file_b.stat().st_ino
+        vault_file_path = self._path / T.Path("parent_dir/child_dir_one/.vault/keep") / VFK(inode_no, T.Path("b")).path
+        self.assertFalse(os.path.isfile(vault_file_path)) 
 
         
 
