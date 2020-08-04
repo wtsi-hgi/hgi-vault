@@ -23,6 +23,7 @@ from unittest.mock import MagicMock
 from tempfile import TemporaryDirectory
 
 from core import typing as T, idm as IdM
+from core.vault import exception
 from core.utils import base64
 from api.vault import _VaultFileKey, VaultFile, Vault, Branch
 
@@ -109,9 +110,6 @@ class _DummyIdM(IdM.base.IdentityManager):
 # * Vault and branch creation
 # * Vault owners
 
-
-
-
 class TestVault(unittest.TestCase):
     _tmp: TemporaryDirectory
     _path: T.Path
@@ -136,12 +134,13 @@ class TestVault(unittest.TestCase):
         self.child_dir_two.mkdir(parents=True, exist_ok=True)
         self.tmp_file_a.touch()
         self.tmp_file_b.touch()
-        self.tmp_file_c.touch()
-        self.tmp_file_a.chmod(0o777)
+        # self.tmp_file_c.touch()
+        # self.tmp_file_a.chmod(0o77)
         self.tmp_file_b.chmod(0o777)
-        self.tmp_file_c.chmod(0o777)
+        # self.tmp_file_c.chmod(0o777)
         self.child_dir_one.chmod(0o777)
-        self.parent_dir.chmod(0o777)
+        # self.parent_dir.chmod(0o777)
+
         Vault._find_root = MagicMock(return_value = self._path / T.Path("parent_dir/child_dir_one"))
         self.vault = Vault(relative_to = self._path / T.Path("parent_dir/child_dir_one/a"), idm = self.idm_user_one)
 
@@ -150,12 +149,19 @@ class TestVault(unittest.TestCase):
         del self._path
 
     def test_constructor(self):
+
+        # Test Location
         self.assertEqual(self.vault.location, self._path / T.Path("parent_dir/child_dir_one/.vault"))
+        # Test Ownerships
+        self.assertEqual(next(self.vault.owners), 1)
+        self.assertEqual(self.vault.group, self.child_dir_one.stat().st_gid)
+        # Test Branch Creation
         self.assertTrue(os.path.isdir(self._path / T.Path("parent_dir/child_dir_one/.vault/keep")))
         self.assertTrue(os.path.isdir(self._path / T.Path("parent_dir/child_dir_one/.vault/archive")))
         self.assertTrue(os.path.isdir(self._path / T.Path("parent_dir/child_dir_one/.vault/.staged")))
-
+  
     def test_add(self):
+        # Add child_dir_one/tmp_file_b to vault and check whether hard link exists at desired location. 
         self.vault.add(Branch.Keep, self.tmp_file_b)
         inode_no = self.tmp_file_b.stat().st_ino
         vault_file_key_path = VFK(inode_no, T.Path("b")).path
@@ -166,14 +172,34 @@ class TestVault(unittest.TestCase):
         self.vault.add(Branch.Keep, self.tmp_file_b)
         inode_no = self.tmp_file_b.stat().st_ino
         vault_file_path = self._path / T.Path("parent_dir/child_dir_one/.vault/keep") / VFK(inode_no, T.Path("b")).path  
-        self.assertEqual(next(self.vault.list(Branch.Keep)), self.tmp_file_b) 
+        self.assertEqual(next(self.vault.list(Branch.Keep)), self.tmp_file_b)
 
-    def test_remove(self):
-        self.vault.remove(Branch.Keep, self.tmp_file_b)
+    def test_remove_existing_file(self):
+        self.vault.add(Branch.Keep, self.tmp_file_b)
         inode_no = self.tmp_file_b.stat().st_ino
-        vault_file_path = self._path / T.Path("parent_dir/child_dir_one/.vault/keep") / VFK(inode_no, T.Path("b")).path
+        vault_file_key_path = VFK(inode_no, T.Path("b")).path
+        vault_file_path = self._path / T.Path("parent_dir/child_dir_one/.vault/keep") / vault_file_key_path
+        self.assertTrue(os.path.isfile(vault_file_path))    
+        self.vault.remove(Branch.Keep, self.tmp_file_b)
         self.assertFalse(os.path.isfile(vault_file_path)) 
 
+    def test_remove_not_existing_file(self):
+        
+        inode_no = self.tmp_file_b.stat().st_ino
+        vault_file_key_path = VFK(inode_no, T.Path("b")).path
+        vault_file_path = self._path / T.Path("parent_dir/child_dir_one/.vault/keep") / VFK(inode_no, T.Path("b")).path
+        self.assertFalse(os.path.isfile(vault_file_path)) 
+        self.vault.remove(Branch.Keep, self.tmp_file_b)
+        self.assertFalse(os.path.isfile(vault_file_path)) 
+
+    def test_existing_file_but_no_permission(self):
+        
+        inode_no = self.tmp_file_b.stat().st_ino
+        vault_file_key_path = VFK(inode_no, T.Path("a")).path
+        vault_file_path = self._path / T.Path("parent_dir/child_dir_one/.vault/keep") / VFK(inode_no, T.Path("a")).path
+        self.assertRaises(exception.PermissionDenied, self.vault.add,Branch.Keep, self.tmp_file_a)
+        self.assertRaises(exception.PermissionDenied, self.vault.remove,Branch.Keep, self.tmp_file_a)
+       
         
 
 # _DummyBranch, _DummyPath
