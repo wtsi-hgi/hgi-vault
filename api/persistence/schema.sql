@@ -46,4 +46,75 @@ end $$;
 ***********************************************************************/
 
 
+-- Groups
+create table if not exists groups (
+  gid
+    integer,
+
+  owner
+    integer
+    not null,
+
+  primary key (gid, owner)
+);
+
+create index if not exists groups_gid on groups(gid);
+create index if not exists groups_owner on groups(owner);
+
+
+-- Files
+create table if not exists files (
+  inode
+    integer
+    primary key,
+
+  path
+    text
+    not null,
+
+  mtime
+    timestamp with time zone
+    not null,
+
+  owner
+    integer
+    not null,
+
+  group
+    integer
+    not null
+    references groups(gid),
+
+  size
+    numeric
+    not null
+    check (size >= 0)
+);
+
+create index if not exists files_owner on files(owner);
+
+
+-- File Stakeholders: A view of all stakeholders of a file (i.e., the
+-- file owner and its group owners)
+create or replace view file_stakeholders as
+  select files.inode,
+         files.owner as uid
+  from   files
+
+  -- "Union" (rather than "union all") because files may be owned by
+  -- group owners and we don't want duplicates
+  union
+
+  select files.inode,
+         groups.owner as uid
+  from   files
+  join   groups
+  on     groups.gid = files.group;
+
+
+-- All Stakeholders: A view of all stakeholders
+create or replace view stakeholders as
+  select distinct uid from file_stakeholders;
+
+
 commit;
