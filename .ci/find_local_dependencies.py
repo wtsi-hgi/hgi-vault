@@ -18,9 +18,12 @@ def _remove_non_local_dependencies(local_root, import_list):
     local_imports = [module for module in import_list if
         hasattr(module, 'level') and module.level > 0]
 
+    # Removes known local imports from the import list so that they're not
+    # added to local_imports a second time later
     import_list = [module for module in import_list if module not in local_imports]
 
-    # modfinder.find_spec is used to find local imports relative to local_root
+    # modfinder.find_spec is used to find local imports relative to local_root,
+    # this configuration makes it look specifically for python source files (.py)
     loader_details = (importlib.machinery.SourceFileLoader,
         importlib.machinery.SOURCE_SUFFIXES)
     modfinder = importlib.machinery.FileFinder(local_root, loader_details)
@@ -65,6 +68,8 @@ def _remove_non_local_dependencies(local_root, import_list):
                     .format(module.module), file=sys.stderr)
                 continue
 
+            # If the local_root is part of the origin, we know the spec
+            # (and therefore the module) is local
             if spec.origin.startswith(local_root):
                 local_imports.append(module)
 
@@ -119,7 +124,7 @@ def _find_dependency_uses(syntax_tree, import_list):
         # Documentation for the various nodes can be found here:
         # https://greentreesnakes.readthedocs.io/en/latest/nodes.html
         if type(node) == ast.Name:
-            if node.id in properties.keys():
+            if node.id in properties.keys() and type(node.parent) != ast.Attribute:
                 if type(properties[node.id]) == tuple:
                     # the key is the 'import as' name, which isn't relevant
                     use_list.append(properties[node.id])
@@ -149,7 +154,7 @@ def _find_dependency_uses(syntax_tree, import_list):
                     _node = _node.value
                 elif type(_node) == ast.Call:
                     try:
-                        _namespace = [_node.func.attr + '()'] + _namespace
+                        _namespace = [_node.func.attr] + _namespace
                     except AttributeError:
                         # This happens if there's a chain of non-Attribute
                         # nodes, like multiple Calls chained together. At this
@@ -157,16 +162,16 @@ def _find_dependency_uses(syntax_tree, import_list):
                         # namespace.
                         break
                     _node = _node.func.value
+                    break
 
             if type(_node) == ast.Name:
-                # Name nodes are terminal in terminal in attribute chains
+                # Name nodes are terminal in attribute chains
                 _namespace = [_node.id] + _namespace
 
             # In an attribute chain, an arbitrary amount of the initial
             # attributes can be part of the namespace. For abc.efg.ijk.mno(),
             # this checks whether 'abc' is in the modules list. If it isn't,
             # it checks 'abc.efg', and so on.
-            test = 0
             for i in reversed(range(len(_namespace))):
                 to_try = '.'.join(_namespace[:i+1])
 
@@ -180,8 +185,10 @@ def _find_dependency_uses(syntax_tree, import_list):
                     use_list.append((modules[to_try], full_attribute))
                     break
                 elif to_try in properties.keys():
+                    # This will be a tuple for `import as` modules only
                     if type(properties[to_try]) == tuple:
-                        use_list.append(properties[to_try])
+                        _mod, _prop = properties[to_try]
+                        use_list.append((_mod, "{}.{}".format(_prop, full_attribute)))
                     else:
                         use_list.append((properties[to_try],
                             "{}.{}".format(to_try, full_attribute)))
