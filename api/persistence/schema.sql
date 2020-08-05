@@ -47,9 +47,19 @@ end $$;
 
 
 -- Groups
+-- NOTE "groups" only exists to uniquely satisfy the many-to-many
+-- relationship between "files" and "group_owners".
 create table if not exists groups (
   gid
-    integer,
+    integer
+    primary key
+);
+
+create table if not exists group_owners (
+  gid
+    integer
+    not null
+    references groups(gid),
 
   owner
     integer
@@ -58,11 +68,11 @@ create table if not exists groups (
   primary key (gid, owner)
 );
 
-create index if not exists groups_gid on groups(gid);
-create index if not exists groups_owner on groups(owner);
+create index if not exists group_owners_gid   on group_owners(gid);
+create index if not exists group_owners_owner on group_owners(owner);
 
 
--- Files
+-- Files (inode, plus the minimal set of metadata that we care about)
 create table if not exists files (
   inode
     integer
@@ -80,7 +90,7 @@ create table if not exists files (
     integer
     not null,
 
-  group
+  group_id
     integer
     not null
     references groups(gid),
@@ -92,6 +102,48 @@ create table if not exists files (
 );
 
 create index if not exists files_owner on files(owner);
+
+
+-- File Status
+do $$ begin
+  create type state as enum ('deleted', 'staged', 'warned');
+  exception
+    when duplicate_object then null;
+end $$;
+
+create table if not exists status (
+  id
+    serial
+    primary key,
+
+  inode
+    integer
+    not null
+    references files(inode) on delete cascade,
+
+  state
+    state
+    not null,
+
+  -- TODO This is messy
+  tminus
+    interval hour
+    default null
+    check ((state  = 'warned' and tminus is not null) or
+           (state != 'warned' and tminus is null)),
+
+  notified
+    boolean
+    not null
+    default false,
+
+  unique (inode, state, tminus),
+  unique (state, tminus)
+);
+
+create index if not exists status_inode    on status(inode);
+create index if not exists status_state    on status(state);
+create index if not exists status_notified on status(notified);
 
 
 -- File Stakeholders: A view of all stakeholders of a file (i.e., the
@@ -106,15 +158,24 @@ create or replace view file_stakeholders as
   union
 
   select files.inode,
-         groups.owner as uid
+         group_owners.owner as uid
   from   files
-  join   groups
-  on     groups.gid = files.group;
+  join   group_owners
+  on     group_owners.gid = files.group_id;
 
 
 -- All Stakeholders: A view of all stakeholders
 create or replace view stakeholders as
   select distinct uid from file_stakeholders;
+
+
+-- Clean any notified, deleted files
+delete
+from   files
+using  status
+where  files.inode  = status.inode
+and    status.state = 'deleted'
+and    status.notified;
 
 
 commit;
