@@ -23,10 +23,14 @@ def _remove_non_local_dependencies(local_root, import_list):
     import_list = [module for module in import_list if module not in local_imports]
 
     # modfinder.find_spec is used to find local imports relative to local_root,
-    # this configuration makes it look specifically for python source files (.py)
+    # this configuration makes it look for all Python files
     loader_details = (importlib.machinery.SourceFileLoader,
-        importlib.machinery.SOURCE_SUFFIXES)
+        #importlib.machinery.SOURCE_SUFFIXES)
+        importlib.machinery.all_suffixes())
     modfinder = importlib.machinery.FileFinder(local_root, loader_details)
+
+    # Adds the local_root to the list of module paths
+    sys.path.append(local_root)
 
     for module in import_list:
         if type(module) == ast.Import:
@@ -36,7 +40,11 @@ def _remove_non_local_dependencies(local_root, import_list):
                 spec = modfinder.find_spec(name.name)
                 # if not found locally, search in the gobal namespace
                 if spec is None:
-                    spec = find_spec(name.name)
+                    try:
+                        spec = find_spec(name.name)
+                    except ModuleNotFoundError:
+                        _pack, _mod = name.name.split('.', 1)
+                        spec = find_spec(_mod, package=_pack)
 
                 if spec is None:
                     print("Couldn't find anything for import {}"
