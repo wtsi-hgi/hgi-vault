@@ -125,25 +125,37 @@ create table if not exists status (
     state
     not null,
 
-  -- TODO This is messy
-  tminus
-    interval hour
-    default null
-    check ((state  = 'warned' and tminus is not null) or
-           (state != 'warned' and tminus is null)),
-
   notified
     boolean
     not null
     default false,
 
-  unique (inode, state, tminus),
-  unique (state, tminus)
+  unique (id, state)
 );
 
 create index if not exists status_inode    on status(inode);
 create index if not exists status_state    on status(state);
 create index if not exists status_notified on status(notified);
+
+create table if not exists warnings (
+  status
+    integer
+    primary key
+    references status(id) on delete cascade,
+
+  -- This is a dummy field that MUST be set to `warned` to ensure it
+  -- only refers to warning status records
+  state
+    state
+    default 'warned'
+    check (state = 'warned'),
+
+  tminus
+    interval hour
+    not null,
+
+  foreign key (status, state) references status(id, state)
+);
 
 
 -- File Stakeholders: A view of all stakeholders of a file (i.e., the
