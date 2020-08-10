@@ -101,7 +101,7 @@ create table if not exists files (
 
 create index if not exists files_owner on files(owner);
 
--- TODO (if possible) A suite of rules/triggers on `files` that:
+-- TODO (if possible) A suite of rules/triggers on "files" that:
 -- [x] Prevents updates
 -- [ ] On insert:
 --     * Inserts on no matching inode
@@ -152,7 +152,7 @@ create table if not exists warnings (
     primary key
     references status(id) on delete cascade,
 
-  -- This is a dummy field that MUST be set to `warned` to ensure it
+  -- This is a dummy field that MUST be set to "warned" to ensure it
   -- only refers to warning status records
   state
     state
@@ -170,8 +170,8 @@ create table if not exists warnings (
 -- File Stakeholders: A view of all stakeholders of a file (i.e., the
 -- file owner and its group owners)
 create or replace view file_stakeholders as
-  select files.inode,
-         files.owner as uid
+  select inode,
+         owner as uid
   from   files
 
   -- "Union" (rather than "union all") because files may be owned by
@@ -193,7 +193,7 @@ create or replace view stakeholders as
 -- Warnings: A view of warned files with their status
 create or replace view file_warnings as
   select status.inode,
-         warning.tminus,
+         warnings.tminus,
          status.notified
   from   status
   join   warnings
@@ -201,14 +201,31 @@ create or replace view file_warnings as
   where  status.state = 'warned';
 
 
--- Clean any notified, deleted files
--- TODO Also delete warnings for deleted files
+-- Clean any orphaned and notified, deleted files
+with deleted as (
+  select inode,
+         notified
+  from   status
+  where  state = 'deleted'
+),
+orphaned as (
+  -- Staged/warned files that are deleted, regardless of notification
+  -- NOTE Staged files should never be in here
+  select distinct nondeleted.inode
+  from   status as nondeleted
+  join   deleted
+  on     deleted.inode = nondeleted.inode
+  where  nondeleted.state != 'deleted'
+),
+purgeable as (
+  select inode from orphaned
+  union
+  select inode from deleted where notified
+)
 delete
 from   files
-using  status
-where  files.inode  = status.inode
-and    status.state = 'deleted'
-and    status.notified;
+using  purgeable
+where  files.inode = purgeable.inode;
 
 
 commit;
