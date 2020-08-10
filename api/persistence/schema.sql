@@ -26,9 +26,8 @@ begin transaction;
 
 
 -- Schema versioning
-/* TODO Uncomment this for production **********************************
 do $$ declare
-  schema date := timestamp '2020-08-04';
+  schema date := timestamp '2020-08-10';
   actual date;
 begin
   create table if not exists __version__ (version date primary key);
@@ -43,7 +42,6 @@ begin
     raise exception 'Schema mismatch! Expected %; got %', schema, actual;
   end if;
 end $$;
-***********************************************************************/
 
 
 -- Groups
@@ -102,6 +100,17 @@ create table if not exists files (
 );
 
 create index if not exists files_owner on files(owner);
+
+-- TODO (if possible) A suite of rules/triggers on `files` that:
+-- [x] Prevents updates
+-- [ ] On insert:
+--     * Inserts on no matching inode
+--     * Does nothing on complete matching record
+--     * Deletes then inserts on matching inode
+
+create or replace rule no_update as
+  on update to files
+  do instead nothing;
 
 
 -- File Status
@@ -181,7 +190,19 @@ create or replace view stakeholders as
   select distinct uid from file_stakeholders;
 
 
+-- Warnings: A view of warned files with their status
+create or replace view file_warnings as
+  select status.inode,
+         warning.tminus,
+         status.notified
+  from   status
+  join   warnings
+  on     warnings.status = status.id
+  where  status.state = 'warned';
+
+
 -- Clean any notified, deleted files
+-- TODO Also delete warnings for deleted files
 delete
 from   files
 using  status
