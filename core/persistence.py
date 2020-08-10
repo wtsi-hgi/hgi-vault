@@ -19,7 +19,7 @@ with this program. If not, see https://www.gnu.org/licenses/
 
 from abc import ABCMeta, abstractmethod
 
-from . import typing as T
+from . import config, idm, typing as T
 
 
 class exception(T.SimpleNamespace):
@@ -28,6 +28,36 @@ class exception(T.SimpleNamespace):
 
 class _BaseState(metaclass=ABCMeta):
     """ Abstract base class for file states """
+
+
+class _BasePersistence(metaclass=ABCMeta):
+    @abstractmethod
+    def __init__(self, cfg:config.base.Config) -> None:
+        """ Constructor """
+
+    @abstractmethod
+    def add(self, path:T.Path, state:_BaseState) -> None:
+        """
+        Persist the file with its respective state
+
+        @param  path   Path to file
+        @param  state  File state
+        """
+
+    @abstractmethod
+    def filter(self, state:_BaseState, stakeholder:T.Optional[idm.base.User] = None) -> TODO:
+        """
+        Get the persisted files by state and their optional stakeholder
+
+        @param  state        File state filter
+        @param  stakeholder  Stakeholder user filter (optional)
+        """
+
+    # TODO Return type and method to update notification state
+
+    @abstractmethod
+    def clean(self) -> None:
+        """ Clean up all redundant persisted state """
 
 
 class base(T.SimpleNamespace):
