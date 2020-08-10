@@ -17,19 +17,22 @@ You should have received a copy of the GNU General Public License along
 with this program. If not, see https://www.gnu.org/licenses/
 """
 
-from abc import ABCMeta, abstractmethod
+from dataclasses import dataclass
 
-from . import typing as T
-
-
-class exception(T.SimpleNamespace):
-    """ Namespace of exceptions to make importing easier """
+from core import persistence, time, typing as T
 
 
-class _BaseState(metaclass=ABCMeta):
-    """ Abstract base class for file states """
+class Deleted(persistence.base.State):
+    """ File deleted """
 
+class Staged(persistence.base.State):
+    """ File staged """
 
-class base(T.SimpleNamespace):
-    """ Namespace of base classes to make importing easier """
-    State = _BaseState
+@dataclass(init=False)
+class Warned(persistence.base.State):
+    """ File warned for deletion """
+    checkpoints:T.List[time.delta]
+
+    def __init__(self, *tminus:time.delta) -> None:
+        assert len(tminus) > 0
+        self.checkpoints = sorted(set(tminus))
