@@ -36,9 +36,7 @@ coverage run -m nose2 --fail-fast  --coverage-report=term-missing \
 #   Anything not satisfying the above should exit non-zero
 
 coverage report --rcfile=.ci/.hotCoveragerc  || die 1 "Hot Coverage is not satisfied"
-python .ci/check_warm_coverage.py || die 1 "Warm Coverage is not satisfied"
-
-# coverage report --rcfile=.ci/.warmCoveragerc || die 1 "Warm Coverage is not satisfied"
+python .ci/check_warm_coverage.py --hot "hot" --threshold 90 || die 1 "Warm Coverage is not satisfied"
 coverage report --rcfile=.ci/.coldCoveragerc || die 1 "Cold Coverage is not satisfied"
 
 
