@@ -27,7 +27,7 @@ begin transaction;
 
 -- Schema versioning
 do $$ declare
-  schema date := timestamp '2020-08-10';
+  schema date := timestamp '2020-08-11';
   actual date;
 begin
   create table if not exists __version__ (version date primary key);
@@ -167,30 +167,24 @@ create table if not exists warnings (
 );
 
 
--- File Stakeholders: A view of all stakeholders of a file (i.e., the
--- file owner and its group owners)
-create or replace view file_stakeholders as
-  select inode,
-         owner as uid
-  from   files
-
-  -- "Union" (rather than "union all") because files may be owned by
-  -- group owners and we don't want duplicates
-  union
-
-  select files.inode,
-         group_owners.owner as uid
-  from   files
-  join   group_owners
-  on     group_owners.gid = files.group_id;
-
-
--- All Stakeholders: A view of all stakeholders
+-- File Stakeholders: A view of all stakeholders for the current files
 create or replace view stakeholders as
+  with file_stakeholders as (
+    select owner as uid
+    from   files
+
+    union all
+
+    select group_owners.owner as uid
+    from   files
+    join   group_owners
+    on     group_owners.gid = files.group_id
+  )
   select distinct uid from file_stakeholders;
 
 
 -- Warnings: A view of warned files with their status
+-- FIXME? We probably don't need this...
 create or replace view file_warnings as
   select status.inode,
          warnings.tminus,
