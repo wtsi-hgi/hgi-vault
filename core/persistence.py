@@ -18,48 +18,63 @@ with this program. If not, see https://www.gnu.org/licenses/
 """
 
 from abc import ABCMeta, abstractmethod
+from dataclasses import dataclass
 
 from . import config, idm, typing as T
 
 
-class exception(T.SimpleNamespace):
-    """ Namespace of exceptions to make importing easier """
+class Anything:
+    """ Sentinel class for wildcard searching """
 
 
-class _BaseState(metaclass=ABCMeta):
-    """ Abstract base class for file states """
+@dataclass
+class _BaseFile:
+    """ Base class for file metadata """
+
+
+@dataclass
+class _BaseState:
+    """ Base class for file states """
+    notified:T.Union[bool, Anything]
 
 
 class _BasePersistence(metaclass=ABCMeta):
     @abstractmethod
-    def __init__(self, cfg:config.base.Config) -> None:
-        """ Constructor """
+    def __init__(self, config:config.base.Config, idm:idm.base.IdentityManager) -> None:
+        """ Construct from configuration and injected IdM """
 
     @abstractmethod
-    def add(self, path:T.Path, state:_BaseState) -> None:
+    def persist(self, file:_BaseFile, state:_BaseState) -> None:
         """
-        Persist the file with its respective state
+        Persist a file with its respective state
 
-        @param  path   Path to file
+        @param  file   File object
         @param  state  File state
         """
+
+    @property
+    @abstractmethod
+    def stakeholders(self) -> T.Iterator[idm.base.User]:
+        """ Return an iterator of persisted file stakeholders """
 
     @abstractmethod
     def filter(self, state:_BaseState, stakeholder:T.Optional[idm.base.User] = None) -> TODO:
         """
         Get the persisted files by state and their optional stakeholder
 
-        @param  state        File state filter
-        @param  stakeholder  Stakeholder user filter (optional)
+        n.b., The parameters of the "state" object define the search
+        criteria. The "Anything" sentinel can be used as a wildcard.
+
+        @param   state        File state filter
+        @param   stakeholder  Stakeholder user filter (optional)
+        @return  TODO
         """
 
     # TODO Return type and method to update notification state
 
-    @abstractmethod
-    def clean(self) -> None:
-        """ Clean up all redundant persisted state """
-
 
 class base(T.SimpleNamespace):
     """ Namespace of base classes to make importing easier """
-    State = _BaseState
+    File        = _BaseFile
+    State       = _BaseState
+    Persistence = _BasePersistence

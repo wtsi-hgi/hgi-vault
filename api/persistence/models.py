@@ -19,7 +19,18 @@ with this program. If not, see https://www.gnu.org/licenses/
 
 from dataclasses import dataclass
 
-from core import persistence, time, typing as T
+from core import idm, persistence, typing as T
+
+
+@dataclass
+class File(persistence.base.File):
+    """ File metadata """
+    inode:int
+    path:T.Path
+    mtime:T.DateTime
+    owner:idm.base.User
+    group:idm.base.Group
+    size:int
 
 
 class Deleted(persistence.base.State):
@@ -28,11 +39,7 @@ class Deleted(persistence.base.State):
 class Staged(persistence.base.State):
     """ File staged """
 
-@dataclass(init=False)
+@dataclass
 class Warned(persistence.base.State):
     """ File warned for deletion """
-    checkpoints:T.List[time.delta]
-
-    def __init__(self, *tminus:time.delta) -> None:
-        assert len(tminus) > 0
-        self.checkpoints = sorted(set(tminus))
+    tminus:T.Union[T.TimeDelta, persistence.Anything]
