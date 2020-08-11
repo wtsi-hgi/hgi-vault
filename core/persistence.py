@@ -64,6 +64,11 @@ class _BaseFileCollection(T.Collection[_BaseFile], metaclass=ABCMeta):
         @param  file  File to accumulate
         """
 
+    @property
+    @abstractmethod
+    def accumulator(self) -> T.Any:
+        """ Return the accumulator object """
+
     # TODO How to update notification state?
 
 
