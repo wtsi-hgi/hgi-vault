@@ -10,7 +10,7 @@ from pathlib import Path
 # Note: The script will crash if the [file] imports a library that isn't
 # accessible to it (ie, use the same venv as [file])
 
-def _remove_non_local_dependencies(local_root, import_list):
+def _remove_non_local_dependencies(local_root:str, import_list:list) -> list:
     """Check import_list against the contents of the local_root path to see
     which modules are local. Return a list only containing local imports."""
     # Assume that relative imports are always local (ast.Import/ImportFrom
@@ -84,7 +84,7 @@ def _remove_non_local_dependencies(local_root, import_list):
     return local_imports
 
 
-def _find_dependency_uses(syntax_tree, import_list):
+def _find_dependency_uses(syntax_tree:ast.Module, import_list:list) -> list:
     """Scans the syntax tree for uses of methods and classes from each module
     in the import list."""
 
@@ -205,7 +205,7 @@ def _find_dependency_uses(syntax_tree, import_list):
     return use_list
 
 
-def _get_local_dependencies(module_path):
+def _get_local_dependencies(module_path:str) -> set:
     """Return a list of the local dependencies of a module."""
     # Assumes the local scope is the parent of the file's directory
     local_root = Path(os.path.realpath(__file__)).parents[1]
@@ -238,7 +238,7 @@ def _get_local_dependencies(module_path):
     return set(use_list)
 
 
-def get_dependencies(module_path):
+def get_dependencies(module_path:str) -> list:
     """Returns a list of the local dependencies for a module, or for each
     valid module in a directory. The list contains tuples in the form
     (module, property).
