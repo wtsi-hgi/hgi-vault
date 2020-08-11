@@ -17,6 +17,8 @@ You should have received a copy of the GNU General Public License along
 with this program. If not, see https://www.gnu.org/licenses/
 """
 
+from __future__ import annotations
+
 from abc import ABCMeta, abstractmethod
 from dataclasses import dataclass
 
@@ -30,6 +32,39 @@ class Anything:
 @dataclass
 class _BaseFile:
     """ Base class for file metadata """
+
+
+class _BaseFileCollection(T.Collection[_BaseFile], metaclass=ABCMeta):
+    """ Abstract base class for collections of files """
+    _contents:T.List[_BaseFile]
+
+    def __init__(self) -> None:
+        self._contents = []
+
+    def __len__(self) -> int:
+        return len(self._contents)
+
+    def __contains__(self, file:_BaseFile) -> bool:
+        return file in self._contents
+
+    def __iter__(self) -> T.Iterator[_BaseFile]:
+        return iter(self._contents)
+
+    def __iadd__(self, file:_BaseFile) -> _BaseFileCollection:
+        """ Overload += to append new files """
+        self._contents.append(file)
+        self._accumulate(file)
+        return self
+
+    @abstractmethod
+    def _accumulate(self, file:_BaseFile) -> None:
+        """
+        Add a file into any accumulators
+
+        @param  file  File to accumulate
+        """
+
+    # TODO How to update notification state?
 
 
 @dataclass
@@ -58,7 +93,7 @@ class _BasePersistence(metaclass=ABCMeta):
         """ Return an iterator of persisted file stakeholders """
 
     @abstractmethod
-    def filter(self, state:_BaseState, stakeholder:T.Optional[idm.base.User] = None) -> TODO:
+    def filter(self, state:_BaseState, stakeholder:T.Optional[idm.base.User] = None) -> _BaseFileCollection:
         """
         Get the persisted files by state and their optional stakeholder
 
@@ -67,14 +102,13 @@ class _BasePersistence(metaclass=ABCMeta):
 
         @param   state        File state filter
         @param   stakeholder  Stakeholder user filter (optional)
-        @return  TODO
+        @return  Collection of files
         """
-
-    # TODO Return type and method to update notification state
 
 
 class base(T.SimpleNamespace):
     """ Namespace of base classes to make importing easier """
-    File        = _BaseFile
-    State       = _BaseState
-    Persistence = _BasePersistence
+    File           = _BaseFile
+    FileCollection = _BaseFileCollection
+    State          = _BaseState
+    Persistence    = _BasePersistence
