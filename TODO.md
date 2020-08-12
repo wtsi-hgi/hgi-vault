@@ -1,7 +1,8 @@
 # To Do
 
 Time estimates for pending work are approximate, based on one developer,
-uninterrupted. Actual times will be added when available.
+uninterrupted. Actual times will be added when available and based on
+time spent (rather than wall time).
 
 * [ ] Core
   * [x] File interface
@@ -14,7 +15,7 @@ uninterrupted. Actual times will be added when available.
   * [x] Vault abstractions
   * [x] IdM abstractions
   * [x] Configuration abstractions and interface      <ETA: 2 days; Actual: 1 day>
-  * [ ] Persistence abstractions and interface        <ETA: 2 days>
+  * [x] Persistence abstractions and interface        <ETA: 2 days; Actual: 2 days>
   * [ ] E-mailing and templating abstractions         <ETA: 3 days>
   * [ ] *Others?*
 * [ ] API
@@ -22,7 +23,10 @@ uninterrupted. Actual times will be added when available.
   * [x] Vault
   * [x] IdM (LDAP)                                    <ETA: 3 days; Actual: 2 days>
   * [x] Configuration parsing (YAML)                  <ETA: 2 days; Actual: 1 day>
-  * [ ] Schema design and persistence engine          <ETA: 5 days>
+  * [ ] Schema design and persistence engine
+    * [x] Schema implementation                       <ETA: 2 days; Actual: 2 days>
+    * [x] Model implementation                        <ETA: 1 day; Actual: 1 day>
+    * [ ] Database engine                             <ETA: 3 days>
   * [ ] E-Mail and templating                         <ETA: 3 days>
   * [ ] *Others?*
 * [ ] Hot code

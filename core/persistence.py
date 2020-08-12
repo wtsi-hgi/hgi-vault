@@ -30,15 +30,36 @@ class Anything:
 
 
 @dataclass
+class Filter:
+    """ Filter criteria """
+    # NOTE The parameters of the "state" object define the state search
+    # criteria; the "Anything" sentinel can be used as a wildcard, both
+    # in the state parameters and as the stakeholder (default)
+    state:_BaseState
+    stakeholder:T.Union[idm.base.User, Anything] = Anything
+
+
+@dataclass
+class _BaseState:
+    """ Base class for file states """
+    notified:T.Union[bool, Anything]
+
+
+@dataclass
 class _BaseFile:
     """ Base class for file metadata """
 
 
-class _BaseFileCollection(T.Collection[_BaseFile], metaclass=ABCMeta):
+class _BaseFileCollection(T.Collection[_BaseFile], T.ContextManager, metaclass=ABCMeta):
     """ Abstract base class for collections of files """
+    _persistence:_BasePersistence
+    _filter:Filter
+
     _contents:T.List[_BaseFile]
 
-    def __init__(self) -> None:
+    def __init__(self, persistence:_BasePersistence, criteria:Filter) -> None:
+        self._persistence = persistence
+        self._filter = criteria
         self._contents = []
 
     def __len__(self) -> int:
@@ -49,6 +70,13 @@ class _BaseFileCollection(T.Collection[_BaseFile], metaclass=ABCMeta):
 
     def __iter__(self) -> T.Iterator[_BaseFile]:
         return iter(self._contents)
+
+    def __exit__(self, *exc) -> bool:
+        # If the context manager exits cleanly, then clean up the files
+        if not all(exc):
+            self._persistence.clean(self._filter)
+
+        return False
 
     def __iadd__(self, file:_BaseFile) -> _BaseFileCollection:
         """ Overload += to append new files """
@@ -68,14 +96,6 @@ class _BaseFileCollection(T.Collection[_BaseFile], metaclass=ABCMeta):
     @abstractmethod
     def accumulator(self) -> T.Any:
         """ Return the accumulator object """
-
-    # TODO How to update notification state?
-
-
-@dataclass
-class _BaseState:
-    """ Base class for file states """
-    notified:T.Union[bool, Anything]
 
 
 class _BasePersistence(metaclass=ABCMeta):
@@ -98,16 +118,21 @@ class _BasePersistence(metaclass=ABCMeta):
         """ Return an iterator of persisted file stakeholders """
 
     @abstractmethod
-    def filter(self, state:_BaseState, stakeholder:T.Optional[idm.base.User] = None) -> _BaseFileCollection:
+    def files(self, criteria:Filter) -> _BaseFileCollection:
         """
         Get the persisted files by state and their optional stakeholder
 
-        n.b., The parameters of the "state" object define the search
-        criteria. The "Anything" sentinel can be used as a wildcard.
-
-        @param   state        File state filter
-        @param   stakeholder  Stakeholder user filter (optional)
+        @param   criteria  Filter object
         @return  Collection of files
+        """
+
+    @abstractmethod
+    def clean(self, criteria:Filter) -> None:
+        """
+        Clean up (i.e., mark as notified and/or delete) persisted files
+        by state and their optional stakeholder
+
+        @param   criteria  Filter object
         """
 
 

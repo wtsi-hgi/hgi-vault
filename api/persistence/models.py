@@ -62,8 +62,8 @@ class UserFileCollection(persistence.base.FileCollection):
     """
     _accumulator:_UserAccumulatorT
 
-    def __init__(self) -> None:
-        super().__init__()
+    def __init__(self, *args, **kwargs) -> None:
+        super().__init__(*args, **kwargs)
         self._accumulator = {}
 
     def _accumulate(self, file:File) -> None:
