@@ -17,21 +17,16 @@ You should have received a copy of the GNU General Public License along
 with this program. If not, see https://www.gnu.org/licenses/
 """
 
-import os
 import unittest
-from tempfile import TemporaryDirectory
-
-from core import typing as T, idm as IdM
+from core import typing as T
 from core.utils import base64
 from api.vault import _VaultFileKey
+from .utils import VFK, VFK_k
 
 
 _DUMMY = T.Path("foo/bar/quux")
 _B64_DUMMY = base64.encode(_DUMMY)
 
-# For convenience
-VFK = lambda inode, path: _VaultFileKey(inode=inode, path=path)
-VFK_k = lambda path: _VaultFileKey(key_path=path)
 
 class TestVaultFileKey(unittest.TestCase):
     def test_constructor(self):
@@ -55,46 +50,6 @@ class TestVaultFileKey(unittest.TestCase):
     def test_equality(self):
         self.assertEqual(VFK(0x12,  _DUMMY), VFK_k(T.Path(f"12-{_B64_DUMMY}")))
         self.assertEqual(VFK(0x123, _DUMMY), VFK_k(T.Path(f"01/23-{_B64_DUMMY}")))
-
-
-class _DummyUser(IdM.base.User):
-    def __init__(self, uid):
-        self._id = uid
-
-class _DummyGroup(IdM.base.Group):
-    _owner:_DummyUser
-    _member:_DummyUser
-
-    def __init__(self, gid, owner, member=None):
-        self._id = gid
-        self._owner = owner
-        self._member = member or owner
-
-    @property
-    def owners(self):
-        yield self._owner
-
-    @property
-    def members(self):
-        yield self._member
-
-class _DummyIdM(IdM.base.IdentityManager):
-    _user:_DummyUser
-
-    def __init__(self, dummy_uid):
-        self._user = _DummyUser(dummy_uid)
-
-    def user(self, uid):
-        pass
-
-    def group(self, gid):
-        return _DummyGroup(gid, self._user)
-
-
-# TODO Test Vault and VaultFile
-# * Vault root setting
-# * Vault and branch creation
-# * Vault owners
 
 
 if __name__ == "__main__":
