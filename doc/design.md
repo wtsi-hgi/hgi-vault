@@ -16,9 +16,6 @@ high risk this poses:
 The system will be written in Python 3.8, or newer. Certification
 criteria for the system will be:
 
-* The state for the test suite **must** satisfy the Cartesian product of
-  all options.
-
 * The test suite **must** pass without warnings or errors on the target
   platform.
 
@@ -27,15 +24,15 @@ criteria for the system will be:
 
 * The [cyclomatic complexity](https://en.wikipedia.org/wiki/Cyclomatic_complexity)
   of the system **must** be:
-  * At most 5 for hot and warm code;
-  * At most 10 and **should** be below 7, elsewhere.
+  * At most 5 for hot and warm code;&ast;
+  * At most 10 and **should** be below 7, elsewhere.&ast;
 
 * The test suite **must** achieve:
   * 100% coverage for hot code;
-  * At least 90% coverage for warm code;
-  * And be no less than 80% coverage, elsewhere.
+  * At least 90% coverage for warm code;&ast;
+  * And be no less than 80% coverage, elsewhere.&ast;
 
-* The system's code **must** be fully type annotated and satisfy static
+* The system's code **must** be type annotated and satisfy static
   analysis.
 
 * The system's code **must** conform to the
@@ -45,7 +42,8 @@ criteria for the system will be:
   discouraged.
 
 * If used, external libraries **must** be pinned to an exact version and
-  **should** be used sparingly.
+  **should** be used sparingly, with appropriate interfaces defined to
+  facilitate [dependency inversion](https://en.wikipedia.org/wiki/Dependency_inversion_principle).
 
 * All development **must** be done in a development branch, which is not
   expected to pass certification; feature sub-branches **should** be
@@ -59,6 +57,9 @@ criteria for the system will be:
 
 * The master branch **must** always pass certification, per this
   definition.
+
+Note that criteria marked with an asterisk (&ast;), above, are flexible
+and subject to review for the sake of pragmatism.
 
 The following tools may be useful to facilitate the above. This is not a
 definitive list:
@@ -160,19 +161,25 @@ process:
 
 * If a change is rejected, it may be resubmitted at a later date.
 
-### Test Driven Development
+### Testing Methodology
 
-Test cases for any new functionality must be written upfront. Tests must
-cover the Cartesian product of all options and, where external state is
-required, this must be specified upfront and cover all expected (per
-design) eventualities. The test suite may be amended and altered
-afterwards to conform to unexpected implementation details required for
-certification.
+#### Unit Testing
 
-The Cartesian product of options has the potential of making the test
-space very large. To therefore avoid intractability, options ought to be
-constrained in both quantity and type. This will have the consequential
-benefit of reducing cyclomatic complexity.
+True-[TDD](https://en.wikipedia.org/wiki/Test-driven_development) is not
+necessary and post-implementation testing will suffice, provided tests
+are motivated on expected behaviour, rather than fulfilling arbitrary
+path coverage. The former _should_ satisfy the latter, without coupling
+the tests to the implementation, which should be seen as an antipattern.
+Indeed, behavioural testing supersedes the attainment of coverage
+thresholds, so leeway may be taken judiciously.
+
+#### Integration Testing
+
+<!-- TODO -->
+
+#### User Acceptance Testing
+
+<!-- TODO -->
 
 ### Hot and Warm Code
 
@@ -250,7 +257,7 @@ guards against it.
 
 Any `can_delete` implementation might refer to a library function named
 `is_in_vault`, which would therefore be mentioned in the respective
-implementations' comments. As well as facilitating review, seeing the
+implementation's comments. As well as facilitating review, seeing the
 same reference in multiple implementations can serve as a sanity check
 (e.g., an implementation that doesn't use this function, where others
 do, may be suspect).
@@ -261,8 +268,8 @@ do, may be suspect).
   root of a group's directory ([defined later](#vault-location)).
 
 * The vault directory will contain three subdirectories ("branches"):
-  `keep`, `archive` and `staged`. (Note that the `staged` branch is for
-  internal use.)
+  `keep`, `archive` and `.staged`. (Note that the `.staged` branch is
+  for internal use.)
 
 * Within these respective directories, hardlinks of marked files will
   exist in a structured way. Specifically:
@@ -327,6 +334,9 @@ If the file to be kept is `/projects/my_project/foo/bar.xyzzy`, then the
 vault will be located in `/projects/my_project/.vault` and the hardlink
 will be `/projects/my_project/.vault/keep/30/3d-Zm9vL2Jhci54eXp6eQ==`.
 
+When created, the vault directory must have the same group ownership as
+its parent and have the `setgid` bit set.
+
 ### Configuration
 
 All components will share common configuration, read from file, in the
@@ -336,7 +346,7 @@ following precedence (highest first):
 2. `~/.vaultrc` (i.e., in the running user's home directory);
 3. `/etc/vaultrc`
 
-If no configuration is found, or is incomplete, then the process with
+If no configuration is found, or is incomplete, then the process will
 fail immediately.
 
 The configuration will be [YAML](https://yaml.org)-based, with the
@@ -464,15 +474,20 @@ function on the respective branch of the appropriate vaults:
    of the vault relative to the current working directory ([see
    earlier](#vault-location)).
 
-2. When given a list of (at least one) paths to files, either relative
-   or absolute, these will be hardlinked into the respective branch of
-   the vault relative to each file ([see earlier](#vault-location)).
+2. When given a list of (at least one and no more than ten) paths to
+   files, either relative or absolute, these will be hardlinked into the
+   respective branch of the vault relative to each file ([see
+   earlier](#vault-location)).
 
    Note that the files provided must be regular files (rather than
    directories or symlinks, etc.); non-regular files should be skipped
    over and logged as such to the user. Moreover, as the files provided
    as arguments may be arbitrary, it cannot be assumed that they belong
    in the same vault.
+
+   The list of files is restricted to, at most, ten (per invocation) to
+   limit "abuse"; i.e., to nudge users to be mindful of what they
+   annotate, rather than using arbitrary globs.
 
 Specifically, the hardlinking function should do the following for each
 regular file provided as an argument:
@@ -519,10 +534,10 @@ regular file provided as an argument:
 
     vault remove FILE...
 
-The `remove` action will remove the given files from either branch of
-the vault respective to said file ([see earlier](#vault-location)).
-Again, it should not be assumed that files provided as arguments will be
-removed from the same vault.
+The `remove` action will remove the given files from either the `keep`
+or `archive` branch of the vault respective to said file ([see
+earlier](#vault-location)). Again, it should not be assumed that files
+provided as arguments will be removed from the same vault.
 
 For each file:
 
@@ -591,7 +606,7 @@ For example, the sweep may run across several vaults and stage files for
 archiving. The archive itself may take multiple days to complete,
 whereas another sweep could be due to run again in the meantime. In the
 proposed set up, this becomes possible and any additional archive events
-can be added, by subsequent sweeps, to the backlog.
+can be added, by subsequent sweeps, to a backlog.
 
 The batch process will have the following interface:
 
@@ -600,8 +615,8 @@ The batch process will have the following interface:
 It must be called with at least one `DIR`, representing a path to a
 directory (either relative or absolute) that is covered by a vault. It
 may optionally be specified with a `FILE` representing the file listings
-and `stat`s of the volume containing each `DIR` and its contents, such
-as the output generated by [`mpistat`](https://github.com/wtsi-hgi/mpistat);
+and `stat`s of the volume containing each `DIR` and its contents, per
+the output generated by [`mpistat`](https://github.com/wtsi-hgi/mpistat);
 this will be used to guide the sweep, rather than walking the filesystem.
 
 An optional `--dry-run` argument may be provided, which will cause the
@@ -622,13 +637,26 @@ following, in the given order:
 
 * Walk the contents of `DIR`, either directly via the filesystem
   interface, or using the `stat` listings given by `FILE`, if provided.
-  Files in the walk that are physically located within the vault must be
-  skipped.
 
 Note that, for efficiency's sake, the walking of every provided `DIR` is
 preferred, rather than walking each `DIR` separately.
 
 Then, for each regular file in the walk:
+
+* If it is physically contained within the `keep` or `archive` branch of
+  the vault:
+
+  * Check that the external file hasn't been deleted by the user,
+    detected by a decrease in hardlink count. If it has:
+
+    * Delete the orphaned vault file.&ast;
+    * Log that the corruption has been corrected.
+
+    Note that this is an important training point that users *must* be
+    aware of and understand, otherwise they will lose data.
+
+    Note that the detection mechanism will fail if other hardlinks
+    exist; this is considered an acceptable trade-off.
 
 * If it is contained within the respective vault:
 
@@ -638,13 +666,13 @@ Then, for each regular file in the walk:
 
   * Check which branch the file is in:
 
-    * The "keep" and "staged" branch:
-      * Do nothing: If the file is marked for keeping, then nothing
+    * The `keep` and `.staged` branch:
+      * Do nothing: If the file is marked for retention, then nothing
         needs to happen; if the file is staged for archival, then it is
         the responsibility of the downstream process invoked in the
         draining phase.
 
-    * The "archive" branch:
+    * The `archive` branch:
       * Try to acquire a write lock on the file.
         * If this fails, then the file is currently being written to and
           should not yet be archived. Skip the rest of this process and
@@ -652,7 +680,7 @@ Then, for each regular file in the walk:
       * Delete the source file (i.e., that which exists outside the
         vault).&ast;
       * Move the vaulted file, recreating its associated hierarchy as
-        needed, into the "staged" branch.&ast;
+        needed, into the `.staged` branch.&ast;
       * Log that the file has been staged for archival.
       * Amend the list of files staged for archival for the file and
         vault owner.
@@ -678,6 +706,12 @@ Then, for each regular file in the walk:
       deletion). For each checkpoint that is passed, amend the
       appropriate checkpoint list of files scheduled for deletion for
       the file and vault owner.
+
+  Note that files that spontaneously appear in a directory -- e.g., from
+  a timestamp-preserving copy, etc. -- may be deleted without warning,
+  if the appropriate conditions are met. This is an important training
+  point that users *must* be aware of and understand, otherwise they
+  will lose data.
 
 Finally:
 
@@ -724,6 +758,10 @@ possible that a previous warning will become re-eligible. For example:
 * Eventually, the 72 hour warning relative to the new `mtime` is again
   exceeded; another e-mail is expected, despite a 72 hour warning being
   previously sent.
+
+Note that when files are completely unlinked, their inodes are recycled
+by the operating system. As such, they should not be used as unique keys
+in any persistence model, unless they are respectfully recycled.
 
 ##### Regarding E-Mails
 
@@ -850,6 +888,31 @@ An example e-mail may look like:
 > Attachments: `delete-24.fofn.gz` `delete-72.fofn.gz`
 > `delete-240.fofn.gz` `deleted.fofn.gz`
 
+##### Intervault Operations
+
+Our base assumption is that the homogroupic trees, which define where
+vaults are located, are mutually exclusive and tightly silo data. That
+is, files should not be moved between silos without their ownership
+changing, which may or may not happen automatically or immediately. This
+could result in ownership contention: one inode, with two files that
+reside under different groups; an inode can only have one group owner,
+so the complementary group would lose access. This cannot be detected,
+so it is considered beyond the scope of this project to track files that
+are moved between, or out of vaulted locations, on the same physical
+device.
+
+A minor exception to this is when files are moved across devices to
+silos under the same group. In this case, the original hard link would
+be removed (leaving an orphaned vault hardlink) and be reassigned on the
+target volume, with no respective vault annotation. The design of the
+sweeper is such that this could lead to irrecoverable data loss: an
+orphaned source vault file will be cleaned automatically and files
+spontaneously detected in the target vault that meet the deletion
+criteria will be deleted without warning.
+
+Note that this is an important training point that users *must* be aware
+of and understand, otherwise they will lose data.
+
 #### Drain Phase
 
 The only argument that is of interest to the drain phase is
@@ -876,18 +939,20 @@ The drain phase consists of the following:
 The downstream handler will be an executable that provides the following
 interface:
 
-    /path/to/executable [ready]
+    /path/to/executable [READY_CHALLENGE]
 
-If the `ready` argument is provided, the handler will exit with a zero
-exit code if it is ready to consume the queue, otherwise it will exit
-with 1.
+The `READY_CHALLENGE`, if provided, will consist of the string `ready`
+followed by an integer representing the number of bytes required to
+satisfy the archive. The handler will exit with a zero exit code if it
+is able to consume the queue; otherwise it will exit with 1, if the
+handler is busy, or 2 if the archive location lacks capacity.
 
 If no arguments are provided, then the handler will read `\0`-delimited
 filenames from standard input. These will be the files to archive and
 delete.
 
 For example, something like the following Bash script might suffice as a
-simple handler:
+simple handler, which omits capacity checking:
 
 ```bash
 #!/usr/bin/env bash
@@ -918,6 +983,11 @@ downstream handler to decode these, if necessary.
 Note that, it is the downstream handler's responsibility to delete
 staged files from vaults, once they are dealt with. Failing to delete
 staged files will cause the vault to increase in size in perpetuity.
+
+Note that the two-step process might seem redundant, but exists to
+provide an out-of-band method for checking the availability of the
+downstream handler, without any expensive lookups from the staging
+queue.
 
 #### Auditing and Logging
 
