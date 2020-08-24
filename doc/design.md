@@ -652,7 +652,7 @@ Then, for each regular file in the walk:
     * Delete the orphaned vault file.&ast;
     * Log that the corruption has been corrected.
 
-    Note that this is an important training point that users *must* be
+    ⚠️ Note that this is an important training point that users *must* be
     aware of and understand, otherwise they will lose data.
 
     Note that the detection mechanism will fail if other hardlinks
@@ -707,11 +707,11 @@ Then, for each regular file in the walk:
       appropriate checkpoint list of files scheduled for deletion for
       the file and vault owner.
 
-  Note that files that spontaneously appear in a directory -- e.g., from
-  a timestamp-preserving copy, etc. -- may be deleted without warning,
-  if the appropriate conditions are met. This is an important training
-  point that users *must* be aware of and understand, otherwise they
-  will lose data.
+  ⚠️ Note that files that spontaneously appear in a directory -- e.g.,
+  from a timestamp-preserving copy, etc. -- may be deleted without
+  warning, if the appropriate conditions are met. This is an important
+  training point that users *must* be aware of and understand, otherwise
+  they will lose data.
 
 Finally:
 
@@ -910,8 +910,8 @@ orphaned source vault file will be cleaned automatically and files
 spontaneously detected in the target vault that meet the deletion
 criteria will be deleted without warning.
 
-Note that this is an important training point that users *must* be aware
-of and understand, otherwise they will lose data.
+⚠️ Note that this is an important training point that users *must* be
+aware of and understand, otherwise they will lose data.
 
 #### Drain Phase
 
