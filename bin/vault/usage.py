@@ -70,7 +70,7 @@ def _parser_factory():
             "files",
             nargs=file_nargs,
             type=T.Path,
-            help=f"file to {action}",
+            help=f"file to {action} (at most 10)",
             metavar="FILE")
 
     def parser(args:T.List[str]) -> argparse.Namespace:
@@ -87,6 +87,10 @@ def _parser_factory():
                 if not parsed.files:
                     # Must have either --view or FILEs
                     action_level[parsed.action].error("one of the arguments --view or FILE is required")
+
+                if len(parsed.files) > 10:
+                    # Limit number of files to at most 10
+                    action_level[parsed.action].error("too many FILEs; you may specify no more than 10")
 
                 # Resolve all paths
                 parsed.files = [path.resolve() for path in parsed.files]
