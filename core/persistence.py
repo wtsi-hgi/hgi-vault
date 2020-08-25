@@ -25,6 +25,14 @@ from dataclasses import dataclass
 from . import config, idm, typing as T
 
 
+class exception(T.SimpleNamespace):
+    class BackendException(Exception):
+        """ Raised on persistence backend failure """
+
+    class LogicException(BackendException):
+        """ Raised on persistence backend logic error """
+
+
 class Anything:
     """ Sentinel class for wildcard searching """
 
