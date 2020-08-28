@@ -23,6 +23,7 @@ with this program. If not, see https://www.gnu.org/licenses/
 # NOTE If a file is deleted manually after being warned, then those
 # warnings will need to be cleaned up
 
+import importlib.resources as resource
 
 from core import config, idm, persistence, typing as T
 from . import models
@@ -45,12 +46,21 @@ class Persistence(persistence.base.Persistence):
                               password = config.password)
         self._idm = idm
 
+        # Create schema (idempotent)
+        try:
+            with resource.path("api.persistence", "schema.sql") as schema:
+                self._pg.execute_script(schema)
+        except persistence.exception.LogicException as e:
+            raise persistence.exception.LogicException(f"Could not create schema\n{e}")
+
     def persist(self, file:models.File, state:_StateT) -> None:
         raise NotImplementedError
 
     @property
     def stakeholders(self) -> T.Iterator[idm.base.User]:
-        raise NotImplementedError
+        with self._pg.transaction() as t:
+            t.execute("select uid from stakeholders;")
+            yield from (self._idm.user(uid=user.uid) for user in t)
 
     def files(self, criteria:persistence.Filter) -> _FileCollectionT:
         raise NotImplementedError
