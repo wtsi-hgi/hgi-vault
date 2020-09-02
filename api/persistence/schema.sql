@@ -84,9 +84,13 @@ create table if not exists files (
     integer
     not null,
 
+  -- Source file path
   path
-    text
-    not null,
+    text,
+
+  -- Vault file path
+  key
+    text,
 
   mtime
     timestamp with time zone
@@ -106,7 +110,8 @@ create table if not exists files (
     not null
     check (size >= 0),
 
-  unique (device, inode)
+  unique (device, inode),
+  check (not (path is null and key is null))
 );
 
 create index if not exists files_owner on files(owner);

@@ -19,35 +19,37 @@ with this program. If not, see https://www.gnu.org/licenses/
 
 from __future__ import annotations
 
+import io
 import os.path
 from dataclasses import dataclass
 
 from core import idm, persistence, time, typing as T
 
 
-@dataclass(init=False)
+@dataclass
 class File(persistence.base.File):
     """ File metadata """
-    # NOTE This must refer to a file that is physically outside the
-    # vault (rather the any hardlink that is contained within it)
     device:int
     inode:int
-    path:T.Path
+    path:T.Optional[T.Path]  # Either path or key (or both) MUST be
+    key:T.Optional[T.Path]   # specified; only enforced by the DB
     mtime:T.DateTime
     owner:idm.base.User
     group:idm.base.Group
     size:int
 
-    def __init__(self, path:T.Path, idm:idm.base.IdentityManager) -> None:
-        self.path = path
-
+    @classmethod
+    def FS(cls, path:T.Path, idm:idm.base.IdentityManager) -> File:
+        """ Construct from filesystem """
         stat = path.stat()
-        self.device = stat.st_dev
-        self.inode  = stat.st_ino
-        self.mtime  = time.epoch(stat.st_mtime)
-        self.owner  = idm.user(uid=stat.st_uid)
-        self.group  = idm.group(gid=stat.st_gid)
-        self.size   = stat.st_size
+        return cls(device = stat.st_dev,
+                   inode  = stat.st_ino,
+                   path   = path,
+                   key    = None,
+                   mtime  = time.epoch(stat.st_mtime),
+                   owner  = idm.user(uid=stat.st_uid),
+                   group  = idm.group(gid=stat.st_gid),
+                   size   = stat.st_size)
 
 
 @dataclass
@@ -82,6 +84,7 @@ class UserFileCollection(persistence.base.FileCollection):
 
     def _accumulate(self, file:File) -> None:
         # Group files by group and aggregate count, path and size
+        assert file.path is not None
         acc  = self._accumulator
         key  = file.group
         zero = GroupSummary(path=file.path, count=0, size=0)
@@ -98,15 +101,25 @@ class StagedQueueFileCollection(persistence.base.FileCollection):
     """
     File collection/accumulator for the staging queue
 
-    We're only interested in the total number of files, which is already
-    provided by __len__, so the accumulator does nothing
+    The accumulator writes the vault key paths, NULL-delimited, to a
+    binary buffer
     """
-    def _accumulate(self, _) -> None:
-        pass
+    _accumulator:T.BinaryIO
+
+    def __init__(self, *args, **kwargs) -> None:
+        super().__init__(*args, **kwargs)
+        self._accumulator = io.BytesIO()
+
+    def _accumulate(self, file:File) -> None:
+        assert file.key is not None
+        self._accumulator.write(bytes(file.key))
+        self._accumulator.write(b"\0")
 
     @property
-    def accumulator(self) -> int:
-        return len(self)
+    def accumulator(self) -> T.BinaryIO:
+        # Rewind the accumulator and return it
+        self._accumulator.seek(0)
+        return self._accumulator
 
 
 class Deleted(persistence.base.State):
