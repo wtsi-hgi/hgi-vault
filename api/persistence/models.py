@@ -31,12 +31,16 @@ class File(persistence.base.File):
     """ File metadata """
     device:int
     inode:int
-    path:T.Optional[T.Path]  # Either path or key (or both) MUST be
-    key:T.Optional[T.Path]   # specified; only enforced by the DB
+    path:T.Optional[T.Path]  # Either path or key (or both)
+    key:T.Optional[T.Path]   # arguments MUST be specified
     mtime:T.DateTime
     owner:idm.base.User
     group:idm.base.Group
     size:int
+
+    def __post_init__(self) -> None:
+        if self.path is None and self.key is None:
+            raise TypeError("At least a path or key argument must be specified")
 
     @classmethod
     def FS(cls, path:T.Path, idm:idm.base.IdentityManager) -> File:
