@@ -22,18 +22,32 @@ from __future__ import annotations
 import os.path
 from dataclasses import dataclass
 
-from core import idm, persistence, typing as T
+from core import idm, persistence, time, typing as T
 
 
-@dataclass
+@dataclass(init=False)
 class File(persistence.base.File):
     """ File metadata """
+    # NOTE This must refer to a file that is physically outside the
+    # vault (rather the any hardlink that is contained within it)
+    device:int
     inode:int
     path:T.Path
     mtime:T.DateTime
     owner:idm.base.User
     group:idm.base.Group
     size:int
+
+    def __init__(self, path:T.Path, idm:idm.base.IdentityManager) -> None:
+        self.path = path
+
+        stat = path.stat()
+        self.device = stat.st_dev
+        self.inode  = stat.st_ino
+        self.mtime  = time.epoch(stat.st_mtime)
+        self.owner  = idm.user(uid=stat.st_uid)
+        self.group  = idm.group(gid=stat.st_gid)
+        self.size   = stat.st_size
 
 
 @dataclass

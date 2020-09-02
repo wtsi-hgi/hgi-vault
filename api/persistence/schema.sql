@@ -27,7 +27,7 @@ begin transaction;
 
 -- Schema versioning
 do $$ declare
-  schema date := timestamp '2020-08-11';
+  schema date := timestamp '2020-09-02';
   actual date;
 begin
   create table if not exists __version__ (version date primary key);
@@ -70,11 +70,19 @@ create index if not exists group_owners_gid   on group_owners(gid);
 create index if not exists group_owners_owner on group_owners(owner);
 
 
--- Files (inode, plus the minimal set of metadata that we care about)
+-- Files (the minimal set of metadata that we care about)
 create table if not exists files (
+  id
+    serial
+    primary key,
+
+  device
+    integer
+    not null,
+
   inode
     integer
-    primary key,
+    not null,
 
   path
     text
@@ -96,7 +104,9 @@ create table if not exists files (
   size
     numeric
     not null
-    check (size >= 0)
+    check (size >= 0),
+
+  unique (device, inode)
 );
 
 create index if not exists files_owner on files(owner);
@@ -104,9 +114,9 @@ create index if not exists files_owner on files(owner);
 -- TODO (if possible) A suite of rules/triggers on "files" that:
 -- [x] Prevents updates
 -- [ ] On insert:
---     * Inserts on no matching inode
+--     * Inserts on no matching device-inode
 --     * Does nothing on complete matching record
---     * Deletes then inserts on matching inode
+--     * Deletes then inserts on matching device-inode
 
 create or replace rule no_update as
   on update to files
@@ -125,10 +135,10 @@ create table if not exists status (
     serial
     primary key,
 
-  inode
+  file
     integer
     not null
-    references files(inode) on delete cascade,
+    references files(id) on delete cascade,
 
   state
     state
@@ -142,7 +152,7 @@ create table if not exists status (
   unique (id, state)
 );
 
-create index if not exists status_inode    on status(inode);
+create index if not exists status_file     on status(file);
 create index if not exists status_state    on status(state);
 create index if not exists status_notified on status(notified);
 
@@ -183,21 +193,9 @@ create or replace view stakeholders as
   select distinct uid from file_stakeholders;
 
 
--- Warnings: A view of warned files with their status
--- FIXME? We probably don't need this...
-create or replace view file_warnings as
-  select status.inode,
-         warnings.tminus,
-         status.notified
-  from   status
-  join   warnings
-  on     warnings.status = status.id
-  where  status.state = 'warned';
-
-
 -- Clean any orphaned and notified, deleted files
 with deleted as (
-  select inode,
+  select file,
          notified
   from   status
   where  state = 'deleted'
@@ -205,21 +203,21 @@ with deleted as (
 orphaned as (
   -- Staged/warned files that are deleted, regardless of notification
   -- NOTE Staged files should never be in here
-  select distinct nondeleted.inode
+  select distinct nondeleted.file
   from   status as nondeleted
   join   deleted
-  on     deleted.inode = nondeleted.inode
+  on     deleted.file = nondeleted.file
   where  nondeleted.state != 'deleted'
 ),
 purgeable as (
-  select inode from orphaned
+  select file from orphaned
   union
-  select inode from deleted where notified
+  select file from deleted where notified
 )
 delete
 from   files
 using  purgeable
-where  files.inode = purgeable.inode;
+where  files.id = purgeable.file;
 
 
 commit;

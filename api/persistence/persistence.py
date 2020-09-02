@@ -25,6 +25,7 @@ with this program. If not, see https://www.gnu.org/licenses/
 
 import importlib.resources as resource
 
+from api.logging import Loggable
 from core import config, idm, persistence, typing as T
 from . import models
 from .postgres import PostgreSQL
@@ -33,7 +34,7 @@ from .postgres import PostgreSQL
 _StateT = T.Union[models.Deleted, models.Staged, models.Warned]
 _FileCollectionT = T.Union[models.UserFileCollection, models.StagedQueueFileCollection]
 
-class Persistence(persistence.base.Persistence):
+class Persistence(persistence.base.Persistence, Loggable):
     """ PostgreSQL-backed persistence implementation """
     _pg:PostgreSQL
     _idm:idm.base.IdentityManager
@@ -50,8 +51,9 @@ class Persistence(persistence.base.Persistence):
         try:
             with resource.path("api.persistence", "schema.sql") as schema:
                 self._pg.execute_script(schema)
-        except persistence.exception.LogicException as e:
-            raise persistence.exception.LogicException(f"Could not create schema\n{e}")
+        except persistence.exception.LogicException:
+            self.log.error("Could not create database schema")
+            raise
 
     def persist(self, file:models.File, state:_StateT) -> None:
         raise NotImplementedError
