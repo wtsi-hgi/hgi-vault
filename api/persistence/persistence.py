@@ -17,12 +17,6 @@ You should have received a copy of the GNU General Public License along
 with this program. If not, see https://www.gnu.org/licenses/
 """
 
-# NOTE Without the PostgreSQL rule to automatically refresh file records
-# that have changed, it will need to be done manually
-
-# NOTE If a file is deleted manually after being warned, then those
-# warnings will need to be cleaned up
-
 import importlib.resources as resource
 
 from api.logging import Loggable
@@ -32,7 +26,7 @@ from .postgres import PostgreSQL
 
 
 State = models.State
-_StateT = T.Union[State.Cleared, State.Deleted, State.Staged, State.Warned]
+_StateT = T.Union[State.Deleted, State.Staged, State.Warned]
 _FileCollectionT = T.Union[models.UserFileCollection, models.StagedQueueFileCollection]
 
 class Persistence(persistence.base.Persistence, Loggable):
@@ -58,13 +52,14 @@ class Persistence(persistence.base.Persistence, Loggable):
 
     def persist(self, file:models.File, state:_StateT) -> None:
         """
-        Persist a file to the database with the specified state; note
-        that a state of Cleared will delete the entry from the database,
-        if it exists.
+        Persist a file to the database with the specified state
 
         @param   file   File model to persist
         @param   state  State in which to set the state
         """
+        # NOTE Without the PostgreSQL rule to automatically refresh file
+        # records that have changed, it will need to be done manually
+
         raise NotImplementedError
 
     @property

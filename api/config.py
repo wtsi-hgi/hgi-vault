@@ -23,7 +23,7 @@ from functools import cached_property
 
 import yaml
 
-from core import config, typing as T
+from core import config, time, typing as T
 
 
 class _YAMLConfig(config.base.Config, metaclass=ABCMeta):
@@ -40,9 +40,15 @@ class _YAMLConfig(config.base.Config, metaclass=ABCMeta):
                 raise config.exception.InvalidConfiguration(f"Could not parse {source.name}")
 
 
-# Convenience type constructors for days and hours
-_Days = lambda days: T.TimeDelta(days=days)
-_Hours = lambda hours: T.TimeDelta(hours=hours)
+# Convenience type constructors for days and hours (less than a month)
+def _Days(days:int) -> T.TimeDelta:
+    return time.delta(days=days)
+
+def _HoursLessThanAMonth(hours:int) -> T.TimeDelta:
+    if (delta := time.delta(hours=hours)) > time.delta(hours=720):
+        raise TypeError("I'm not waiting that long")
+
+    return delta
 
 @dataclass
 class _ListOf:
@@ -105,7 +111,7 @@ _schema = {
 
     "deletion": {
         "threshold":         _Setting(cast=_Days),
-        "warnings":          _Setting(cast=_ListOf(_Hours), default=[])},
+        "warnings":          _Setting(cast=_ListOf(_HoursLessThanAMonth), default=[])},
 
     "archive": {
         "threshold":         _Setting(cast=int),

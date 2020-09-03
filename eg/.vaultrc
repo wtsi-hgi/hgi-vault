@@ -59,7 +59,8 @@ email:
 # - threshold   Age (in days) at which a file can be deleted
 # - warnings    List of warning times (in hours before the deletion age)
 #               at which a file's owner and group owner should be
-#               notified
+#               notified. Note that no warning should exceed the
+#               equivalent of 30 days (720 hours).
 
 # NOTE These timings are relative to the fidelity in which the batch
 # process is run. For example, if it's only run once per week and a

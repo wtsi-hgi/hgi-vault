@@ -50,6 +50,7 @@ class Filter:
 @dataclass
 class _BaseState:
     """ Base class for file states """
+    notified:T.Union[bool, Anything]
 
 
 @dataclass

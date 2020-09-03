@@ -126,29 +126,15 @@ class StagedQueueFileCollection(persistence.base.FileCollection):
         return self._accumulator
 
 
-@dataclass
-class _NotifiableState(persistence.base.State):
-    notified:T.Union[bool, Anything]
-
 class State(T.SimpleNamespace):
     """ Namespace of file states to make importing easier """
-    class Cleared(persistence.base.State):
-        """ File state cleared """
-        # This is a special state that isn't stored in the database, but
-        # is used on persistence to clear out files that were stored
-        # previously and have since changed state such they're no longer
-        # eligible for notification, etc. It will need to be applied to
-        # every file that is walked; for most it will be a no-op, but
-        # this saves us having to stat multiple times and couple the
-        # persistence module with the application layer.
-
-    class Deleted(_NotifiableState):
+    class Deleted(persistence.base.State):
         """ File deleted """
 
-    class Staged(_NotifiableState):
+    class Staged(persistence.base.State):
         """ File staged """
 
     @dataclass
-    class Warned(_NotifiableState):
+    class Warned(persistence.base.State):
         """ File warned for deletion """
         tminus:T.Union[T.TimeDelta, persistence.Anything]

@@ -27,7 +27,7 @@ begin transaction;
 
 -- Schema versioning
 do $$ declare
-  schema date := timestamp '2020-09-02';
+  schema date := timestamp '2020-09-03';
   actual date;
 begin
   create table if not exists __version__ (version date primary key);
@@ -149,6 +149,11 @@ create table if not exists status (
     state
     not null,
 
+  timestamp
+    timestamp with time zone
+    not null
+    default now(),
+
   notified
     boolean
     not null
@@ -157,9 +162,10 @@ create table if not exists status (
   unique (id, state)
 );
 
-create index if not exists status_file     on status(file);
-create index if not exists status_state    on status(state);
-create index if not exists status_notified on status(notified);
+create index if not exists status_file      on status(file);
+create index if not exists status_state     on status(state);
+create index if not exists status_timestamp on status(timestamp);
+create index if not exists status_notified  on status(notified);
 
 create table if not exists warnings (
   status
@@ -214,10 +220,20 @@ orphaned as (
   on     deleted.file = nondeleted.file
   where  nondeleted.state != 'deleted'
 ),
+expired as (
+  -- Non-staged files that have been notified, but have expired
+  select distinct file
+  from   status
+  where  state != 'staged'
+  and    age(now(), timestamp) > make_interval(days => 30)
+  and    notified
+),
 purgeable as (
   select file from orphaned
   union
   select file from deleted where notified
+  union
+  select file from expired
 )
 delete
 from   files
