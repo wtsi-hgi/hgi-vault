@@ -44,13 +44,13 @@ class Filter:
     # criteria; the "Anything" sentinel can be used as a wildcard, both
     # in the state parameters and as the stakeholder (default)
     state:_BaseState
-    stakeholder:T.Union[idm.base.User, Anything] = Anything
+    stakeholder:T.Union[idm.base.User, T.Type[Anything]] = Anything
 
 
 @dataclass
 class _BaseState:
     """ Base class for file states """
-    notified:T.Union[bool, Anything]
+    notified:T.Union[bool, T.Type[Anything]]
 
 
 @dataclass

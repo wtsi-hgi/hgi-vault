@@ -94,6 +94,9 @@ class Persistence(persistence.base.Persistence, Loggable):
         @param   file   File model to persist
         @param   state  State in which to set the state
         """
+        assert not state.notified
+        identity = f"{file.device}:{file.inode}"
+
         # If a persisted file's status (mtime, size, etc.) has changed
         # in the meantime, we need to delete that record and start over;
         # the cascade delete will remove the old statuses appropriately.
@@ -117,11 +120,13 @@ class Persistence(persistence.base.Persistence, Loggable):
 
                 if file != previous:
                     # ...delete it if it differs
+                    self.log.debug(f"Deleting records for file {identity}")
                     t.execute("delete from files where id = %s;", (file_id,))
                     file_id = None
 
             # Insert the file record, if necessary
             if file_id is None:
+                self.log.debug(f"Persisting file {identity}")
                 t.execute("""
                     insert into files (device, inode, path, key, mtime, owner, group_id, size)
                     values (%s, %s, %s, %s, to_timestamp(%s), %s, %s, %s)
@@ -130,7 +135,49 @@ class Persistence(persistence.base.Persistence, Loggable):
 
                 file_id = t.fetchone().id
 
-            # TODO Set status, if not already set
+            # TODO Status insertion can be simplified...
+            if isinstance(state, State.Warned):
+                # Insert new status record for Warned files
+                assert state.tminus != persistence.Anything
+
+                t.execute("""
+                    select 1
+                    from   warnings
+                    join   status
+                    on     status.id = warnings.status
+                    where  status.file     = %s
+                    and    warnings.tminus = make_interval(secs => %s);
+                """, (file_id, state.tminus.total_seconds()))
+
+                if t.fetchone() is None:
+                    self.log.debug(f"Setting {state.db_type} status for file {identity}")
+                    t.execute("""
+                        insert into status (file, state)
+                        values (%s, %s)
+                        returning id;
+                    """, (file_id, state.db_type))
+                    state_id = t.fetchone().id
+
+                    t.execute("""
+                        insert into warnings (status, tminus)
+                        values (%s, make_interval(secs => %s));
+                    """, (state_id, state.tminus.total_seconds()))
+
+            else:
+                # Insert new status record for Deleted or Staged files
+                t.execute("""
+                    select 1
+                    from   status
+                    where  state != %s
+                    and    file   = %s;
+                """, (State.Warned.db_type, file_id,))
+
+                if t.fetchone() is None:
+                    self.log.debug(f"Setting {state.db_type} status for file {identity}")
+                    t.execute("""
+                        insert into status (file, state)
+                        values (%s, %s);
+                    """, (file_id, state.db_type))
 
     @property
     def stakeholders(self) -> T.Iterator[idm.base.User]:

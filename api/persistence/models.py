@@ -161,11 +161,14 @@ class State(T.SimpleNamespace):
     """ Namespace of file states to make importing easier """
     class Deleted(persistence.base.State):
         """ File deleted """
+        db_type:ClassVar[str] = "deleted"
 
     class Staged(persistence.base.State):
         """ File staged """
+        db_type:ClassVar[str] = "staged"
 
     @dataclass
     class Warned(persistence.base.State):
         """ File warned for deletion """
-        tminus:T.Union[T.TimeDelta, persistence.Anything]
+        db_type:ClassVar[str] = "warned"
+        tminus:T.Union[T.TimeDelta, T.Type[persistence.Anything]]
