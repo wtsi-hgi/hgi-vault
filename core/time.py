@@ -19,8 +19,9 @@ with this program. If not, see https://www.gnu.org/licenses/
 
 from datetime import datetime, timedelta, timezone
 
-now   = lambda: datetime.now(timezone.utc)
-epoch = lambda ts: datetime.fromtimestamp(ts, timezone.utc)
-delta = timedelta
+now       = lambda: datetime.now(timezone.utc)
+epoch     = lambda ts: datetime.fromtimestamp(ts, timezone.utc)
+timestamp = lambda dt: dt.timestamp()
+delta     = timedelta
 
 ISO8601 = "%Y-%m-%dT%H:%M:%SZ%z"

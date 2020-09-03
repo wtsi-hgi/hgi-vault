@@ -57,7 +57,7 @@ create table if not exists group_owners (
   gid
     integer
     not null
-    references groups(gid),
+    references groups(gid) on delete cascade,
 
   owner
     integer
@@ -86,9 +86,10 @@ create table if not exists files (
 
   -- Source file path
   path
-    text,
+    text
+    not null,
 
-  -- Vault file path
+  -- Vault file path (can be null)
   key
     text,
 
@@ -110,8 +111,7 @@ create table if not exists files (
     not null
     check (size >= 0),
 
-  unique (device, inode),
-  check (not (path is null and key is null))
+  unique (device, inode)
 );
 
 create index if not exists files_owner on files(owner);
@@ -242,3 +242,4 @@ where  files.id = purgeable.file;
 
 
 commit;
+vacuum;
