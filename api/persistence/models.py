@@ -158,9 +158,9 @@ class StagedQueueFileCollection(persistence.base.FileCollection):
         return self._accumulator
 
 
-class _PersistedState(persistence.base.State)
+class _PersistedState(persistence.base.State):
     """ Base for our persistence operations """
-    db_type:ClassVar[str]
+    db_type:T.ClassVar[str]
 
     def is_set(self, t:Transaction, file:int) -> bool:
         """
@@ -197,16 +197,16 @@ class State(T.SimpleNamespace):
     """ Namespace of file states to make importing easier """
     class Deleted(_PersistedState):
         """ File deleted """
-        db_type:ClassVar[str] = "deleted"
+        db_type = "deleted"
 
     class Staged(_PersistedState):
         """ File staged """
-        db_type:ClassVar[str] = "staged"
+        db_type = "staged"
 
     @dataclass
     class Warned(_PersistedState):
         """ File warned for deletion """
-        db_type:ClassVar[str] = "warned"
+        db_type = "warned"
         tminus:T.Union[T.TimeDelta, T.Type[persistence.Anything]]
 
         def is_set(self, t:Transaction, file:int) -> bool:
@@ -216,10 +216,11 @@ class State(T.SimpleNamespace):
                 select 1
                 from   warnings
                 join   status
-                on     status.id = warnings.status
+                on     status.id       = warnings.status
                 where  status.file     = %s
                 and    warnings.tminus = make_interval(secs => %s);
             """, (file_id, time.seconds(state.tminus)))
+            return t.fetchone().id
 
         def set(self, t:Transaction, file:int) -> int:
             assert self.tminus != persistence.Anything

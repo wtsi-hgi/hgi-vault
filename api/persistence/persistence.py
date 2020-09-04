@@ -23,7 +23,7 @@ from api.logging import Loggable
 from core import config, idm, persistence, typing as T
 from . import models
 from .models import State
-from .postgres import PostgreSQL
+from .postgres import PostgreSQL, Transaction
 
 
 _StateT = T.Union[State.Deleted, State.Staged, State.Warned]
@@ -64,30 +64,28 @@ class Persistence(persistence.base.Persistence, Loggable):
 
             t.execute("select gid from groups;")
             for group in t:
-                self._persist_group(self._idm.group(gid=group.gid))
+                self._persist_group(t, self._idm.group(gid=group.gid))
 
-    def _persist_group(self, group:idm.base.Group) -> None:
+    def _persist_group(self, t:Transaction, group:idm.base.Group) -> None:
         """ Persist a group and its owners from the IdM """
         if (gid := group.gid) in self._known_groups:
             # Don't refresh groups that are known to the session
             return
 
-        with self._pg.transaction() as t:
-            self.log.debug(f"Persisting group {gid}")
+        self.log.debug(f"Persisting group {gid}")
+        t.execute("""
+            insert into groups (gid) values (%s)
+            on conflict do nothing;
+        """, (gid,))
 
+        for user in group.owners:
+            self.log.debug(f"Recording user {user.uid} as an owner of group {gid}")
             t.execute("""
-                insert into groups (gid) values (%s)
+                insert into group_owners (gid, owner) values (%s, %s)
                 on conflict do nothing;
-            """, (gid,))
+            """, (gid, user.uid))
 
-            for user in group.owners:
-                self.log.debug(f"Recording user {user.uid} as an owner of group {gid}")
-                t.execute("""
-                    insert into group_owners (gid, owner) values (%s, %s)
-                    on conflict do nothing;
-                """, (gid, user.uid))
-
-            self._known_groups.add(gid)
+        self._known_groups.add(gid)
 
     def persist(self, file:models.File, state:_StateT) -> None:
         """
@@ -106,7 +104,7 @@ class Persistence(persistence.base.Persistence, Loggable):
         # trigger, but for now we implement it manually.
         with self._pg.transaction() as t:
             file_id = None
-            self._persist_group(file.group)
+            self._persist_group(t, file.group)
 
             t.execute("""
                 select *
