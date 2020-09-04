@@ -34,6 +34,8 @@ class Persistence(persistence.base.Persistence, Loggable):
     _pg:PostgreSQL
     _idm:idm.base.IdentityManager
 
+    _known_groups:T.Set[int]
+
     def __init__(self, config:config.base.Config, idm:idm.base.IdentityManager) -> None:
         self._pg = PostgreSQL(host     = config.postgres.host,
                               port     = config.postgres.port,
@@ -55,37 +57,37 @@ class Persistence(persistence.base.Persistence, Loggable):
     def _refresh_groups(self) -> None:
         """ Clear known group owners and repopulate from the IdM """
         with self._pg.transaction(autocommit=True) as t:
-            self.log.info("Refreshing group ownership")
+            self.log.info("Refreshing group ownership records")
+
             t.execute("truncate group_owners;")
+            self._known_groups = set()
+
             t.execute("select gid from groups;")
             for group in t:
-                self._create_group(self._idm.group(gid=group.gid))
+                self._persist_group(self._idm.group(gid=group.gid))
 
-    def _create_group(self, group:idm.base.Group) -> None:
+    def _persist_group(self, group:idm.base.Group) -> None:
         """ Persist a group and its owners from the IdM """
+        if (gid := group.gid) in self._known_groups:
+            # Don't refresh groups that are known to the session
+            return
+
         with self._pg.transaction(autocommit=True) as t:
-            self.log.debug(f"Persisting group {group.gid}")
+            self.log.debug(f"Persisting group {gid}")
 
             t.execute("""
                 insert into groups (gid) values (%s)
                 on conflict do nothing;
-            """, (group.gid,))
+            """, (gid,))
 
-            t.execute("""
-                select   count(owner) owners
-                from     group_owners
-                group by gid
-                where    gid = %s;
-            """, (group.gid,))
+            for user in group.owners:
+                self.log.debug(f"Recording user {user.uid} as an owner of group {gid}")
+                t.execute("""
+                    insert into group_owners (gid, owner) values (%s, %s)
+                    on conflict do nothing;
+                """, (gid, user.uid))
 
-            if t.fetchone().owners == 0:
-                # Only update owners if none are found
-                for user in group.owners:
-                    self.log.debug(f"Recording user {user.uid} as an owner of group {group.gid}")
-                    t.execute("""
-                        insert into group_owners (gid, owner) values (%s, %s)
-                        on conflict do nothing;
-                    """, (group.gid, user.uid))
+            self._known_groups.add(gid)
 
     def persist(self, file:models.File, state:_StateT) -> None:
         """
@@ -95,7 +97,7 @@ class Persistence(persistence.base.Persistence, Loggable):
         @param   state  State in which to set the state
         """
         assert not state.notified
-        identity = f"{file.device}:{file.inode}"
+        fs_id = f"{file.device}:{file.inode}"
 
         # If a persisted file's status (mtime, size, etc.) has changed
         # in the meantime, we need to delete that record and start over;
@@ -104,7 +106,7 @@ class Persistence(persistence.base.Persistence, Loggable):
         # trigger, but for now we implement it manually.
         with self._pg.transaction(autocommit=True) as t:
             file_id = None
-            self._create_group(file.group)
+            self._persist_group(file.group)
 
             t.execute("""
                 select *
@@ -120,13 +122,13 @@ class Persistence(persistence.base.Persistence, Loggable):
 
                 if file != previous:
                     # ...delete it if it differs
-                    self.log.debug(f"Deleting records for file {identity}")
+                    self.log.debug(f"Deleting records for file {fs_id}")
                     t.execute("delete from files where id = %s;", (file_id,))
                     file_id = None
 
             # Insert the file record, if necessary
             if file_id is None:
-                self.log.debug(f"Persisting file {identity}")
+                self.log.debug(f"Persisting file {fs_id}")
                 t.execute("""
                     insert into files (device, inode, path, key, mtime, owner, group_id, size)
                     values (%s, %s, %s, %s, to_timestamp(%s), %s, %s, %s)
@@ -150,7 +152,7 @@ class Persistence(persistence.base.Persistence, Loggable):
                 """, (file_id, state.tminus.total_seconds()))
 
                 if t.fetchone() is None:
-                    self.log.debug(f"Setting {state.db_type} status for file {identity}")
+                    self.log.debug(f"Setting {state.db_type} status for file {fs_id}")
                     t.execute("""
                         insert into status (file, state)
                         values (%s, %s)
@@ -173,7 +175,7 @@ class Persistence(persistence.base.Persistence, Loggable):
                 """, (State.Warned.db_type, file_id,))
 
                 if t.fetchone() is None:
-                    self.log.debug(f"Setting {state.db_type} status for file {identity}")
+                    self.log.debug(f"Setting {state.db_type} status for file {fs_id}")
                     t.execute("""
                         insert into status (file, state)
                         values (%s, %s);
