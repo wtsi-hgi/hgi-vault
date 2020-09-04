@@ -22,6 +22,8 @@ from datetime import datetime, timedelta, timezone
 now       = lambda: datetime.now(timezone.utc)
 epoch     = lambda ts: datetime.fromtimestamp(ts, timezone.utc)
 timestamp = lambda dt: dt.timestamp()
-delta     = timedelta
 
-ISO8601 = "%Y-%m-%dT%H:%M:%SZ%z"
+delta     = timedelta
+seconds   = lambda d: d.total_seconds()
+
+ISO8601   = "%Y-%m-%dT%H:%M:%SZ%z"

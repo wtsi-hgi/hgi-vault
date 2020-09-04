@@ -56,7 +56,7 @@ class Persistence(persistence.base.Persistence, Loggable):
 
     def _refresh_groups(self) -> None:
         """ Clear known group owners and repopulate from the IdM """
-        with self._pg.transaction(autocommit=True) as t:
+        with self._pg.transaction() as t:
             self.log.info("Refreshing group ownership records")
 
             t.execute("truncate group_owners;")
@@ -72,7 +72,7 @@ class Persistence(persistence.base.Persistence, Loggable):
             # Don't refresh groups that are known to the session
             return
 
-        with self._pg.transaction(autocommit=True) as t:
+        with self._pg.transaction() as t:
             self.log.debug(f"Persisting group {gid}")
 
             t.execute("""
@@ -104,7 +104,7 @@ class Persistence(persistence.base.Persistence, Loggable):
         # the cascade delete will remove the old statuses appropriately.
         # Ideally, PostgreSQL would do this for us with a rule or
         # trigger, but for now we implement it manually.
-        with self._pg.transaction(autocommit=True) as t:
+        with self._pg.transaction() as t:
             file_id = None
             self._persist_group(file.group)
 
@@ -137,49 +137,10 @@ class Persistence(persistence.base.Persistence, Loggable):
 
                 file_id = t.fetchone().id
 
-            # TODO Status insertion can be simplified...
-            if isinstance(state, State.Warned):
-                # Insert new status record for Warned files
-                assert state.tminus != persistence.Anything
-
-                t.execute("""
-                    select 1
-                    from   warnings
-                    join   status
-                    on     status.id = warnings.status
-                    where  status.file     = %s
-                    and    warnings.tminus = make_interval(secs => %s);
-                """, (file_id, state.tminus.total_seconds()))
-
-                if t.fetchone() is None:
-                    self.log.debug(f"Setting {state.db_type} status for file {fs_id}")
-                    t.execute("""
-                        insert into status (file, state)
-                        values (%s, %s)
-                        returning id;
-                    """, (file_id, state.db_type))
-                    state_id = t.fetchone().id
-
-                    t.execute("""
-                        insert into warnings (status, tminus)
-                        values (%s, make_interval(secs => %s));
-                    """, (state_id, state.tminus.total_seconds()))
-
-            else:
-                # Insert new status record for Deleted or Staged files
-                t.execute("""
-                    select 1
-                    from   status
-                    where  state != %s
-                    and    file   = %s;
-                """, (State.Warned.db_type, file_id,))
-
-                if t.fetchone() is None:
-                    self.log.debug(f"Setting {state.db_type} status for file {fs_id}")
-                    t.execute("""
-                        insert into status (file, state)
-                        values (%s, %s);
-                    """, (file_id, state.db_type))
+            # Set state, if not already
+            if not state.is_set(t, file_id):
+                self.log.debug(f"Setting {state.db_type} status for file {fs_id}")
+                state.set(t, file_id)
 
     @property
     def stakeholders(self) -> T.Iterator[idm.base.User]:

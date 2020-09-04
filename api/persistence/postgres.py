@@ -64,17 +64,16 @@ class _BaseSession(AbstractContextManager, metaclass=ABCMeta):
         self.session()
         return self._cursor
 
-    def __exit__(self, *exception) -> bool:
-        _, exc, _ = exception
-        raised = exc is not None
-
+    def __exit__(self, *exc) -> bool:
         try:
-            if raised:
-                self._connection.rollback()
-                if isinstance(exc, PGError):
-                    raise _exception_mapper(exc)
-            else:
+            if not all(exc):
                 self._connection.commit()
+
+            else:
+                self._connection.rollback()
+                _, thrown, _ = exc
+                if isinstance(thrown, PGError):
+                    raise _exception_mapper(thrown)
 
         finally:
             self.teardown()
@@ -89,6 +88,26 @@ class _BaseSession(AbstractContextManager, metaclass=ABCMeta):
     def teardown(self) -> None:
         """ Teardown session state """
 
+class Transaction(_BaseSession):
+    """ Transaction context manager, using an injected connection pool """
+    _pool:AbstractConnectionPool
+    _autocommit:bool
+
+    def __init__(self, *, pool:AbstractConnectionPool, autocommit:bool) -> None:
+        self._pool = pool
+        self._autocommit = autocommit
+
+    def session(self) -> None:
+        self._connection = self._pool.getconn()
+        self._connection.autocommit = self._autocommit
+        self._cursor = self._connection.cursor()
+
+        # Start transaction
+        self._cursor.execute("begin transaction;")
+
+    def teardown(self) -> None:
+        self._pool.putconn(self._connection)
+
 
 class PostgreSQL:
     """
@@ -101,36 +120,13 @@ class PostgreSQL:
 
     def __init__(self, *, database:str, user:str, password:str, host:str, port:int = 5432) -> None:
         dsn = f"dbname={database} user={user} password={password} host={host} port={port}"
-        self._pool = pool = ThreadedConnectionPool(_POOL_MIN, _POOL_MAX, dsn, cursor_factory=NamedTupleCursor)
-
-        class _Transaction(_BaseSession):
-            """
-            Transaction context manager, using the connection pool
-
-            @param  autocommit  Transaction autocommit mode (defaults to False)
-            """
-            _pool:AbstractConnectionPool
-            _autocommit:bool
-
-            def __init__(self, *, autocommit:bool = False) -> None:
-                self._pool = pool
-                self._autocommit = autocommit
-
-            def session(self) -> None:
-                self._connection = self._pool.getconn()
-                self._connection.autocommit = self._autocommit
-                self._cursor = self._connection.cursor()
-
-                # Start transaction
-                self._cursor.execute("begin transaction;")
-
-            def teardown(self) -> None:
-                self._pool.putconn(self._connection)
-
-        self.transaction = _Transaction
+        self._pool = ThreadedConnectionPool(_POOL_MIN, _POOL_MAX, dsn, cursor_factory=NamedTupleCursor)
 
     def __del__(self) -> None:
         self._pool.closeall()
+
+    def transaction(self, autocommit:bool = False) -> Transaction:
+        return Transaction(self._pool, autocommit)
 
     def execute_script(self, sql:T.Path) -> None:
         """
