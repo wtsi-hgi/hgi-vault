@@ -76,6 +76,7 @@ class State(T.SimpleNamespace):
         tminus:T.Union[T.TimeDelta, T.Type[persistence.Anything]]
 
         def is_set(self, t:Transaction, file:int) -> bool:
+            # Warnings are special, so we override the superclass
             assert self.tminus != persistence.Anything
 
             t.execute("""
@@ -89,12 +90,13 @@ class State(T.SimpleNamespace):
             return t.fetchone().id
 
         def set(self, t:Transaction, file:int) -> int:
+            # Warnings are special, so we extend the superclass
             assert self.tminus != persistence.Anything
 
             state_id = super().set(t, file)
             t.execute("""
                 insert into warnings (status, tminus)
                 values (%s, make_interval(secs => %s));
-            """, (state_id, self.tminus.total_seconds()))
+            """, (state_id, time.seconds(self.tminus)))
 
             return state_id
