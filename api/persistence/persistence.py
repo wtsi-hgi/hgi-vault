@@ -21,13 +21,12 @@ import importlib.resources as resource
 
 from api.logging import Loggable
 from core import config, idm, persistence, typing as T
-from . import models
-from .models import State
+from .models import File, State, FileCollection
 from .postgres import PostgreSQL, Transaction
 
 
 _StateT = T.Union[State.Deleted, State.Staged, State.Warned]
-_FileCollectionT = T.Union[models.UserFileCollection, models.StagedQueueFileCollection]
+_FileCollectionT = T.Union[FileCollection.User, FileCollection.StagedQueue]
 
 class Persistence(persistence.base.Persistence, Loggable):
     """ PostgreSQL-backed persistence implementation """
@@ -87,7 +86,7 @@ class Persistence(persistence.base.Persistence, Loggable):
 
         self._known_groups.add(gid)
 
-    def persist(self, file:models.File, state:_StateT) -> None:
+    def persist(self, file:File, state:_StateT) -> None:
         """
         Persist a file to the database with the specified state
 
@@ -116,7 +115,7 @@ class Persistence(persistence.base.Persistence, Loggable):
             if (record := t.fetchone()) is not None:
                 # File is known...
                 file_id  = record.id
-                previous = models.File.FromDB(record, self._idm)
+                previous = File.FromDB(record, self._idm)
 
                 if file != previous:
                     # ...delete it if it differs
