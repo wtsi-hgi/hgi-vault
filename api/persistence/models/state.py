@@ -21,41 +21,46 @@ from dataclasses import dataclass
 
 from core import persistence, time, typing as T
 from api.persistence.postgres import Transaction
+from .file import File
 
 
 class _PersistedState(persistence.base.State):
     """ Base for our persistence operations """
     db_type:T.ClassVar[str]
 
-    def is_set(self, t:Transaction, file:int) -> bool:
+    def is_set(self, t:Transaction, file:File) -> bool:
         """
-        Check the status is set for a given file
+        Check the status is set for a given file ID
 
         @param   t     Transaction
-        @param   file  File ID
+        @param   file  File
         @return  Set predicate
         """
+        assert hasattr(file, "db_id")
+
         t.execute("""
             select 1
             from   status
             where  state = %s
             and    file  = %s;
-        """, (self.db_type, file))
+        """, (self.db_type, file.db_id))
         return t.fetchone() is not None
 
-    def set(self, t:Transaction, file:int) -> int:
+    def set(self, t:Transaction, file:File) -> int:
         """
-        Set the status for a given file
+        Set the status for a given file ID
 
         @param   t     Transaction
-        @param   file  File ID
+        @param   file  File
         @return  New status ID
         """
+        assert hasattr(file, "db_id")
+
         t.execute("""
             insert into status (file, state)
             values (%s, %s)
             returning id;
-        """, (file, self.db_type))
+        """, (file.db_id, self.db_type))
         return t.fetchone().id
 
 
@@ -75,8 +80,9 @@ class State(T.SimpleNamespace):
         db_type = "warned"
         tminus:T.Union[T.TimeDelta, T.Type[persistence.Anything]]
 
-        def is_set(self, t:Transaction, file:int) -> bool:
+        def is_set(self, t:Transaction, file:File) -> bool:
             # Warnings are special, so we override the superclass
+            assert hasattr(file, "db_id")
             assert self.tminus != persistence.Anything
 
             t.execute("""
@@ -86,11 +92,12 @@ class State(T.SimpleNamespace):
                 on     status.id       = warnings.status
                 where  status.file     = %s
                 and    warnings.tminus = make_interval(secs => %s);
-            """, (file_id, time.seconds(state.tminus)))
+            """, (file.db_id, time.seconds(state.tminus)))
             return t.fetchone().id
 
-        def set(self, t:Transaction, file:int) -> int:
+        def set(self, t:Transaction, file:File) -> int:
             # Warnings are special, so we extend the superclass
+            assert hasattr(file, "db_id")
             assert self.tminus != persistence.Anything
 
             state_id = super().set(t, file)

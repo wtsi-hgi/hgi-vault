@@ -33,6 +33,7 @@ class Persistence(persistence.base.Persistence, Loggable):
     _pg:PostgreSQL
     _idm:idm.base.IdentityManager
 
+    # Groups are not modelled explicitly, so we handle them here
     _known_groups:T.Set[int]
 
     def __init__(self, config:config.base.Config, idm:idm.base.IdentityManager) -> None:
@@ -93,8 +94,9 @@ class Persistence(persistence.base.Persistence, Loggable):
         @param   file   File model to persist
         @param   state  State in which to set the state
         """
+        assert not hasattr(file, "db_id")
         assert not state.notified
-        fs_id = f"{file.device}:{file.inode}"
+        file_id = f"{file.device}:{file.inode}"
 
         # If a persisted file's status (mtime, size, etc.) has changed
         # in the meantime, we need to delete that record and start over;
@@ -102,42 +104,23 @@ class Persistence(persistence.base.Persistence, Loggable):
         # Ideally, PostgreSQL would do this for us with a rule or
         # trigger, but for now we implement it manually.
         with self._pg.transaction() as t:
-            file_id = None
             self._persist_group(t, file.group)
 
-            t.execute("""
-                select *
-                from   files
-                where  device = %s
-                and    inode  = %s;
-            """, (file.device, file.inode))
+            known = File.FromDBQuery(t, file, self._idm)
+            if known is not None and file != known:
+                # Delete known file if it differs
+                self.log.debug(f"Deleting records for file {file_id}")
+                known = known.purge()
 
-            if (record := t.fetchone()) is not None:
-                # File is known...
-                file_id  = record.id
-                previous = File.FromDB(record, self._idm)
+            if known is None:
+                # Insert the file record, if necessary
+                self.log.debug(f"Persisting file {file_id}")
+                known = file.persist(t)
 
-                if file != previous:
-                    # ...delete it if it differs
-                    self.log.debug(f"Deleting records for file {fs_id}")
-                    t.execute("delete from files where id = %s;", (file_id,))
-                    file_id = None
-
-            # Insert the file record, if necessary
-            if file_id is None:
-                self.log.debug(f"Persisting file {fs_id}")
-                t.execute("""
-                    insert into files (device, inode, path, key, mtime, owner, group_id, size)
-                    values (%s, %s, %s, %s, to_timestamp(%s), %s, %s, %s)
-                    returning id;
-                """, file.record)
-
-                file_id = t.fetchone().id
-
-            # Set state, if not already
-            if not state.is_set(t, file_id):
-                self.log.debug(f"Setting {state.db_type} status for file {fs_id}")
-                state.set(t, file_id)
+            if not state.is_set(t, known):
+                # Set state, if not already
+                self.log.debug(f"Setting {state.db_type} status for file {file_id}")
+                state.set(t, known)
 
     @property
     def stakeholders(self) -> T.Iterator[idm.base.User]:

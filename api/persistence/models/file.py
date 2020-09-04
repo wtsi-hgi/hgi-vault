@@ -19,14 +19,17 @@ with this program. If not, see https://www.gnu.org/licenses/
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 from core import idm, persistence, time, typing as T
+from api.persistence.postgres import Transaction
 
 
-@dataclass(eq=False)
+@dataclass(eq=False, order=False)
 class File(persistence.base.File):
     """ File metadata """
+    db_id:int = field(init=False, repr=False)
+
     device:int
     inode:int
     path:T.Path
@@ -35,6 +38,8 @@ class File(persistence.base.File):
     owner:idm.base.User
     group:idm.base.Group
     size:int
+
+    ## Alternative Constructors ########################################
 
     @classmethod
     def FromFS(cls, path:T.Path, idm:idm.base.IdentityManager) -> File:
@@ -50,9 +55,9 @@ class File(persistence.base.File):
                    size   = stat.st_size)
 
     @classmethod
-    def FromDB(cls, record:T.NamedTuple, idm:idm.base.IdentityManager) -> File:
+    def FromDBRecord(cls, record:T.NamedTuple, idm:idm.base.IdentityManager) -> File:
         """ Construct from database record """
-        return cls(device = record.device,
+        file = cls(device = record.device,
                    inode  = record.inode,
                    path   = T.Path(record.path),
                    key    = T.Path(record.key) if record.key is not None else None,
@@ -60,6 +65,29 @@ class File(persistence.base.File):
                    owner  = self._idm.user(uid=record.owner),
                    group  = self._idm.group(uid=record.group_id),
                    size   = record.size)
+
+        file.db_id = record.id
+        return file
+
+    @classmethod
+    def FromDBQuery(cls, t:Transaction, file:File, idm:idm.base.IdentityManager) -> T.Optional[File]:
+        """ Construct from database query, if found """
+        if hasattr(file, "db_id"):
+            # Don't search for something we've already found
+            return file
+
+        t.execute("""
+            select *
+            from   files
+            where  device = %s
+            and    inode  = %s;
+        """, (file.device, file.inode))
+        if (record := t.fetchone()) is None:
+            return None
+
+        return cls.FromDBRecord(record, idm)
+
+    ## Methods #########################################################
 
     def __eq__(self, other:File) -> bool:
         """ Equality predicate """
@@ -72,14 +100,29 @@ class File(persistence.base.File):
            and self.group  == other.group \
            and self.size   == other.size
 
-    @property
-    def record(self) -> T.Tuple:
-        """ Representation as a record tuple """
-        return (self.device,
-                self.inode,
-                str(self.path),
-                str(self.key) if self.key is not None else None,
-                time.timestamp(self.mtime),
-                self.owner.uid,
-                self.group.gid,
-                self.size)
+    def persist(self, t:Transaction) -> File:
+        """ Persist to the database """
+        # NOTE This depends on the group record being created first
+        assert not hasattr(self, "db_id")
+
+        t.execute("""
+            insert into files (device, inode, path, key, mtime, owner, group_id, size)
+            values (%s, %s, %s, %s, to_timestamp(%s), %s, %s, %s)
+            returning id;
+        """, (self.device,
+              self.inode,
+              str(self.path),
+              str(self.key) if self.key is not None else None,
+              time.timestamp(self.mtime),
+              self.owner.uid,
+              self.group.gid,
+              self.size))
+
+        self.db_id = t.fetchone().id
+        return self
+
+    def purge(self, t:Transaction) -> None:
+        """ Purge from the database """
+        assert hasattr(self, "db_id")
+        t.execute("delete from files where id = %s;", (self.db_id,))
+        return None
