@@ -82,7 +82,7 @@ class _BaseFileCollection(T.Collection[_BaseFile], T.ContextManager, metaclass=A
     def __exit__(self, *exc) -> bool:
         # If the context manager exits cleanly, then clean up the files
         if not all(exc):
-            self._persistence.clean(self._filter)
+            self._persistence.clean(self)
 
         return False
 
@@ -91,6 +91,11 @@ class _BaseFileCollection(T.Collection[_BaseFile], T.ContextManager, metaclass=A
         self._contents.append(file)
         self._accumulate(file)
         return self
+
+    @property
+    def criteria(self) -> Filter:
+        """ Criteria used to generate the collection """
+        return self._filter
 
     @abstractmethod
     def _accumulate(self, file:_BaseFile) -> None:
@@ -135,12 +140,11 @@ class _BasePersistence(metaclass=ABCMeta):
         """
 
     @abstractmethod
-    def clean(self, criteria:Filter) -> None:
+    def clean(self, files:_BaseFileCollection) -> None:
         """
-        Clean up (i.e., mark as notified and/or delete) persisted files
-        by state and their optional stakeholder
+        Clean up persisted files
 
-        @param   criteria  Filter object
+        @param   files  File collection to clean up
         """
 
 
