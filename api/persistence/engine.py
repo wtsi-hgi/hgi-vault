@@ -17,6 +17,7 @@ You should have received a copy of the GNU General Public License along
 with this program. If not, see https://www.gnu.org/licenses/
 """
 
+from functools import singledispatchmethod
 import importlib.resources as resource
 
 from api.logging import Loggable
@@ -110,14 +111,14 @@ class Persistence(persistence.base.Persistence, Loggable):
             if known is not None and file != known:
                 # Delete known file if it differs
                 self.log.debug(f"Deleting records for file {file_id}")
-                known = known.purge()
+                known = known.purge(t)
 
             if known is None:
                 # Insert the file record, if necessary
                 self.log.debug(f"Persisting file {file_id}")
                 known = file.persist(t)
 
-            if not state.is_set(t, known):
+            if state.is_set(t, known) is None:
                 # Set state, if not already
                 self.log.debug(f"Setting {state.db_type} status for file {file_id}")
                 state.set(t, known)
@@ -129,7 +130,30 @@ class Persistence(persistence.base.Persistence, Loggable):
             yield from (self._idm.user(uid=user.uid) for user in t)
 
     def files(self, criteria:persistence.Filter) -> _FileCollectionT:
+        # TODO
         raise NotImplementedError
 
-    def clean(self, criteria:persistence.Filter) -> None:
-        raise NotImplementedError
+    @singledispatchmethod
+    def clean(self, files):
+        # NOTE This should never happen
+        self.log.error("Cannot clean unknown file collection type")
+
+    @clean.register
+    def _(self, files:FileCollection.User) -> None:
+        """ Set the notification state of the files in the collection """
+        # Once notified, deleted and warning states will be cleaned up
+        # automatically (or deferred) on subsequent instantiations
+        state = files.criteria.state
+        with self._pg.transaction() as t:
+            for file in files:
+                state.mark_notified(t, file)
+
+    @clean.register
+    def _(self, files:FileCollection.StagedQueue) -> None:
+        """ Delete the files in the staging queue """
+        assert isinstance(files.criteria.state, State.Staged)
+        assert files.criteria.state.notified
+
+        with self._pg.transaction() as t:
+            for file in files:
+                file.purge(t)

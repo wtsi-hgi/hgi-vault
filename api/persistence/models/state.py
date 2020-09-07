@@ -28,27 +28,30 @@ class _PersistedState(persistence.base.State):
     """ Base for our persistence operations """
     db_type:T.ClassVar[str]
 
-    def is_set(self, t:Transaction, file:File) -> bool:
+    def is_set(self, t:Transaction, file:File) -> T.Optional[int]:
         """
-        Check the status is set for a given file ID
+        Check the status is set for a given file
 
         @param   t     Transaction
         @param   file  File
-        @return  Set predicate
+        @return  The status ID, if set, or None otherwise
         """
         assert hasattr(file, "db_id")
 
         t.execute("""
-            select 1
+            select id
             from   status
             where  state = %s
             and    file  = %s;
         """, (self.db_type, file.db_id))
-        return t.fetchone() is not None
+
+        if (record := t.fetchone()) is None:
+            return None
+        return record.id
 
     def set(self, t:Transaction, file:File) -> int:
         """
-        Set the status for a given file ID
+        Set the status for a given file
 
         @param   t     Transaction
         @param   file  File
@@ -62,6 +65,22 @@ class _PersistedState(persistence.base.State):
             returning id;
         """, (file.db_id, self.db_type))
         return t.fetchone().id
+
+    def mark_notified(self, t:Transaction, file:File) -> None:
+        """
+        Set the notification state to true for a given file
+
+        @param   t     Transaction
+        @param   file  File
+        """
+        if (state_id := self.is_set(t, file)) is None:
+            state_id = self.set(t, file)
+
+        t.execute("""
+            update status
+            set    notified = true
+            where  id       = %s;
+        """, (state_id,))
 
 
 class State(T.SimpleNamespace):
@@ -80,20 +99,23 @@ class State(T.SimpleNamespace):
         db_type = "warned"
         tminus:T.Union[T.TimeDelta, T.Type[persistence.Anything]]
 
-        def is_set(self, t:Transaction, file:File) -> bool:
+        def is_set(self, t:Transaction, file:File) -> T.Optional[int]:
             # Warnings are special, so we override the superclass
             assert hasattr(file, "db_id")
             assert self.tminus != persistence.Anything
 
             t.execute("""
-                select 1
+                select status.id
                 from   warnings
                 join   status
                 on     status.id       = warnings.status
                 where  status.file     = %s
                 and    warnings.tminus = make_interval(secs => %s);
             """, (file.db_id, time.seconds(state.tminus)))
-            return t.fetchone().id
+
+            if (record := t.fetchone()) is None:
+                return None
+            return record.id
 
         def set(self, t:Transaction, file:File) -> int:
             # Warnings are special, so we extend the superclass
