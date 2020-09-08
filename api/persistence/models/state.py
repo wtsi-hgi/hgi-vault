@@ -28,13 +28,13 @@ class _PersistedState(persistence.base.State):
     """ Base for our persistence operations """
     db_type:T.ClassVar[str]
 
-    def is_set(self, t:Transaction, file:File) -> T.Optional[int]:
+    def exists(self, t:Transaction, file:File) -> T.Optional[int]:
         """
-        Check the status is set for a given file
+        Check the status exists for a given file
 
         @param   t     Transaction
         @param   file  File
-        @return  The status ID, if set, or None otherwise
+        @return  The status ID, if available, or None otherwise
         """
         assert hasattr(file, "db_id")
 
@@ -49,9 +49,9 @@ class _PersistedState(persistence.base.State):
             return None
         return record.id
 
-    def set(self, t:Transaction, file:File) -> int:
+    def persist(self, t:Transaction, file:File) -> int:
         """
-        Set the status for a given file
+        Persist the status for a given file
 
         @param   t     Transaction
         @param   file  File
@@ -73,8 +73,8 @@ class _PersistedState(persistence.base.State):
         @param   t     Transaction
         @param   file  File
         """
-        if (state_id := self.is_set(t, file)) is None:
-            state_id = self.set(t, file)
+        if (state_id := self.exists(t, file)) is None:
+            state_id = self.persist(t, file)
 
         t.execute("""
             update status
@@ -99,7 +99,7 @@ class State(T.SimpleNamespace):
         db_type = "warned"
         tminus:T.Union[T.TimeDelta, T.Type[persistence.Anything]]
 
-        def is_set(self, t:Transaction, file:File) -> T.Optional[int]:
+        def exists(self, t:Transaction, file:File) -> T.Optional[int]:
             # Warnings are special, so we override the superclass
             assert hasattr(file, "db_id")
             assert self.tminus != persistence.Anything
@@ -117,12 +117,12 @@ class State(T.SimpleNamespace):
                 return None
             return record.id
 
-        def set(self, t:Transaction, file:File) -> int:
+        def persist(self, t:Transaction, file:File) -> int:
             # Warnings are special, so we extend the superclass
             assert hasattr(file, "db_id")
             assert self.tminus != persistence.Anything
 
-            state_id = super().set(t, file)
+            state_id = super().persist(t, file)
             t.execute("""
                 insert into warnings (status, tminus)
                 values (%s, make_interval(secs => %s));

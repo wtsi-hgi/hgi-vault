@@ -118,10 +118,10 @@ class Persistence(persistence.base.Persistence, Loggable):
                 self.log.debug(f"Persisting file {file_id}")
                 known = file.persist(t)
 
-            if state.is_set(t, known) is None:
+            if state.exists(t, known) is None:
                 # Set state, if not already
                 self.log.debug(f"Setting {state.db_type} status for file {file_id}")
-                state.set(t, known)
+                state.persist(t, known)
 
     @property
     def stakeholders(self) -> T.Iterator[idm.base.User]:
@@ -130,8 +130,29 @@ class Persistence(persistence.base.Persistence, Loggable):
             yield from (self._idm.user(uid=user.uid) for user in t)
 
     def files(self, criteria:persistence.Filter) -> _FileCollectionT:
-        # TODO
-        raise NotImplementedError
+        """
+        Fetch the collection of files based on the given criteria
+
+        @param   criteria  Search criteria
+        @return  Appropriate file collection
+        """
+        # Normally, we want a User collection...
+        collection_type = FileCollection.User
+        if isinstance(criteria.state, State.Staged) and criteria.state.notified:
+            # ...but for notified, staged files, we want a StagedQueue
+            collection_type = FileCollection.StagedQueue
+
+        collection = collection_type(self, criteria)
+
+        with self._pg.transaction() as t:
+            # TODO Construct and execute query, dependent upon
+            # criteria.state type + properties, and criteria.stakeholder
+
+            for record in t:
+                self.log.debug(f"Adding {record.device}:{record.inode} to collection")
+                collection += File.FromDBRecord(record, self._idm)
+
+        return collection
 
     @singledispatchmethod
     def clean(self, files):
