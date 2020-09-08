@@ -27,7 +27,7 @@ begin transaction;
 
 -- Schema versioning
 do $$ declare
-  schema date := timestamp '2020-09-03';
+  schema date := timestamp '2020-09-08';
   actual date;
 begin
   create table if not exists __version__ (version date primary key);
@@ -189,18 +189,21 @@ create table if not exists warnings (
 
 
 -- File Stakeholders: A view of all stakeholders for the current files
+create or replace view file_stakeholders as
+  select id as file,
+         owner as uid
+  from   files
+
+  union
+
+  select files.id as file,
+         group_owners.owner as uid
+  from   files
+  join   group_owners
+  on     group_owners.gid = files.group_id;
+
+-- Stakeholders: A view of all stakeholders
 create or replace view stakeholders as
-  with file_stakeholders as (
-    select owner as uid
-    from   files
-
-    union all
-
-    select group_owners.owner as uid
-    from   files
-    join   group_owners
-    on     group_owners.gid = files.group_id
-  )
   select distinct uid from file_stakeholders;
 
 

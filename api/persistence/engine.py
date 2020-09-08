@@ -148,6 +148,34 @@ class Persistence(persistence.base.Persistence, Loggable):
             # TODO Construct and execute query, dependent upon
             # criteria.state type + properties, and criteria.stakeholder
 
+            # All file IDs for Staged/Deleted (1a)
+            #   select file
+            #   from   status
+            #   where  state    = CRITERIA.STATUS.DB_TYPE
+            #   and    notified = CRITERIA.STATUS.NOTIFIED (n.b. Anything)
+
+            # All file IDs for Warned (1b)
+            #   select status.file
+            #   from   status
+            #   join   warnings
+            #   on     warnings.status = state.id
+            #   where  status.state    = CRITERIA.STATUS.DB_TYPE ('warned')
+            #   and    status.notified = CRITERIA.STATUS.NOTIFIED (n.b. Anything)
+            #   and    warnings.tminus = CRITERIA.STATUS.TMINUS (n.b. Anything)
+
+            # All file IDs by stakeholder (2)
+            #   select file
+            #   from   file_stakeholders
+            #   where  uid = CRITERIA.STAKEHOLDER (n.b. Anything)
+
+            # Altogether
+            #   select files.*
+            #   from   files
+            #   join   (1a/1b) as state
+            #   on     state.file = files.id
+            #   join   (2) as stakeholder
+            #   on     stakeholder.file = files.id
+
             for record in t:
                 self.log.debug(f"Adding {record.device}:{record.inode} to collection")
                 collection += File.FromDBRecord(record, self._idm)
