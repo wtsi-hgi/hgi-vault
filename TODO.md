@@ -24,10 +24,10 @@ time spent (rather than wall time).
   * [x] Vault
   * [x] IdM (LDAP)                                    <ETA: 3 days; Actual: 2 days>
   * [x] Configuration parsing (YAML)                  <ETA: 2 days; Actual: 1 day>
-  * [ ] Schema design and persistence engine
+  * [x] Schema design and persistence engine
     * [x] Schema implementation                       <ETA: 2 days; Actual: 3 days>
-    * [x] Model implementation                        <ETA: 1 day; Actual: 2 days>
-    * [ ] Database engine                             <ETA: 3 days>
+    * [x] Model implementation                        <ETA: 1 day; Actual: 3 days>
+    * [x] Database engine                             <ETA: 3 days; Actual: 3 days>
   * [ ] E-Mail and templating                         <ETA: 3 days>
   * [ ] *Others?*
 * [ ] Hot code
