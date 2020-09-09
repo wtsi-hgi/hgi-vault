@@ -82,6 +82,27 @@ class _PersistedState(persistence.base.State):
             where  id       = %s;
         """, (state_id,))
 
+    @property
+    def file_cte(self) -> T.Tuple[str, T.Tuple]:
+        """
+        Return the SQL CTE snippet and parameters to fetch all files
+        satisfying the present state
+        """
+        params = (self.db_type,)
+        sql = """
+            select file
+            from   status
+            where  state = %s
+        """
+
+        if self.notified != persistence.Anything:
+            params += (self.notified,)
+            sql += """
+                and notified = %s
+            """
+
+        return sql, params
+
 
 class State(T.SimpleNamespace):
     """ Namespace of file states to make importing easier """
@@ -129,3 +150,29 @@ class State(T.SimpleNamespace):
             """, (state_id, time.seconds(self.tminus)))
 
             return state_id
+
+        @property
+        def file_cte(self) -> T.Tuple[str, T.Tuple]:
+            # Warnings are special, so we override the superclass
+            params = (self.db_type,)
+            sql = """
+               select distinct status.file
+               from   status
+               join   warnings
+               on     warnings.status = state.id
+               where  status.state    = %s
+            """
+
+            if self.notified != persistence.Anything:
+                params += (self.notified,)
+                sql += """
+                    and notified = %s
+                """
+
+            if self.tminus != persistence.Anything:
+                params += (time.seconds(self.tminus),)
+                sql += """
+                    and warnings.tminus = make_interval(secs => %s)
+                """
+
+            return sql, params

@@ -145,36 +145,37 @@ class Persistence(persistence.base.Persistence, Loggable):
         collection = collection_type(self, criteria)
 
         with self._pg.transaction() as t:
-            # TODO Construct and execute query, dependent upon
-            # criteria.state type + properties, and criteria.stakeholder
+            # CTE snippet for state
+            state_cte, state_params = criteria.state.file_cte
 
-            # All file IDs for Staged/Deleted (1a)
-            #   select file
-            #   from   status
-            #   where  state    = CRITERIA.STATUS.DB_TYPE
-            #   and    notified = CRITERIA.STATUS.NOTIFIED (n.b. Anything)
+            # CTE snippet for stakeholder
+            stakeholder_params = ()
+            stakeholder_cte = """
+                select distinct file
+                from   file_stakeholders
+            """
 
-            # All file IDs for Warned (1b)
-            #   select status.file
-            #   from   status
-            #   join   warnings
-            #   on     warnings.status = state.id
-            #   where  status.state    = CRITERIA.STATUS.DB_TYPE ('warned')
-            #   and    status.notified = CRITERIA.STATUS.NOTIFIED (n.b. Anything)
-            #   and    warnings.tminus = CRITERIA.STATUS.TMINUS (n.b. Anything)
-
-            # All file IDs by stakeholder (2)
-            #   select file
-            #   from   file_stakeholders
-            #   where  uid = CRITERIA.STAKEHOLDER (n.b. Anything)
+            if criteria.stakeholder != persistence.Anything:
+                stakeholder_params += (criteria.stakeholder.uid,)
+                stakeholder_cte += """
+                    where uid = %s
+                """
 
             # Altogether
-            #   select files.*
-            #   from   files
-            #   join   (1a/1b) as state
-            #   on     state.file = files.id
-            #   join   (2) as stakeholder
-            #   on     stakeholder.file = files.id
+            t.execute(f"""
+                with state_files as (
+                    {state_cte}
+                ),
+                with stakeholder_files as (
+                    {stakeholder_cte}
+                )
+                select files.*
+                from   files
+                join   state_files
+                on     state_files.file = file.id
+                join   stakeholder_files
+                on     stakeholder_files.file = files.id;
+            """, state_params + stakeholder_params)
 
             for record in t:
                 self.log.debug(f"Adding {record.device}:{record.inode} to collection")

@@ -28,6 +28,12 @@ from core import idm, persistence, typing as T
 
 @dataclass
 class GroupSummary:
+    """ Summary aggregation """
+    # NOTE We do the aggregation here, in code, rather than with an
+    # aggregate query because we need both the full listings and the
+    # summary; this is probably slower, but it's easier to maintain.
+    # Also, we'd need a custom "commonpath" aggregation function in the
+    # schema, which would be non-trivial to write.
     path:T.Path  # Common path prefix
     count:int    # Count of files
     size:int     # Total size of files (bytes)
