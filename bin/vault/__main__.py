@@ -22,9 +22,9 @@ import sys
 import core.vault
 from api.logging import log
 from api.vault import Branch, Vault
+from bin.common import idm
 from core import file, typing as T
 from . import usage
-from bin.common import idm
 
 
 def _create_vault(relative_to:T.Path) -> Vault:
