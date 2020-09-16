@@ -24,7 +24,7 @@ from api.logging import log
 from api.vault import Branch, Vault
 from core import file, typing as T
 from . import usage
-from ..common import idm
+from bin.common import idm
 
 
 def _create_vault(relative_to:T.Path) -> Vault:
