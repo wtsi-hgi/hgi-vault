@@ -21,6 +21,7 @@ import os
 from base64 import b64encode, b64decode
 from contextlib import ContextDecorator
 from dataclasses import dataclass
+from math import ceil, log10
 from functools import singledispatch
 
 from . import typing as T
@@ -69,3 +70,19 @@ class umask(T.ContextManager[int], ContextDecorator):
         # Reset the umask
         self.umask = os.umask(self.umask)
         return False
+
+
+_SI  = ["", "k",  "M",  "G",  "T",  "P"]
+_IEC = ["", "Ki", "Mi", "Gi", "Ti", "Pi"]
+
+def human_size(value:float, base:int = 1024, threshold:float = 0.8) -> str:
+    """ Quick-and-dirty size quantifier """
+    quantifiers = _IEC if base == 1024 else _SI
+    sigfigs = ceil(log10(base * threshold))
+
+    order = 0
+    while order < len(quantifiers) - 1 and value > base * threshold:
+        value /= base
+        order += 1
+
+    return f"{value:.{sigfigs}g} {quantifiers[order]}"

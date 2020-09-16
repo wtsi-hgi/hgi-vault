@@ -12,6 +12,7 @@ time spent (rather than wall time).
   * [ ] Utilities
     * [x] `base64` interface
     * [x] umask context manager
+    * [x] Human size
     * [ ] *Others?*
   * [x] Vault abstractions
   * [x] IdM abstractions
