@@ -45,62 +45,79 @@ class GroupSummary:
 
 _UserAccumulatorT = T.Dict[idm.base.Group, GroupSummary]
 
+class _User(persistence.base.FileCollection):
+    """
+    File collection/accumulator for user-specific files
+
+    NOTE The user (file stakeholder) for such collections is assumed to
+    to be fixed (i.e., either the file owner or an owner of the file's
+    group), so the accumulator is free to ignore any distinction therein
+
+    The accumulator partitions by group and aggregates the count, common
+    path prefix and size of the container's files
+    """
+    _accumulator:_UserAccumulatorT
+
+    def __init__(self, *args, **kwargs) -> None:
+        super().__init__(*args, **kwargs)
+        self._accumulator = {}
+
+    def _accumulate(self, file:File) -> None:
+        # Group files by group and aggregate count, path and size
+        assert file.path is not None
+        acc  = self._accumulator
+        key  = file.group
+        zero = GroupSummary(path=file.path, count=0, size=0)
+
+        acc[key] = acc.get(key, zero) \
+                 + GroupSummary(path=file.path, count=1, size=file.size)
+
+    @property
+    def accumulator(self) -> _UserAccumulatorT:
+        return self._accumulator
+
+
+@dataclass
+class StagedQueueAggregator:
+    """ Aggregator for the staged queue """
+    stream:T.BinaryIO = io.BytesIO()
+    size:int = 0
+
+    def __iadd__(self, file:File) -> StagedQueueAggregator:
+        # Append the vault key path, with its NULL delimiter
+        self.stream.write(bytes(file.key))
+        self.stream.write(b"\0")
+
+        # Aggregate the file size
+        self.size += file.size
+
+        return self
+
+class _StagedQueue(persistence.base.FileCollection):
+    """
+    File collection/accumulator for the staging queue
+
+    The accumulator writes the vault key paths, NULL-delimited, to a
+    binary buffer, and aggregates the total file size
+    """
+    _accumulator:StagedQueueAggregator
+
+    def __init__(self, *args, **kwargs) -> None:
+        super().__init__(*args, **kwargs)
+        self._accumulator = StagedQueueAggregator()
+
+    def _accumulate(self, file:File) -> None:
+        assert file.key is not None
+        self._accumulator += file
+
+    @property
+    def accumulator(self) -> StagedQueueAggregator:
+        # Rewind the accumulator and return it
+        self._accumulator.stream.seek(0)
+        return self._accumulator
+
 
 class FileCollection(T.SimpleNamespace):
     """ Namespace of collections to make importing easier """
-    class User(persistence.base.FileCollection):
-        """
-        File collection/accumulator for user-specific files
-
-        NOTE The user (file stakeholder) for such collections is assumed
-        to to be fixed (i.e., either the file owner or an owner of the
-        file's group), so the accumulator is free to ignore any
-        distinction therein
-
-        The accumulator partitions by group and aggregates the count,
-        common path prefix and size of the container's files
-        """
-        _accumulator:_UserAccumulatorT
-
-        def __init__(self, *args, **kwargs) -> None:
-            super().__init__(*args, **kwargs)
-            self._accumulator = {}
-
-        def _accumulate(self, file:File) -> None:
-            # Group files by group and aggregate count, path and size
-            assert file.path is not None
-            acc  = self._accumulator
-            key  = file.group
-            zero = GroupSummary(path=file.path, count=0, size=0)
-
-            acc[key] = acc.get(key, zero) \
-                     + GroupSummary(path=file.path, count=1, size=file.size)
-
-        @property
-        def accumulator(self) -> _UserAccumulatorT:
-            return self._accumulator
-
-
-    class StagedQueue(persistence.base.FileCollection):
-        """
-        File collection/accumulator for the staging queue
-
-        The accumulator writes the vault key paths, NULL-delimited, to a
-        binary buffer
-        """
-        _accumulator:T.BinaryIO
-
-        def __init__(self, *args, **kwargs) -> None:
-            super().__init__(*args, **kwargs)
-            self._accumulator = io.BytesIO()
-
-        def _accumulate(self, file:File) -> None:
-            assert file.key is not None
-            self._accumulator.write(bytes(file.key))
-            self._accumulator.write(b"\0")
-
-        @property
-        def accumulator(self) -> T.BinaryIO:
-            # Rewind the accumulator and return it
-            self._accumulator.seek(0)
-            return self._accumulator
+    User        = _User
+    StagedQueue = _StagedQueue
