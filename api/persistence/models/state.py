@@ -60,10 +60,10 @@ class _PersistedState(persistence.base.State):
         assert hasattr(file, "db_id")
 
         t.execute("""
-            insert into status (file, state)
-            values (%s, %s)
+            insert into status (file, state, notified)
+            values (%s, %s, %s)
             returning id;
-        """, (file.db_id, self.db_type))
+        """, (file.db_id, self.db_type, self.notified))
         return t.fetchone().id
 
     def mark_notified(self, t:Transaction, file:File) -> None:
