@@ -21,7 +21,7 @@ from __future__ import annotations
 
 import io
 import os.path
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 from core import idm, persistence, typing as T
 
@@ -80,16 +80,18 @@ class _User(persistence.base.FileCollection):
 @dataclass
 class StagedQueueAggregator:
     """ Aggregator for the staged queue """
-    stream:T.BinaryIO = io.BytesIO()
-    size:int = 0
+    stream:T.BinaryIO = field(default_factory=io.BytesIO)  # Key stream
+    count:int = 0  # Count of files
+    size:int  = 0  # Total size of files (bytes)
 
     def __iadd__(self, file:File) -> StagedQueueAggregator:
         # Append the vault key path, with its NULL delimiter
         self.stream.write(bytes(file.key))
         self.stream.write(b"\0")
 
-        # Aggregate the file size
-        self.size += file.size
+        # Aggregate the file count and size
+        self.count += 1
+        self.size  += file.size
 
         return self
 
@@ -98,7 +100,7 @@ class _StagedQueue(persistence.base.FileCollection):
     File collection/accumulator for the staging queue
 
     The accumulator writes the vault key paths, NULL-delimited, to a
-    binary buffer, and aggregates the total file size
+    binary buffer, and aggregates the total file count and size
     """
     _accumulator:StagedQueueAggregator
 
