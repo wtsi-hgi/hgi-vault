@@ -19,9 +19,8 @@ with this program. If not, see https://www.gnu.org/licenses/
 
 from __future__ import annotations
 
-import io
 import os.path
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 
 from core import idm, persistence, typing as T
 
@@ -72,51 +71,21 @@ class _User(persistence.base.FileCollection):
         acc[key] = acc.get(key, zero) \
                  + GroupSummary(path=file.path, count=1, size=file.size)
 
-    @property
-    def accumulator(self) -> _UserAccumulatorT:
-        return self._accumulator
-
-
-@dataclass
-class StagedQueueAggregator:
-    """ Aggregator for the staged queue """
-    stream:T.BinaryIO = field(default_factory=io.BytesIO)  # Key stream
-    count:int = 0  # Count of files
-    size:int  = 0  # Total size of files (bytes)
-
-    def __iadd__(self, file:File) -> StagedQueueAggregator:
-        # Append the vault key path, with its NULL delimiter
-        self.stream.write(bytes(file.key))
-        self.stream.write(b"\0")
-
-        # Aggregate the file count and size
-        self.count += 1
-        self.size  += file.size
-
-        return self
 
 class _StagedQueue(persistence.base.FileCollection):
     """
     File collection/accumulator for the staging queue
 
-    The accumulator writes the vault key paths, NULL-delimited, to a
-    binary buffer, and aggregates the total file count and size
+    The accumulator simply aggregates the total file size
     """
-    _accumulator:StagedQueueAggregator
+    _accumulator:int
 
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
-        self._accumulator = StagedQueueAggregator()
+        self._accumulator = 0
 
     def _accumulate(self, file:File) -> None:
-        assert file.key is not None
-        self._accumulator += file
-
-    @property
-    def accumulator(self) -> StagedQueueAggregator:
-        # Rewind the accumulator and return it
-        self._accumulator.stream.seek(0)
-        return self._accumulator
+        self._accumulator += file.size
 
 
 class FileCollection(T.SimpleNamespace):

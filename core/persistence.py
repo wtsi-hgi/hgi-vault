@@ -64,6 +64,7 @@ class _BaseFileCollection(T.Collection[_BaseFile], T.ContextManager, metaclass=A
     _filter:Filter
 
     _contents:T.List[_BaseFile]
+    _accumulator:T.Any
 
     def __init__(self, persistence:_BasePersistence, criteria:Filter) -> None:
         self._persistence = persistence
@@ -105,10 +106,10 @@ class _BaseFileCollection(T.Collection[_BaseFile], T.ContextManager, metaclass=A
         @param  file  File to accumulate
         """
 
-    @property
     @abstractmethod
     def accumulator(self) -> T.Any:
         """ Return the accumulator object """
+        return self._accumulator
 
 
 class _BasePersistence(metaclass=ABCMeta):
