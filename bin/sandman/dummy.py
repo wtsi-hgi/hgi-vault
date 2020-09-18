@@ -24,7 +24,7 @@ from api.logging import log
 from api.persistence import Persistence, models
 from api.vault import Branch, Vault
 from bin.common import config, idm
-from core import typing as T
+from core import persistence, typing as T
 from core.persistence import Anything, Filter
 from core.utils import human_size
 
@@ -50,32 +50,28 @@ def _create_vault(relative_to:T.Path) -> Vault:
         log.error(f"Skipping {relative_to}: {e}")
 
 
-def main(argv:T.List[str] = sys.argv):
-    log.info("FOR DEMONSTRATION PURPOSES ONLY")
-
-    vault_dirs = argv[1:]
-    if len(vault_dirs) == 0:
-        log.critical("You must provide at least one path that resolves to a vault")
-        sys.exit(1)
-
-    persistence = Persistence(config.persistence, idm)
-
-    # STEP 1 - For all given vaults:
-    # * Move all "archived" files into the "staged" branch
-    # * Record this in the DB appropriately ("staged queue")
-    # * Delete the external counterpart
-    for vault_dir in map(T.Path, vault_dirs):
-        if not vault_dir.exists():
-            log.error(f"Skipping {vault_dir}: Not found")
+def _stage(vault_locations:T.Iterator[T.Path], persistence:persistence.base.Persistence) -> None:
+    """
+    STEP 1 - For all given vaults:
+    * Move all "archived" files into the "staged" branch
+    * Record this in the DB appropriately ("staged queue")
+    * Delete the external counterpart
+    """
+    for vault_location in vault_locations:
+        if not vault_location.exists():
+            log.error(f"Skipping {vault_location}: Not found")
             continue
 
-        vault = _create_vault(vault_dir)
+        vault = _create_vault(vault_location)
 
         # TODO The stuff...
 
 
-    # STEP 2 - Drain the staged queue, no matter what size, into the
-    # archive handler, following the appropriate interface.
+def _drain(persistence:persistence.base.Persistence, handler) -> int:
+    """
+    STEP 2 - Drain the staged queue, no matter what size, into the
+    archive handler, following the appropriate interface.
+    """
     criteria = Filter(state       = _StagedAndNotified,
                       stakeholder = Anything)
     try:
@@ -83,8 +79,12 @@ def main(argv:T.List[str] = sys.argv):
             # NOTE If the downstream handler returns a non-zero exit
             # code, we MUST raise an error in this block, otherwise the
             # queue will be cleared automatically regardless
-            queue = staged_queue.accumulator
-            log.info(f"Checking downstream handler is ready for {human_size(queue.size)}B...")
+            if len(staged_queue) == 0:
+                log.info("Staging queue is empty")
+                return 0
+
+            required_capacity = staged_queue.accumulator
+            log.info(f"Checking downstream handler is ready for {human_size(required_capacity)}B...")
 
             # TODO The stuff...
 
@@ -93,6 +93,27 @@ def main(argv:T.List[str] = sys.argv):
 
     except DownstreamFull:
         log.error("The downstream handler is reporting it is out of capacity and cannot proceed")
+        return 1
+
+    return 0
+
+
+def main(argv:T.List[str] = sys.argv):
+    log.info("FOR DEMONSTRATION PURPOSES ONLY")
+    persistence = Persistence(config.persistence, idm)
+    handler = "TODO"
+
+    vault_locations = argv[1:]
+    if len(vault_locations) == 0:
+        log.info("No vault locations provided; moving to drain...")
+
+    else:
+        log.info("Starting staging phase")
+        _stage(map(T.Path, vault_locations), persistence)
+
+    log.info("Starting draining phase")
+    exit_code = _drain(persistence, handler)
+    sys.exit(exit_code)
 
 
 if __name__ == "__main__":
