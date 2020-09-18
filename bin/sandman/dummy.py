@@ -17,6 +17,8 @@ You should have received a copy of the GNU General Public License along
 with this program. If not, see https://www.gnu.org/licenses/
 """
 
+# FIXME This was put together quickly for demonstration purposes
+
 import sys
 
 import core.vault
@@ -27,12 +29,12 @@ from bin.common import config, idm
 from core import persistence, typing as T
 from core.persistence import Anything, Filter
 from core.utils import human_size
-from .handler import Handler, HandlerBusy, DownstreamFull, DrainageFailure
+from .handler import Handler, \
+                     HandlerBusy, DownstreamFull, UnknownHandlerError
 
 
 # Staged and notified persisted state
 _StagedAndNotified = models.State.Staged(notified=True)
-
 
 
 def _create_vault(relative_to:T.Path) -> Vault:
@@ -83,7 +85,7 @@ def _drain(persistence:persistence.base.Persistence, handler:Handler) -> int:
             handler.preflight(required_capacity)
 
             log.info("Handler is ready; beginning drain...")
-            handler.consume(staged_queue)
+            handler.consume(file.key for file in staged_queue)
             log.info(f"Successfully drained {count} files into the downstream handler")
 
     except HandlerBusy:
@@ -93,8 +95,8 @@ def _drain(persistence:persistence.base.Persistence, handler:Handler) -> int:
         log.error("The downstream handler is reporting it is out of capacity and cannot proceed")
         return 1
 
-    except DrainageFailure:
-        log.error("The downstream handler refused to accept the staging queue; please check its logs for details...")
+    except UnknownHandlerError:
+        log.critical("The downstream handler failed unexpectedly; please check its logs for details...")
         return 1
 
     return 0

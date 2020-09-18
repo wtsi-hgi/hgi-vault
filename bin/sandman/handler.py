@@ -19,8 +19,10 @@ with this program. If not, see https://www.gnu.org/licenses/
 
 # FIXME This was put together quickly for demonstration purposes
 
+import subprocess
+from subprocess import PIPE, DEVNULL
+
 from api.logging import Loggable
-from api.persistence import models
 from core import typing as T
 
 
@@ -30,29 +32,53 @@ class HandlerBusy(Exception):
 class DownstreamFull(Exception):
     """ Raised when the downstream handler reports it's out of capacity """
 
-class DrainageFailure(Exception):
-    """ Raised when the downstream handler fails to consume to staging queue """
+class UnknownHandlerError(Exception):
+    """ Raised when the downstream handler breaks apropos of nothing """
 
+
+_preflight_exception = {
+    1: HandlerBusy,
+    2: DownstreamFull
+}
 
 class Handler(Loggable):
+    """ Downstream handler """
     _handler:T.Path
 
     def __init__(self, handler:T.Path) -> None:
-        self._handler = handler
+        self._handler = handler.resolve()
 
     def preflight(self, capacity:int) -> None:
         """
         Run the handler preflight-check with the given required capacity
 
-        @param   capacity        Required capacity (bytes)
-        @raises  HandlerBusy     Handler responds that it's busy
-        @raises  DownstreamFull  Handler responds that it lacks capacity
+        @param   capacity             Required capacity (bytes)
+        @raises  HandlerBusy          Handler responds that it's busy
+        @raises  DownstreamFull       Handler responds that it lacks capacity
+        @raises  UnknownHandlerError  Handler fails unexpectedly
         """
-        # TODO
+        try:
+            subprocess.run([self._handler, "ready", str(capacity)],
+                           capture_output=True, check=True)
 
-    def consume(self, queue:models.FileCollection.StagedQueue) -> None:
+        except CalledProcessError as response:
+            raise _preflight_exception.get(response.returncode, UnknownHandlerError)()
+
+    def consume(self, files:T.Iterator[T.Path]) -> None:
         """
-        @param   queue            Staging queue
-        @raises  DrainageFailure  Handler did not accept the queue
+        Drain the files, NULL-delimited, through the handler's stdin
+
+        @param   files                File queue
+        @raises  UnknownHandlerError  Handler did not accept the queue
         """
-        # TODO
+        handler = subprocess.Popen(self._handler, stdin=PIPE,
+                                                  stdout=DEVNULL,
+                                                  stderr=DEVNULL)
+        for file in files:
+            self.log.info(f"Draining: {file}")
+            handler.stdin.write(bytes(file))
+            handler.stdin.write(b"\0")
+
+        handler.stdin.close()
+        if handler.wait() != 0:
+            raise UnknownHandlerError()

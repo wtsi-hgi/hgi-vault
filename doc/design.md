@@ -967,7 +967,7 @@ case $1 in
   *)      (( locked )) && exit 1;;
 esac
 
-xargs -0 tar czf "/archive/$(date +%F).tar.gz" --remove-files
+xargs -0 tar czf "/archive/$(date +%F).tar.gz" --remove-files --
 ```
 
 This toy handler uses `flock` to provide filesystem-based locking, to
