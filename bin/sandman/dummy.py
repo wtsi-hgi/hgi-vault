@@ -27,17 +27,12 @@ from bin.common import config, idm
 from core import persistence, typing as T
 from core.persistence import Anything, Filter
 from core.utils import human_size
+from .handler import Handler, HandlerBusy, DownstreamFull, DrainageFailure
 
 
 # Staged and notified persisted state
 _StagedAndNotified = models.State.Staged(notified=True)
 
-
-class HandlerBusy(Exception):
-    """ Raised when the downstream handler is busy """
-
-class DownstreamFull(Exception):
-    """ Raised when the downstream handler reports it's out of capacity """
 
 
 def _create_vault(relative_to:T.Path) -> Vault:
@@ -67,7 +62,7 @@ def _stage(vault_locations:T.Iterator[T.Path], persistence:persistence.base.Pers
         # TODO The stuff...
 
 
-def _drain(persistence:persistence.base.Persistence, handler) -> int:
+def _drain(persistence:persistence.base.Persistence, handler:Handler) -> int:
     """
     STEP 2 - Drain the staged queue, no matter what size, into the
     archive handler, following the appropriate interface.
@@ -79,14 +74,17 @@ def _drain(persistence:persistence.base.Persistence, handler) -> int:
             # NOTE If the downstream handler returns a non-zero exit
             # code, we MUST raise an error in this block, otherwise the
             # queue will be cleared automatically regardless
-            if len(staged_queue) == 0:
+            if (count := len(staged_queue)) == 0:
                 log.info("Staging queue is empty")
                 return 0
 
             required_capacity = staged_queue.accumulator
             log.info(f"Checking downstream handler is ready for {human_size(required_capacity)}B...")
+            handler.preflight(required_capacity)
 
-            # TODO The stuff...
+            log.info("Handler is ready; beginning drain...")
+            handler.consume(staged_queue)
+            log.info(f"Successfully drained {count} files into the downstream handler")
 
     except HandlerBusy:
         log.warning("The downstream handler is busy; try again later...")
@@ -95,13 +93,17 @@ def _drain(persistence:persistence.base.Persistence, handler) -> int:
         log.error("The downstream handler is reporting it is out of capacity and cannot proceed")
         return 1
 
+    except DrainageFailure:
+        log.error("The downstream handler refused to accept the staging queue; please check its logs for details...")
+        return 1
+
     return 0
 
 
 def main(argv:T.List[str] = sys.argv):
     log.info("FOR DEMONSTRATION PURPOSES ONLY")
     persistence = Persistence(config.persistence, idm)
-    handler = "TODO"
+    handler = Handler(config.archive.handler)
 
     vault_locations = argv[1:]
     if len(vault_locations) == 0:
