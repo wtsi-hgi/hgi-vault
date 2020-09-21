@@ -242,6 +242,9 @@ class VaultFile(base.VaultFile):
 
     @property
     def path(self) -> T.Path:
+        # FIXME There's a bug here: self._key is an absolute path that
+        # contains the vault location and branch, so overrides the
+        # value here if it's changed
         return self.vault.location / self.branch / self._key
 
     @property
@@ -390,7 +393,7 @@ class Vault(base.Vault, logging.base.LoggableMixin):
                 # attempting to correct by moving)
                 log.info(f"Correcting vault entry for {path}")
                 to_add.path.unlink()
-                self.add(branch, path)
+                to_add = self.add(branch, path)
 
             else:
                 log.info(f"{path} is already in the {branch} branch of the vault in {self.root}")

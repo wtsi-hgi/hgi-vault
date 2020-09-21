@@ -64,7 +64,7 @@ class Persistence(persistence.base.Persistence, Loggable):
             self._known_groups = set()
 
             t.execute("select gid from groups;")
-            for group in t:
+            for group in t.fetchall():
                 self._persist_group(t, self._idm.group(gid=group.gid))
 
     def _persist_group(self, t:Transaction, group:idm.base.Group) -> None:
@@ -96,7 +96,6 @@ class Persistence(persistence.base.Persistence, Loggable):
         @param   state  State in which to set the state
         """
         assert not hasattr(file, "db_id")
-        assert not state.notified
         file_id = f"{file.device}:{file.inode}"
 
         # If a persisted file's status (mtime, size, etc.) has changed
@@ -166,13 +165,13 @@ class Persistence(persistence.base.Persistence, Loggable):
                 with state_files as (
                     {state_cte}
                 ),
-                with stakeholder_files as (
+                stakeholder_files as (
                     {stakeholder_cte}
                 )
                 select files.*
                 from   files
                 join   state_files
-                on     state_files.file = file.id
+                on     state_files.file = files.id
                 join   stakeholder_files
                 on     stakeholder_files.file = files.id;
             """, state_params + stakeholder_params)

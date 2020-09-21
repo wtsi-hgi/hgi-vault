@@ -98,6 +98,11 @@ class _BaseFileCollection(T.Collection[_BaseFile], T.ContextManager, metaclass=A
         """ Criteria used to generate the collection """
         return self._filter
 
+    @property
+    def accumulator(self) -> T.Any:
+        """ Return the accumulator object """
+        return self._accumulator
+
     @abstractmethod
     def _accumulate(self, file:_BaseFile) -> None:
         """
@@ -105,11 +110,6 @@ class _BaseFileCollection(T.Collection[_BaseFile], T.ContextManager, metaclass=A
 
         @param  file  File to accumulate
         """
-
-    @abstractmethod
-    def accumulator(self) -> T.Any:
-        """ Return the accumulator object """
-        return self._accumulator
 
 
 class _BasePersistence(metaclass=ABCMeta):

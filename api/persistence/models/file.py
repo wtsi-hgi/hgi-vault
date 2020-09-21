@@ -61,9 +61,9 @@ class File(persistence.base.File):
                    inode  = record.inode,
                    path   = T.Path(record.path),
                    key    = T.Path(record.key) if record.key is not None else None,
-                   mtime  = time.epoch(record.mtime),
-                   owner  = self._idm.user(uid=record.owner),
-                   group  = self._idm.group(uid=record.group_id),
+                   mtime  = record.mtime,
+                   owner  = idm.user(uid=record.owner),
+                   group  = idm.group(gid=record.group_id),
                    size   = record.size)
 
         file.db_id = record.id

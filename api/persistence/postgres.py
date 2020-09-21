@@ -126,7 +126,7 @@ class PostgreSQL:
         self._pool.closeall()
 
     def transaction(self, autocommit:bool = False) -> Transaction:
-        return Transaction(self._pool, autocommit)
+        return Transaction(pool=self._pool, autocommit=autocommit)
 
     def execute_script(self, sql:T.Path) -> None:
         """

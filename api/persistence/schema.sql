@@ -27,7 +27,7 @@ begin transaction;
 
 -- Schema versioning
 do $$ declare
-  schema date := timestamp '2020-09-08';
+  schema date := timestamp '2020-09-21';
   actual date;
 begin
   create table if not exists __version__ (version date primary key);
@@ -77,11 +77,11 @@ create table if not exists files (
     primary key,
 
   device
-    integer
+    numeric
     not null,
 
   inode
-    integer
+    numeric
     not null,
 
   -- Source file path
@@ -245,4 +245,3 @@ where  files.id = purgeable.file;
 
 
 commit;
-vacuum;
