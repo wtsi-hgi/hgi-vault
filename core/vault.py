@@ -129,12 +129,13 @@ class _BaseVault(T.Container[_VFT], metaclass=ABCMeta):
     ## Abstract methods
 
     @abstractmethod
-    def add(self, branch:_BranchT, path:T.Path) -> None:
+    def add(self, branch:_BranchT, path:T.Path) -> _VFT:
         """
         Add the given file to the specified vault branch
 
         @param   branch  Branch
         @param   path    Path
+        @return  Added vault file
         """
 
     @abstractmethod

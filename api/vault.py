@@ -378,7 +378,7 @@ class Vault(base.Vault, logging.base.LoggableMixin):
 
         return (user.uid for user in group.owners)
 
-    def add(self, branch:Branch, path:T.Path) -> None:
+    def add(self, branch:Branch, path:T.Path) -> VaultFile:
         log = self.log
 
         if (to_add := self.file(branch, path)).exists:
@@ -405,6 +405,8 @@ class Vault(base.Vault, logging.base.LoggableMixin):
                 to_add.source.link_to(to_add.path)
 
             log.info(f"{to_add.source} added to the {to_add.branch} branch of the vault in {self.root}")
+
+        return to_add
 
     def remove(self, branch:Branch, path:T.Path) -> None:
         # NOTE We are not interested in the branch
