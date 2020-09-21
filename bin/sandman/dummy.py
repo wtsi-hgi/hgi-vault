@@ -21,12 +21,11 @@ with this program. If not, see https://www.gnu.org/licenses/
 
 import sys
 
-import core.vault
 from api.logging import log
 from api.persistence import Persistence, models
 from api.vault import Branch, Vault
 from bin.common import config, idm
-from core import persistence, typing as T
+from core import file, persistence, typing as T
 from core.persistence import Anything, Filter
 from core.utils import human_size
 from .handler import Handler, \
@@ -35,16 +34,6 @@ from .handler import Handler, \
 
 # Staged and notified persisted state
 _StagedAndNotified = models.State.Staged(notified=True)
-
-
-def _create_vault(relative_to:T.Path) -> Vault:
-    # Defensively create a vault with the common IdM
-    try:
-        return Vault(relative_to, idm=idm)
-
-    except core.vault.exception.VaultConflict as e:
-        # Non-managed file(s) exists where the vault should be
-        log.error(f"Skipping {relative_to}: {e}")
 
 
 def _stage(vault_locations:T.Iterator[T.Path], persistence:persistence.base.Persistence) -> None:
@@ -59,9 +48,28 @@ def _stage(vault_locations:T.Iterator[T.Path], persistence:persistence.base.Pers
             log.error(f"Skipping {vault_location}: Not found")
             continue
 
-        vault = _create_vault(vault_location)
+        try:
+            vault = Vault(vault_location, idm=idm)
+        except Exception as e:
+            # Skip dodgy vaults
+            log.error(f"Skipping {vault_location}: {e}")
+            continue
 
-        # TODO The stuff...
+        for path in vault.list(Branch.Archive):
+            # path is the extravault path to the file
+            log.info(f"Staging {path}")
+
+            # Move to staging
+            vault_file = vault.add(Branch.Staged, path)
+
+            # Persist
+            to_persist = models.File.FromFS(path, idm)
+            to_persist.key = vault_file.path
+            persistence.persist(to_persist, _StagedAndNotified)
+
+            # Delete
+            assert file.hardlinks(path) > 1
+            path.unlink()
 
 
 def _drain(persistence:persistence.base.Persistence, handler:Handler) -> int:
@@ -85,7 +93,7 @@ def _drain(persistence:persistence.base.Persistence, handler:Handler) -> int:
             handler.preflight(required_capacity)
 
             log.info("Handler is ready; beginning drain...")
-            handler.consume(file.key for file in staged_queue)
+            handler.consume(f.key for f in staged_queue)
             log.info(f"Successfully drained {count} files into the downstream handler")
 
     except HandlerBusy:
