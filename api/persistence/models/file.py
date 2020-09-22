@@ -61,7 +61,7 @@ class File(persistence.base.File):
                    inode  = record.inode,
                    path   = T.Path(record.path),
                    key    = T.Path(record.key) if record.key is not None else None,
-                   mtime  = record.mtime,
+                   mtime  = time.to_utc(record.mtime),
                    owner  = idm.user(uid=record.owner),
                    group  = idm.group(gid=record.group_id),
                    size   = record.size)
@@ -107,13 +107,13 @@ class File(persistence.base.File):
 
         t.execute("""
             insert into files (device, inode, path, key, mtime, owner, group_id, size)
-            values (%s, %s, %s, %s, to_timestamp(%s), %s, %s, %s)
+            values (%s, %s, %s, %s, %s, %s, %s, %s)
             returning id;
         """, (self.device,
               self.inode,
               str(self.path),
               str(self.key) if self.key is not None else None,
-              time.timestamp(self.mtime),
+              self.mtime,
               self.owner.uid,
               self.group.gid,
               self.size))

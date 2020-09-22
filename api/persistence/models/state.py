@@ -131,8 +131,8 @@ class State(T.SimpleNamespace):
                 join   status
                 on     status.id       = warnings.status
                 where  status.file     = %s
-                and    warnings.tminus = make_interval(secs => %s);
-            """, (file.db_id, time.seconds(state.tminus)))
+                and    warnings.tminus = %s;
+            """, (file.db_id, state.tminus))
 
             if (record := t.fetchone()) is None:
                 return None
@@ -146,8 +146,8 @@ class State(T.SimpleNamespace):
             state_id = super().persist(t, file)
             t.execute("""
                 insert into warnings (status, tminus)
-                values (%s, make_interval(secs => %s));
-            """, (state_id, time.seconds(self.tminus)))
+                values (%s, %s);
+            """, (state_id, self.tminus))
 
             return state_id
 
@@ -170,9 +170,9 @@ class State(T.SimpleNamespace):
                 """
 
             if self.tminus != persistence.Anything:
-                params += (time.seconds(self.tminus),)
+                params += (self.tminus,)
                 sql += """
-                    and warnings.tminus = make_interval(secs => %s)
+                    and warnings.tminus = %s
                 """
 
             return sql, params
