@@ -220,7 +220,7 @@ class VaultFile(base.VaultFile):
         """
         key_base, key_glob = key.search_criteria
 
-        search_base = self.vault.location / branch
+        search_base = branch_base = self.vault.location / branch
         if key_base is not None:
             search_base = search_base / key_base
 
@@ -238,13 +238,11 @@ class VaultFile(base.VaultFile):
         if key_base is not None:
             alternate = key_base / alternate
 
-        return _VaultFileKey(key_path=alternate)
+        # The VFK must be relative to the branch
+        return _VaultFileKey(key_path=alternate.relative_to(branch_base))
 
     @property
     def path(self) -> T.Path:
-        # FIXME There's a bug here: self._key is an absolute path that
-        # contains the vault location and branch, so overrides the
-        # value here if it's changed
         return self.vault.location / self.branch / self._key
 
     @property
