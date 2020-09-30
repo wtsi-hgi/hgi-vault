@@ -47,33 +47,18 @@ class _VaultFileKey(os.PathLike):
     _prefix:T.Optional[T.Path]  # inode prefix path, without the LSB
     _suffix:str                 # LSB and encoded basename suffix name
 
-    def __init__(self, *, inode:T.Optional[int]       = None,
-                          path:T.Optional[T.Path]     = None,
-                          key_path:T.Optional[T.Path] = None) -> None:
+    def __init__(self, path:T.Path, inode:T.Optional[int] = None) -> None:
         """
-        Construct the key either from an inode-path tuple, or recovered
-        from a key's path
+        Construct the key from a path and (optional) inode
 
-        @param   inode     inode ID to construct from
         @param   path      Path to construct from
-        @param   key_path  Key path to recover from
+        @param   inode     inode ID to construct from (defaults to inode
+                           of path)
         """
-        try:
-            # NOTE inode-path and key_path are mutually exclusive and
-            # one MUST be provided. It would be messy to do this with
-            # single dispatch, so we roll our own multiple dispatch...
-            # which is equally messy :P
-            dispatch, *args = {
-                (False, False, True):  (self._construct, inode, path),
-                (True,  True,  False): (self._recover, key_path)
-            }[inode is None, path is None, key_path is None]
-        except KeyError:
-            raise TypeError(f"{self.__class__.__name__} must be constructed with inode and path arguments OR from a key path")
+        # Use the path's inode, if one is not explicitly provided
+        if inode is None:
+            inode = file.inode_id(path)
 
-        self._prefix, self._suffix = dispatch(*args)
-
-    def _construct(self, inode:int, path:T.Path) -> _PrefixSuffixT:
-        """ Construct the vault file key from an inode ID and path """
         # The byte-padded hexadecimal representation of the inode ID
         if len(inode_hex := f"{inode:x}") % 2:
             inode_hex = f"0{inode_hex}"
@@ -82,20 +67,29 @@ class _VaultFileKey(os.PathLike):
         chunks = [inode_hex[i:i+2] for i in range(0, len(inode_hex), 2)]
 
         # inode ID, without the least significant byte, if it exists
-        dirname = None
+        self._prefix = None
         if len(chunks) > 1:
-            dirname = T.Path(*chunks[:-1])
+            self._prefix = T.Path(*chunks[:-1])
 
         # inode ID LSB, delimiter, and the base64 encoding of the path
-        basename = chunks[-1] + self._delimiter + base64.encode(path)
+        self._suffix = chunks[-1] + self._delimiter + base64.encode(path)
 
-        return dirname, basename
+    @classmethod
+    def Reconstruct(cls, key_path:T.Path) -> _VaultFileKey:
+        """
+        Alternative constructor: Reconstruct the key from a key path
 
-    def _recover(self, path:T.Path) -> _PrefixSuffixT:
-        """ Recover the vault file key from a vault file key path """
-        dirname, basename = os.path.split(path)
-        prefix = T.Path(dirname) if dirname else None
-        return prefix, basename
+        @param   key_path  Key path
+        @return  Reconstructed _VaultFileKey
+        """
+        path, inode = cls._decode_key(key_path)
+        return cls(path, inode)
+
+    @classmethod
+    def _decode_key(cls, key_path:T.Path) -> T.Tuple[T.Path, int]:
+        """ Decode a key path into its original path and inode ID """
+        inode_hex, path_b64 = "".join(key_path.parts).split(cls._delimiter)
+        return T.Path(base64.decode(path_b64).decode()), int(inode_hex, 16)
 
     def __eq__(self, rhs:_VaultFileKey) -> bool:
         return self._prefix == rhs._prefix \
@@ -115,18 +109,14 @@ class _VaultFileKey(os.PathLike):
     @cached_property
     def source(self) -> T.Path:
         """ Return the source file path """
-        _, encoded = self._suffix.split(self._delimiter)
-        return T.Path(base64.decode(encoded).decode())
+        path, _ = self._decode_key(self.path)
+        return path
 
     @cached_property
     def search_criteria(self) -> _PrefixSuffixT:
         """ Return the prefix and suffix glob pattern """
         lsb, _ = self._suffix.split(self._delimiter)
         return self._prefix, f"{lsb}{self._delimiter}*"
-
-def _decode_key(path:T.Path) -> T.Path:
-    """ Convenience function to decode a key path into its source """
-    return _VaultFileKey(key_path=path).source
 
 
 class VaultFile(base.VaultFile):
@@ -145,9 +135,8 @@ class VaultFile(base.VaultFile):
         if not file.is_regular(path):
             raise exception.NotRegularFile(f"{path} is not a regular file")
 
-        inode = file.inode_id(path)
         path = self._relative_path(path)
-        self._key = expected_key = _VaultFileKey(inode=inode, path=path)
+        self._key = expected_key = _VaultFileKey(path)
 
         # Check for corresponding keys in the vault, automatically
         # update if the branch or path differ in that alternate and log
@@ -239,7 +228,7 @@ class VaultFile(base.VaultFile):
             alternate = key_base / alternate
 
         # The VFK must be relative to the branch
-        return _VaultFileKey(key_path=alternate.relative_to(branch_base))
+        return _VaultFileKey.Reconstruct(alternate.relative_to(branch_base))
 
     @property
     def path(self) -> T.Path:
@@ -434,7 +423,7 @@ class Vault(base.Vault, logging.base.LoggableMixin):
         bpath = self.location / branch
 
         return (
-            self.root / _decode_key(T.Path(dirname, file).relative_to(bpath))
+            self.root / _VaultFileKey.Reconstruct(T.Path(dirname, file).relative_to(bpath)).source
             for dirname, _, files in os.walk(bpath)
             for file in files
         )

@@ -31,17 +31,15 @@ _B64_DUMMY = base64.encode(_DUMMY)
 class TestVaultFileKey(unittest.TestCase):
     def test_constructor(self):
         self.assertEqual(VFK(0x1,    _DUMMY).path, T.Path(f"01-{_B64_DUMMY}"))
-        self.assertEqual(VFK(0x1,    _DUMMY).path, T.Path(f"01-{_B64_DUMMY}"))
         self.assertEqual(VFK(0x12,   _DUMMY).path, T.Path(f"12-{_B64_DUMMY}"))
         self.assertEqual(VFK(0x123,  _DUMMY).path, T.Path(f"01/23-{_B64_DUMMY}"))
         self.assertEqual(VFK(0x1234, _DUMMY).path, T.Path(f"12/34-{_B64_DUMMY}"))
 
-        self.assertRaises(TypeError, _VaultFileKey)
-        self.assertRaises(TypeError, _VaultFileKey, inode=123)
-        self.assertRaises(TypeError, _VaultFileKey, path=_DUMMY)
-        self.assertRaises(TypeError, _VaultFileKey, inode=123, key_path=_DUMMY)
-        self.assertRaises(TypeError, _VaultFileKey, path=_DUMMY, key_path=_DUMMY)
-        self.assertRaises(TypeError, _VaultFileKey, inode=123, path=_DUMMY, key_path=_DUMMY)
+    def test_reconstructor(self):
+        self.assertEqual(VFK_k(T.Path(f"01-{_B64_DUMMY}")).source,    _DUMMY)
+        self.assertEqual(VFK_k(T.Path(f"12-{_B64_DUMMY}")).source,    _DUMMY)
+        self.assertEqual(VFK_k(T.Path(f"01/23-{_B64_DUMMY}")).source, _DUMMY)
+        self.assertEqual(VFK_k(T.Path(f"12/34-{_B64_DUMMY}")).source, _DUMMY)
 
     def test_resolve(self):
         self.assertEqual(VFK(0, _DUMMY).source, _DUMMY)
