@@ -135,8 +135,9 @@ class VaultFile(base.VaultFile):
         if not file.is_regular(path):
             raise exception.NotRegularFile(f"{path} is not a regular file")
 
+        inode = file.inode_id(path)
         path = self._relative_path(path)
-        self._key = expected_key = _VaultFileKey(path)
+        self._key = expected_key = _VaultFileKey(path, inode)
 
         # Check for corresponding keys in the vault, automatically
         # update if the branch or path differ in that alternate and log
