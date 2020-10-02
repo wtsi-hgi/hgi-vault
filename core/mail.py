@@ -1,5 +1,5 @@
 """
-Copyright (c) 2019, 2020 Genome Research Limited
+Copyright (c) 2019 Genome Research Limited
 
 Author: Christopher Harrison <ch12@sanger.ac.uk>
 
@@ -17,23 +17,20 @@ You should have received a copy of the GNU General Public License along
 with this program. If not, see https://www.gnu.org/licenses/
 """
 
-from abc import abstractmethod
+import io
+from abc import ABCMeta, abstractmethod
+from dataclasses import dataclass, field
 
-# Make Python's type definitions available
-from numbers import *
-from pathlib import *
-from types import *
-from typing import *
-from typing.io import *
-
-from .time import datetime as DateTime, \
-                  timedelta as TimeDelta
+from core import typing as T
 
 
-@runtime_checkable
-class Stringable(Protocol):
-    """ Protocol type that supports the __str__ method """
+@dataclass
+class _BaseAttachment:
+    """ Base class for attachments """
+    filename:str
+    data:T.BinaryIO = field(default_factory=io.BytesIO)
 
-    @abstractmethod
-    def __str__(self) -> str:
-        """ Return the string representation of an object """
+
+class base(T.SimpleNamespace):
+    """ Namespace of base classes to make importing easier """
+    Attachment = _BaseAttachment

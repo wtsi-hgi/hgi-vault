@@ -1,5 +1,5 @@
 """
-Copyright (c) 2019, 2020 Genome Research Limited
+Copyright (c) 2019 Genome Research Limited
 
 Author: Christopher Harrison <ch12@sanger.ac.uk>
 
@@ -17,23 +17,23 @@ You should have received a copy of the GNU General Public License along
 with this program. If not, see https://www.gnu.org/licenses/
 """
 
-from abc import abstractmethod
+import io
+from gzip import GzipFile
 
-# Make Python's type definitions available
-from numbers import *
-from pathlib import *
-from types import *
-from typing import *
-from typing.io import *
-
-from .time import datetime as DateTime, \
-                  timedelta as TimeDelta
+from core import mail, typing as T
 
 
-@runtime_checkable
-class Stringable(Protocol):
-    """ Protocol type that supports the __str__ method """
+class GZippedFOFN(mail.base.Attachment):
+    """ Attachment representing a gzipped FOFN """
+    def __init__(self, filename:str, files:T.Collection[T.Path]) -> None:
+        self.filename = filename
+        self.data = io.BytesIO()
 
-    @abstractmethod
-    def __str__(self) -> str:
-        """ Return the string representation of an object """
+        # Write gzipped data (\n-delimited paths) to buffer
+        with GzipFile(fileobj=self.data, mode="wb") as gzip:
+            for path in files:
+                gzip.write(bytes(path))
+                gzip.write(b"\n")
+
+        # Rewind buffer
+        self.data.seek(0)
