@@ -18,7 +18,7 @@ time spent (rather than wall time).
   * [x] IdM abstractions
   * [x] Configuration abstractions and interface      <ETA: 2 days; Actual: 1 day>
   * [x] Persistence abstractions and interface        <ETA: 2 days; Actual: 2 days>
-  * [ ] E-mailing and templating abstractions         <ETA: 3 days>
+  * [x] E-mailing and templating abstractions         <ETA: 3 days; Actual: 1 day>
   * [ ] *Others?*
 * [ ] API
   * [x] Logging

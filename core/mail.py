@@ -28,9 +28,31 @@ from core import typing as T
 class _BaseAttachment:
     """ Base class for attachments """
     filename:str
+    mime_type:str
     data:T.BinaryIO = field(default_factory=io.BytesIO)
+
+
+@dataclass
+class _BaseMessage:
+    """ Base class for messages """
+    addressees:T.Collection[str]
+    subject:str
+    body:str
+    attachments:T.Collection[_BaseAttachment] = field(default_factory=list)
+
+
+class _BasePostman(metaclass=ABCMeta):
+    """ Abstract base class for sending mail """
+    # TODO Do we need to manage a session with a context manager?
+    addresser:str
+
+    @abstractmethod
+    def send(self, message:_BaseMessage) -> None:
+        """ Send the supplied e-mail message """
 
 
 class base(T.SimpleNamespace):
     """ Namespace of base classes to make importing easier """
     Attachment = _BaseAttachment
+    Message    = _BaseMessage
+    Postman    = _BasePostman
