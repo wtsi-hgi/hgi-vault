@@ -25,9 +25,8 @@ from abc import ABCMeta, abstractmethod
 from functools import singledispatchmethod
 from gzip import GzipFile
 
-import jinja2
-
 from core import idm, mail, typing as T
+from . import jinja2
 
 
 class GZippedFOFN(mail.base.Attachment):
@@ -58,7 +57,7 @@ class _BaseTemplatedMessage(mail.base.Message, metaclass=ABCMeta):
 class _Jinja2Message(_BaseTemplatedMessage):
     """ Jinja2 templating mixin implementation """
     def _render(self, context:T.Any) -> str:
-        return jinja2.Template(self._template).render(context)
+        return jinja2.render(self._template, context)
 
 class _Message(_Jinja2Message):
     """
