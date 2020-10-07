@@ -48,7 +48,8 @@ class GZippedFOFN(mail.base.Attachment):
 
 class _BaseTemplatedMessage(mail.base.Message, metaclass=ABCMeta):
     """ Abstract base mixin class for templated messages """
-    _template:T.Classvar[str]
+    _subject:T.ClassVar[str]
+    _template:T.ClassVar[str]
 
     @abstractmethod
     def _render(self, context:T.Any) -> str:
@@ -62,11 +63,12 @@ class _Jinja2Message(_BaseTemplatedMessage):
 class _Message(_Jinja2Message):
     """
     Base class for all messages, making use of our IdM and using Jinja2
-    for templating; implementations just need to define the template.
+    for templating; implementations just need to define the subject and
+    template, at a minimum.
     """
-    def __init__(self, *, subject:str, context:T.Any) -> None:
+    def __init__(self, *, context:T.Any) -> None:
         self.attachments = []
-        self.subject     = subject
+        self.subject     = self._subject
         self.body        = self._render(context)
 
     def __iadd__(self, attachment:mail.base.Attachment) -> _Message:
@@ -80,7 +82,11 @@ _WarnedSummariesT = T.Collection[T.Tuple[T.TimeDelta, _GroupSummariesT]]
 
 class NotificationEMail(_Message):
     """ Notification e-mail """
+    _subject  = "Action Required: HGI Vault Summary"
     _template = resource.read_text("api.mail", "notification.j2")
+
+    def __init__(self, stakeholder:idm.base.User, deleted:_GroupSummariesT, staged:_GroupSummariesT, warned:_WarnedSummariesT) -> None:
+        super().__init__(NotificationEMail.Context(stakeholder, deleted, staged, warned))
 
     @staticmethod
     def Context(stakeholder:idm.base.User, deleted:_GroupSummariesT, staged:_GroupSummariesT, warned:_WarnedSummariesT) -> T.Dict:
