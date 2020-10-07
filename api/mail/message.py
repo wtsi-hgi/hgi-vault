@@ -1,5 +1,5 @@
 """
-Copyright (c) 2019 Genome Research Limited
+Copyright (c) 2020 Genome Research Limited
 
 Author: Christopher Harrison <ch12@sanger.ac.uk>
 
