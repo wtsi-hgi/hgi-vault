@@ -106,7 +106,8 @@ _schema = {
     "email": {
         "smtp": {
             "host":          _Setting(),
-            "port":          _Setting(cast=int, default=25)},
+            "port":          _Setting(cast=int, default=25),
+            "tls":           _Setting(cast=bool, default=False)},
         "sender":            _Setting()},
 
     "deletion": {
