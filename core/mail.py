@@ -21,7 +21,7 @@ import io
 from abc import ABCMeta, abstractmethod
 from dataclasses import dataclass, field
 
-from core import typing as T
+from core import idm, typing as T
 
 
 @dataclass
@@ -35,7 +35,6 @@ class _BaseAttachment:
 @dataclass
 class _BaseMessage:
     """ Base class for messages """
-    addressees:T.Collection[str]
     subject:str
     body:str
     attachments:T.Collection[_BaseAttachment] = field(default_factory=list)
@@ -44,11 +43,28 @@ class _BaseMessage:
 class _BasePostman(metaclass=ABCMeta):
     """ Abstract base class for sending mail """
     # TODO Do we need to manage a session with a context manager?
-    addresser:str
+    def send(self, message:_BaseMessage, *addressee:idm.base.User, addresser:T.Optional[idm.base.User] = None) -> None:
+        """
+        Send the supplied e-mail message to the appropriate recipients
+
+        @param  message    Message
+        @param  addressee  Addressee(s)
+        @param  addresser  Addresser (optional)
+        """
+        assert len(addressee) > 0
+        recipients = [user.email for user in addressee]
+        sender = self.addresser if addresser is None else addresser.email
+
+        self._deliver(message, recipients, sender)
+
+    @property
+    @abstractmethod
+    def addresser(self) -> str:
+        """ Get the default sender's e-mail address """
 
     @abstractmethod
-    def send(self, message:_BaseMessage) -> None:
-        """ Send the supplied e-mail message """
+    def _deliver(self, message:_BaseMessage, recipients:T.Collection[str], sender:str) -> None:
+        """ Deliver the message """
 
 
 class base(T.SimpleNamespace):

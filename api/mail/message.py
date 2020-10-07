@@ -23,7 +23,6 @@ import io
 import importlib.resources as resource
 from abc import ABCMeta, abstractmethod
 from dataclasses import asdict
-from functools import singledispatchmethod
 from gzip import GzipFile
 
 from core import idm, mail, persistence, time, typing as T
@@ -65,28 +64,13 @@ class _Message(_Jinja2Message):
     Base class for all messages, making use of our IdM and using Jinja2
     for templating; implementations just need to define the template.
     """
-    def __init__(self, *, to:idm.base.User, subject:str, context:T.Any) -> None:
-        self.addressees  = []
+    def __init__(self, *, subject:str, context:T.Any) -> None:
         self.attachments = []
+        self.subject     = subject
+        self.body        = self._render(context)
 
-        self += to
-        self.subject = subject
-        self.body = self._render(context)
-
-    @singledispatchmethod
-    def __iadd__(self, rhs:T.Any) -> _Message:
-        raise NotImplementedError
-
-    @__iadd__.register
-    def _(self, addressee:idm.base.User):
-        """ Add the user's e-mail address to the list of addressees """
-        if (address := addressee.email) is not None:
-            self.addressees.append(address)
-        return self
-
-    @__iadd__.register
-    def _(self, attachment:mail.base.Attachment):
-        """ Add the attachment to the list of attachments """
+    def __iadd__(self, attachment:mail.base.Attachment) -> _Message:
+        """ Add the attachment to the message """
         self.attachments.append(attachment)
         return self
 
