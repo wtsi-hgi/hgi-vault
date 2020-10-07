@@ -15,7 +15,7 @@ prevent these files from being deleted!
 
 {% for warning in (warned or []) | sort(attribute="tminus") %}
 Your files will be IRRECOVERABLY DELETED from the following locations
-within {{ warning.tminus }} hours:
+within {{ warning.tminus | human_time(threshold=5) }}:
 
 {{ summarise(warning.summary) }}
 {% else %}
