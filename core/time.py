@@ -24,5 +24,6 @@ epoch   = lambda ts: datetime.fromtimestamp(ts, timezone.utc)
 to_utc  = lambda dt: dt.astimezone(timezone.utc)
 
 delta   = timedelta
+seconds = lambda d: d.total_seconds()
 
 ISO8601 = "%Y-%m-%dT%H:%M:%SZ%z"

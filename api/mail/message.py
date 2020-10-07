@@ -22,10 +22,11 @@ from __future__ import annotations
 import io
 import importlib.resources as resource
 from abc import ABCMeta, abstractmethod
+from dataclasses import asdict
 from functools import singledispatchmethod
 from gzip import GzipFile
 
-from core import idm, mail, typing as T
+from core import idm, mail, persistence, time, typing as T
 from . import jinja2
 
 
@@ -89,6 +90,42 @@ class _Message(_Jinja2Message):
         self.attachments.append(attachment)
         return self
 
+
+_GroupSummariesT = T.Dict[idm.base.Group, persistence.GroupSummary]
+_WarnedSummariesT = T.Collection[T.Tuple[T.TimeDelta, _GroupSummariesT]]
+
 class NotificationEMail(_Message):
     """ Notification e-mail """
     _template = resource.read_text("api.mail", "notification.j2")
+
+    @staticmethod
+    def Context(stakeholder:idm.base.User, deleted:_GroupSummariesT, staged:_GroupSummariesT, warned:_WarnedSummariesT) -> T.Dict:
+        """
+        Helper method to create the context that the notification
+        template expects
+
+        @param   stakeholder  Stakeholder
+        @param   deleted      Deleted group summaries
+        @param   staged       Staged group summaries
+        @param   warned       Warned group summaries, by T-minus
+        @return  Template context
+        """
+        # Convert group summaries into the expected context form
+        def _group_context(summaries:_GroupSummariesT) -> T.Dict:
+            return {
+                group.name: asdict(summary)
+                for group, summary in summaries.items()
+            }
+
+        return {
+            "stakeholder": stakeholder.name,
+            "deleted":     _group_context(deleted),
+            "staged":      _group_context(staged),
+            "warned": [
+                {
+                    "tminus":  time.seconds(tminus),
+                    "summary": _group_context(summary)
+                }
+                for tminus, summary in warned
+            ]
+        }
