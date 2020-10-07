@@ -58,6 +58,11 @@ class _Group(_Identity, metaclass=ABCMeta):
 
     @property
     @abstractmethod
+    def name(self) -> str:
+        """ Return the group's name """
+
+    @property
+    @abstractmethod
     def owners(self) -> T.Iterator[_User]:
         """ Return an iterator of users who are owners of the group """
 

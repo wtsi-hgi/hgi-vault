@@ -129,6 +129,7 @@ class LDAPUser(_LazyLDAPIdentity, idm.base.User):
 class LDAPGroup(_LazyLDAPIdentity, idm.base.Group):
     _exc = Template("Group with POSIX ID $identity was not found")
 
+    _name:T.Optional[str]                 = None
     _owners:T.Optional[T.List[LDAPUser]]  = None
     _members:T.Optional[T.List[LDAPUser]] = None
 
@@ -150,6 +151,9 @@ class LDAPGroup(_LazyLDAPIdentity, idm.base.Group):
                 return LDAPUser.from_dn(self._idm, dn)
 
         try:
+            # Get name from group database
+            self._name = grp.getgrgid(self.gid).gr_name
+
             # Dereference owners and members, skipping over any that
             # can't be found in the passwd database
             group = next(self._idm._ldap.search(config.dn, f"({mapping.gid}={self.gid})"))
@@ -158,6 +162,13 @@ class LDAPGroup(_LazyLDAPIdentity, idm.base.Group):
 
         except NoResultsFound:
             raise idm.exception.NoSuchIdentity(self._exc.substitute(identity=self.gid))
+
+    @property
+    def name(self) -> str:
+        if self._name is None:
+            self._fetch_details()
+
+        return self._name
 
     @property
     def owners(self) -> T.Iterator[LDAPUser]:

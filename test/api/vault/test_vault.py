@@ -52,6 +52,10 @@ class _DummyGroup(IdM.base.Group):
         self._member = member or owner
 
     @property
+    def name(self):
+        raise NotImplementedError
+
+    @property
     def owners(self):
         return iter([self._owner])
 
