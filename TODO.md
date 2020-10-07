@@ -30,7 +30,7 @@ time spent (rather than wall time).
     * [x] Schema implementation                       <ETA: 2 days; Actual: 3 days>
     * [x] Model implementation                        <ETA: 1 day; Actual: 3 days>
     * [x] Database engine                             <ETA: 3 days; Actual: 3 days>
-  * [ ] E-Mail and templating                         <ETA: 3 days>
+  * [x] E-Mail and templating                         <ETA: 3 days; Actual 2 days>
   * [ ] *Others?*
 * [ ] Hot code
   * [ ] *Unknown*                                     <ETA: 1 day per function>

@@ -17,22 +17,51 @@ You should have received a copy of the GNU General Public License along
 with this program. If not, see https://www.gnu.org/licenses/
 """
 
+import os
+import smtplib
+from email.message import EmailMessage
+
 from core import config, mail, typing as T
+
+
+# Get SMTP timeout from environment, if available
+_SMTP_TIMEOUT = int(os.getenv("SMTP_TIMEOUT", "1"))
 
 
 class Postman(mail.base.Postman):
     """ MUA implementation """
     _config:config.base.Config
+    _smtp:T.Type[smtplib.SMTP]
 
     def __init__(self, config:config.base.Config) -> None:
         self._config = config
+        self._smtp = smtplib.SMTP_SSL if config.smtp.tls else smtplib.SMTP
 
     @property
     def addresser(self) -> str:
         return self._config.sender
 
     def _deliver(self, message:mail.base.Message, recipients:T.Collection[str], sender:str) -> None:
-        # TODO
-        # * Assemble the e-mail from our abstraction
-        # * Send it
-        pass
+        config = self._config
+
+        msg = EmailMessage()
+        msg.set_content(message.body)
+
+        msg["Subject"] = message.subject
+        msg["To"] = ", ".join(recipients)
+        msg["From"] = sender
+
+        # Add attachments
+        for attachment in message.attachments:
+            maintype, subtime = attachment.mime_type.split("/", 1)
+            msg.add_attachment(attachment.data.read(),
+                               maintype=maintype,
+                               subtype=subtype,
+                               filename=attachment.filename)
+
+        try:
+            with self._smtp(host=config.smtp.host, port=config.smtp.port, timeout=_SMTP_TIMEOUT) as postman:
+                postman.send_message(msg)
+
+        except smtplib.SMTPException as e:
+            raise mail.exception.EMailFailure(f"Could not send e-mail: {e}")

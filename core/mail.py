@@ -24,6 +24,12 @@ from dataclasses import dataclass, field
 from core import idm, typing as T
 
 
+class exception(T.SimpleNamespace):
+    """ Namespace of exceptions to make importing easier """
+    class EMailFailure(Exception):
+        """ Raised when an e-mail could not be sent """
+
+
 @dataclass
 class _BaseAttachment:
     """ Base class for attachments """
@@ -42,7 +48,6 @@ class _BaseMessage:
 
 class _BasePostman(metaclass=ABCMeta):
     """ Abstract base class for sending mail """
-    # TODO Do we need to manage a session with a context manager?
     def send(self, message:_BaseMessage, *addressee:idm.base.User, addresser:T.Optional[idm.base.User] = None) -> None:
         """
         Send the supplied e-mail message to the appropriate recipients
