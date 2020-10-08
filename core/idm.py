@@ -29,7 +29,7 @@ class exception(T.SimpleNamespace):
         """ Raised when a non-existent identity is queried """
 
 
-@dataclass(init=False)
+@dataclass(init=False, unsafe_hash=True)
 class _Identity:
     """ Base class for identities """
     _id:int
@@ -55,6 +55,11 @@ class _Group(_Identity, metaclass=ABCMeta):
     @property
     def gid(self) -> int:
         return self._id
+
+    @property
+    @abstractmethod
+    def name(self) -> str:
+        """ Return the group's name """
 
     @property
     @abstractmethod

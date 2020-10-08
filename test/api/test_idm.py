@@ -39,7 +39,7 @@ def _DUMMY_PWUID(uid):
 
 def _DUMMY_GRGID(gid):
     # Dummy group interface, that acts as an identity function
-    return T.SimpleNamespace(gr_gid=gid)
+    return T.SimpleNamespace(gr_name="foo", gr_gid=gid)
 
 def _DUMMY_PWNAM(username):
     # Dummy passwd-by-username interface: Take the bottom 10-bits from
@@ -94,7 +94,11 @@ class TestIDM(unittest.TestCase):
         self.assertIsInstance(group, LDAPGroup)
         self.assertEqual(group.gid, 123)
 
-        with patch.multiple("pwd", getpwnam=_DUMMY_PWNAM, getpwuid=_DUMMY_PWUID):
+        with patch.multiple("pwd", getpwnam=_DUMMY_PWNAM, getpwuid=_DUMMY_PWUID), \
+             patch("grp.getgrgid", new=_DUMMY_GRGID):
+
+            self.assertEqual(group.name, "foo")
+
             for dn in mock_results["owner"]:
                 self.assertIn(LDAPUser.from_dn(idm, dn), group.owners)
 

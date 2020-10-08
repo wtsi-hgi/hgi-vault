@@ -86,3 +86,37 @@ def human_size(value:float, base:int = 1024, threshold:float = 0.8) -> str:
         order += 1
 
     return f"{value:.{sigfigs}g} {quantifiers[order]}"
+
+
+# NOTE This must be in descending order
+_TQuant = [(60 * 60 * 24, "day"), (60 * 60, "hour"), (60, "minute"), (1, "second")]
+
+def human_time(seconds:float, threshold:float = 0.8) -> str:
+    """ Quick-and-dirty time quantifier """
+    duration = 0.0
+    quantifiers = iter(_TQuant)
+    qualifier = ""
+
+    while duration < threshold:
+        try:
+            divisor, unit = next(quantifiers)
+        except StopIteration:
+            break
+
+        duration = seconds / divisor
+
+    rounded = round(duration)
+
+    if rounded > duration:
+        qualifier = "nearly "
+
+    if rounded == 0:
+        # This will only happen at sub-threshold of the last unit
+        qualifier = "less than "
+        rounded = 1
+
+    if rounded != 1:
+        # Pluralise unit, if necessary
+        unit += "s"
+
+    return f"{qualifier}{rounded} {unit}"

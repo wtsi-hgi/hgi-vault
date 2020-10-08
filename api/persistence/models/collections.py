@@ -17,32 +17,11 @@ You should have received a copy of the GNU General Public License along
 with this program. If not, see https://www.gnu.org/licenses/
 """
 
-from __future__ import annotations
-
-import os.path
-from dataclasses import dataclass
-
 from core import idm, persistence, typing as T
+from .file import File
 
 
-@dataclass
-class GroupSummary:
-    """ Summary aggregation """
-    # NOTE We do the aggregation here, in code, rather than with an
-    # aggregate query because we need both the full listings and the
-    # summary; this is probably slower, but it's easier to maintain.
-    # Also, we'd need a custom "commonpath" aggregation function in the
-    # schema, which would be non-trivial to write.
-    path:T.Path  # Common path prefix
-    count:int    # Count of files
-    size:int     # Total size of files (bytes)
-
-    def __add__(self, other:GroupSummary) -> GroupSummary:
-        return GroupSummary(path  = T.Path(os.path.commonpath([self.path, other.path])),
-                            count = self.count + other.count,
-                            size  = self.size  + other.size)
-
-_UserAccumulatorT = T.Dict[idm.base.Group, GroupSummary]
+_UserAccumulatorT = T.Dict[idm.base.Group, persistence.GroupSummary]
 
 class _User(persistence.base.FileCollection):
     """
@@ -66,10 +45,10 @@ class _User(persistence.base.FileCollection):
         assert file.path is not None
         acc  = self._accumulator
         key  = file.group
-        zero = GroupSummary(path=file.path, count=0, size=0)
+        zero = persistence.GroupSummary(path=file.path, count=0, size=0)
 
         acc[key] = acc.get(key, zero) \
-                 + GroupSummary(path=file.path, count=1, size=file.size)
+                 + persistence.GroupSummary(path=file.path, count=1, size=file.size)
 
 
 class _StagedQueue(persistence.base.FileCollection):

@@ -1,5 +1,5 @@
 """
-Copyright (c) 2019, 2020 Genome Research Limited
+Copyright (c) 2020 Genome Research Limited
 
 Author: Christopher Harrison <ch12@sanger.ac.uk>
 
@@ -17,23 +17,21 @@ You should have received a copy of the GNU General Public License along
 with this program. If not, see https://www.gnu.org/licenses/
 """
 
-from abc import abstractmethod
+from jinja2 import Environment
 
-# Make Python's type definitions available
-from numbers import *
-from pathlib import *
-from types import *
-from typing import *
-from typing.io import *
-
-from .time import datetime as DateTime, \
-                  timedelta as TimeDelta
+from core import typing as T, utils
 
 
-@runtime_checkable
-class Stringable(Protocol):
-    """ Protocol type that supports the __str__ method """
+def render(template:str, context:T.Any) -> str:
+    """
+    Render the Jinja2 template with the given context
 
-    @abstractmethod
-    def __str__(self) -> str:
-        """ Return the string representation of an object """
+    @param   template  Jinja2 template
+    @param   context   Template context
+    @return  Rendered template
+    """
+    env = Environment(trim_blocks=True)
+    env.filters["human_size"] = utils.human_size
+    env.filters["human_time"] = utils.human_time
+
+    return env.from_string(template).render(context)

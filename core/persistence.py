@@ -19,6 +19,7 @@ with this program. If not, see https://www.gnu.org/licenses/
 
 from __future__ import annotations
 
+import os.path
 from abc import ABCMeta, abstractmethod
 from dataclasses import dataclass
 
@@ -31,6 +32,24 @@ class exception(T.SimpleNamespace):
 
     class LogicException(BackendException):
         """ Raised on persistence backend logic error """
+
+
+@dataclass
+class GroupSummary:
+    """ Summary aggregation of files by some semantic grouping """
+    # NOTE We do this aggregation in code, rather than with an aggregate
+    # query because we will need both the full listings and this
+    # summary; this is probably slower, but it's easier to maintain.
+    # Also, we'd need a custom "commonpath" aggregation function in the
+    # schema, which would be non-trivial to write!
+    path:T.Path  # Common path prefix
+    count:int    # Count of files
+    size:int     # Total size of files (bytes)
+
+    def __add__(self, other:GroupSummary) -> GroupSummary:
+        return GroupSummary(path  = T.Path(os.path.commonpath([self.path, other.path])),
+                            count = self.count + other.count,
+                            size  = self.size  + other.size)
 
 
 class Anything:

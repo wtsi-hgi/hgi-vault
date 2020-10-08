@@ -1,0 +1,31 @@
+{# Copyright (c) 2020 Genome Research Ltd. #}
+{% macro summarise(aggregation) -%}
+{% for group, summary in (aggregation or {}).items() %}
+* {{ group }} group in {{ summary.path }}
+  {{ summary.size | human_size }}B across {{ summary.count }} files
+{% else %}
+* None
+{% endfor %}
+{%- endmacro %}
+Dear {{ stakeholder }},
+
+The following locations contain data that are scheduled for deletion.
+Full listings can be found in the attachments. You MUST act now to
+prevent these files from being deleted!
+
+{% for warning in (warned or []) | sort(attribute="tminus") %}
+Your files will be IRRECOVERABLY DELETED from the following locations
+within {{ warning.tminus | human_time(threshold=5) }}:
+
+{{ summarise(warning.summary) }}
+{% else %}
+* None
+
+{% endfor %}
+Space has been recovered from the following locations:
+
+{{ summarise(deleted) }}
+The following locations contain data that is staged for archival:
+
+{{ summarise(staged) }}
+These will be acted upon shortly.

@@ -45,13 +45,15 @@ persistence:
   password: abc123
 
 # E-Mail Configuration
-# - smtp        Host (host) and port (port) of the SMTP server
+# - smtp        Host (host), port (port) and whether to use a secure
+#               connection (tls) with the SMTP server
 # - sender      E-mail address of the sender
 
 email:
   smtp:
     host: mail.example.com
     port: 25
+    tls: No
 
   sender: vault@example.com
 

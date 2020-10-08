@@ -13,12 +13,13 @@ time spent (rather than wall time).
     * [x] `base64` interface
     * [x] umask context manager
     * [x] Human size
+    * [x] Human time
     * [ ] *Others?*
   * [x] Vault abstractions
   * [x] IdM abstractions
   * [x] Configuration abstractions and interface      <ETA: 2 days; Actual: 1 day>
   * [x] Persistence abstractions and interface        <ETA: 2 days; Actual: 2 days>
-  * [ ] E-mailing and templating abstractions         <ETA: 3 days>
+  * [x] E-mailing and templating abstractions         <ETA: 3 days; Actual: 1 day>
   * [ ] *Others?*
 * [ ] API
   * [x] Logging
@@ -29,7 +30,7 @@ time spent (rather than wall time).
     * [x] Schema implementation                       <ETA: 2 days; Actual: 3 days>
     * [x] Model implementation                        <ETA: 1 day; Actual: 3 days>
     * [x] Database engine                             <ETA: 3 days; Actual: 3 days>
-  * [ ] E-Mail and templating                         <ETA: 3 days>
+  * [x] E-Mail and templating                         <ETA: 3 days; Actual 2 days>
   * [ ] *Others?*
 * [ ] Hot code
   * [ ] *Unknown*                                     <ETA: 1 day per function>
