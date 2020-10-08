@@ -53,7 +53,7 @@ class Postman(mail.base.Postman):
 
         # Add attachments
         for attachment in message.attachments:
-            maintype, subtime = attachment.mime_type.split("/", 1)
+            maintype, subtype = attachment.mime_type.split("/", 1)
             msg.add_attachment(attachment.data.read(),
                                maintype=maintype,
                                subtype=subtype,
@@ -61,6 +61,7 @@ class Postman(mail.base.Postman):
 
         try:
             with self._smtp(host=config.smtp.host, port=config.smtp.port, timeout=_SMTP_TIMEOUT) as postman:
+                # Each message gets its own connection
                 postman.send_message(msg)
 
         except smtplib.SMTPException as e:

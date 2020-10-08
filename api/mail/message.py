@@ -66,7 +66,7 @@ class _Message(_Jinja2Message):
     for templating; implementations just need to define the subject and
     template, at a minimum.
     """
-    def __init__(self, *, context:T.Any) -> None:
+    def __init__(self, context:T.Any) -> None:
         self.attachments = []
         self.subject     = self._subject
         self.body        = self._render(context)

@@ -29,7 +29,7 @@ class exception(T.SimpleNamespace):
         """ Raised when a non-existent identity is queried """
 
 
-@dataclass(init=False)
+@dataclass(init=False, unsafe_hash=True)
 class _Identity:
     """ Base class for identities """
     _id:int

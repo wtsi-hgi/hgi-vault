@@ -23,20 +23,17 @@ import grp
 import pwd
 from abc import ABCMeta, abstractmethod
 from contextlib import suppress
-from dataclasses import dataclass
 from string import Template
 
 from core import config, idm, typing as T
 from .ldap import LDAP, NoResultsFound
 
 
-@dataclass(init=False)
-class _LDAPIdentity:
+class _LazyLDAPIdentity(metaclass=ABCMeta):
+    """ Abstract base class for lazy LDAP identity loading """
     _idm:LDAPIdentityManager
     _exc:T.ClassVar[Template]
 
-class _LazyLDAPIdentity(_LDAPIdentity, metaclass=ABCMeta):
-    """ Abstract base class for lazy LDAP identity loading """
     def __init__(self, ldap_idm:LDAPIdentityManager, identity:int) -> None:
         self._idm = ldap_idm
 
