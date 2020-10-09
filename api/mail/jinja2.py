@@ -30,6 +30,8 @@ def render(template:str, context:T.Any) -> str:
     @param   context   Template context
     @return  Rendered template
     """
+    # This inefficiently recompiles the template on each call...but it's
+    # fast enough for it not to be a problem
     env = Environment(trim_blocks=True)
     env.filters["human_size"] = utils.human_size
     env.filters["human_time"] = utils.human_time
