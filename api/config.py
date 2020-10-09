@@ -44,8 +44,8 @@ class _YAMLConfig(config.base.Config, metaclass=ABCMeta):
 def _Days(days:int) -> T.TimeDelta:
     return time.delta(days=days)
 
-def _HoursLessThanAMonth(hours:int) -> T.TimeDelta:
-    if (delta := time.delta(hours=hours)) > time.delta(hours=720):
+def _HoursLessThanThreeMonths(hours:int) -> T.TimeDelta:
+    if (delta := time.delta(hours=hours)) > time.delta(days=90):
         raise TypeError("I'm not waiting that long")
 
     return delta
@@ -112,7 +112,7 @@ _schema = {
 
     "deletion": {
         "threshold":         _Setting(cast=_Days),
-        "warnings":          _Setting(cast=_ListOf(_HoursLessThanAMonth), default=[])},
+        "warnings":          _Setting(cast=_ListOf(_HoursLessThanThreeMonths), default=[])},
 
     "archive": {
         "threshold":         _Setting(cast=int),

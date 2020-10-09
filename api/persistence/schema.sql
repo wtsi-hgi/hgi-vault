@@ -27,7 +27,7 @@ begin transaction;
 
 -- Schema versioning
 do $$ declare
-  schema date := timestamp '2020-09-21';
+  schema date := timestamp '2020-10-09';
   actual date;
 begin
   create table if not exists __version__ (version date primary key);
@@ -71,6 +71,8 @@ create index if not exists group_owners_owner on group_owners(owner);
 
 
 -- Files (the minimal set of metadata that we care about)
+-- NOTE Records in this table must NEVER be updated; if a change is
+-- required, then the record MUST be deleted and reinserted
 create table if not exists files (
   id
     serial
@@ -115,17 +117,6 @@ create table if not exists files (
 );
 
 create index if not exists files_owner on files(owner);
-
--- TODO (if possible) A suite of rules/triggers on "files" that:
--- [x] Prevents updates
--- [ ] On insert:
---     * Inserts on no matching device-inode
---     * Does nothing on complete matching record
---     * Deletes then inserts on matching device-inode
-
-create or replace rule no_update as
-  on update to files
-  do instead nothing;
 
 
 -- File Status
@@ -228,7 +219,7 @@ expired as (
   select distinct file
   from   status
   where  state != 'staged'
-  and    age(now(), timestamp) > make_interval(days => 30)
+  and    age(now(), timestamp) > make_interval(days => 90)
   and    notified
 ),
 purgeable as (
