@@ -125,8 +125,8 @@ class Persistence(persistence.base.Persistence, Loggable):
     @property
     def stakeholders(self) -> T.Iterator[idm.base.User]:
         with self._pg.transaction() as t:
-            t.execute("select uid from stakeholders;")
-            yield from (self._idm.user(uid=user.uid) for user in t)
+            t.execute("select stakeholder from stakeholders;")
+            yield from (self._idm.user(uid=user.stakeholder) for user in t)
 
     def files(self, criteria:persistence.Filter) -> _FileCollectionT:
         """
@@ -193,9 +193,10 @@ class Persistence(persistence.base.Persistence, Loggable):
         # Once notified, deleted and warning states will be cleaned up
         # automatically (or deferred) on subsequent instantiations
         state = files.criteria.state
+        stakeholder = files.criteria.stakeholder
         with self._pg.transaction() as t:
             for file in files:
-                state.mark_notified(t, file)
+                state.mark_notified(t, file, stakeholder)
 
     @clean.register
     def _(self, files:FileCollection.StagedQueue) -> None:

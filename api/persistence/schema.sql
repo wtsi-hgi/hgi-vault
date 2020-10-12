@@ -27,7 +27,7 @@ begin transaction;
 
 -- Schema versioning
 do $$ declare
-  schema date := timestamp '2020-10-09';
+  schema date := timestamp '2020-10-12';
   actual date;
 begin
   create table if not exists __version__ (version date primary key);
@@ -145,18 +145,12 @@ create table if not exists status (
     not null
     default now(),
 
-  notified
-    boolean
-    not null
-    default false,
-
   unique (id, state)
 );
 
 create index if not exists status_file      on status(file);
 create index if not exists status_state     on status(state);
 create index if not exists status_timestamp on status(timestamp);
-create index if not exists status_notified  on status(notified);
 
 create table if not exists warnings (
   status
@@ -179,23 +173,38 @@ create table if not exists warnings (
 );
 
 
+-- Notifications
+create table if not exists notifications (
+  status
+    integer
+    references status(id) on delete cascade,
+
+  stakeholder
+    integer
+    not null,
+
+  primary key (status, stakeholder)
+);
+
+
 -- File Stakeholders: A view of all stakeholders for the current files
 create or replace view file_stakeholders as
   select id as file,
-         owner as uid
+         owner as stakeholder
   from   files
 
   union
 
   select files.id as file,
-         group_owners.owner as uid
+         group_owners.owner as stakeholder
   from   files
   join   group_owners
   on     group_owners.gid = files.group_id;
 
+
 -- Stakeholders: A view of all stakeholders
 create or replace view stakeholders as
-  select distinct uid from file_stakeholders;
+  select distinct stakeholder from file_stakeholders;
 
 
 -- Clean any orphaned and notified, deleted files
