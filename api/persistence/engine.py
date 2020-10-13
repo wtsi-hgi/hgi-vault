@@ -194,6 +194,7 @@ class Persistence(persistence.base.Persistence, Loggable):
         # automatically (or deferred) on subsequent instantiations
         state = files.criteria.state
         stakeholder = files.criteria.stakeholder
+
         with self._pg.transaction() as t:
             for file in files:
                 state.mark_notified(t, file, stakeholder)

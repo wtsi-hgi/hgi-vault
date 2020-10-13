@@ -27,7 +27,7 @@ begin transaction;
 
 -- Schema versioning
 do $$ declare
-  schema date := timestamp '2020-10-12';
+  schema date := timestamp '2020-10-13';
   actual date;
 begin
   create table if not exists __version__ (version date primary key);
@@ -207,36 +207,72 @@ create or replace view stakeholders as
   select distinct stakeholder from file_stakeholders;
 
 
--- Clean any orphaned and notified, deleted files
-with deleted as (
-  select file,
-         notified
-  from   status
-  where  state = 'deleted'
-),
-orphaned as (
-  -- Staged/warned files that are deleted, regardless of notification
-  -- NOTE Staged files should never be in here
-  select distinct nondeleted.file
+-- Stakeholder Notification State: A view of file status notifications
+-- by stakeholder
+create or replace view stakeholder_notified as
+  select    status.*,
+            file_stakeholders.stakeholder,
+            notifications.status is null as notified
+  from      status
+  join      file_stakeholders
+  on        file_stakeholders.file    = status.file
+  left join notifications
+  on        notifications.status      = status.id
+  and       notifications.stakeholder = file_stakeholders.stakeholder;
+
+
+-- General Notification State: A view of file status notifications
+-- FIXME? This query seems inelegant; there must be a better way...
+create or replace view status_notified as
+  with summary as (
+    select   id,
+             every(notified) as notified
+    from     stakeholder_notified
+    group by id
+  )
+  select status.*,
+         summary.notified
+  from   summary
+  join   status
+  on     status.id = summary.id;
+
+
+-- Clean orphaned states: When a file has been deleted, clear up any
+-- other, now redundant states to avoid erroneous notifications
+with orphaned as (
+  select distinct nondeleted.id
   from   status as nondeleted
-  join   deleted
+  join   status_notified as deleted
   on     deleted.file = nondeleted.file
-  where  nondeleted.state != 'deleted'
-),
-expired as (
+  where  nondeleted.state = 'deleted'
+  and    deleted.state   != 'deleted'
+)
+delete
+from   status
+using  orphaned
+where  status.id = orphaned.id;
+
+
+-- Clean fully notified, deleted files and expired states
+with expired as (
   -- Non-staged files that have been notified, but have expired
-  select distinct file
-  from   status
-  where  state != 'staged'
-  and    age(now(), timestamp) > make_interval(days => 90)
-  and    notified
+  select   file
+  from     status_notified
+  where    state != 'staged'
+  and      notified
+  group by file
+  having   every(age(now(), timestamp) > make_interval(days => 90))
 ),
 purgeable as (
-  select file from orphaned
+  select file
+  from   status_notified
+  where  state = 'deleted'
+  and    notified
+
   union
-  select file from deleted where notified
-  union
-  select file from expired
+
+  select file
+  from   expired
 )
 delete
 from   files
