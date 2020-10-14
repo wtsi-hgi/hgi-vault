@@ -24,6 +24,12 @@ from api.persistence.postgres import Transaction
 from .file import File
 
 
+# Convenience aliases for types we use regularly
+_Anything = persistence.Anything
+_MaybeStakeholder = T.Union[idm.base.User, T.Type[_Anything]]
+_SQLSnippet = T.Tuple[str, T.Tuple]
+
+
 class _PersistedState(persistence.base.State):
     """ Base for our persistence operations """
     db_type:T.ClassVar[str]
@@ -69,11 +75,11 @@ class _PersistedState(persistence.base.State):
         # Set the notification status for all stakeholders, if required
         # (this should never happen in production)
         if self.notified:
-            self.mark_notified(t, file, persistence.Anything)
+            self.mark_notified(t, file, _Anything)
 
         return state_id
 
-    def mark_notified(self, t:Transaction, file:File, stakeholder:T.Union[idm.base.User, T.Type[persistence.Anything]]) -> None:
+    def mark_notified(self, t:Transaction, file:File, stakeholder:_MaybeStakeholder) -> None:
         """
         Set the notification state to true for a file and stakeholder
 
@@ -84,6 +90,7 @@ class _PersistedState(persistence.base.State):
         if (state_id := self.exists(t, file)) is None:
             state_id = self.persist(t, file)
 
+        query_params = (state_id, file.db_id)
         query_sql = """
             select id,
                    stakeholder
@@ -92,13 +99,12 @@ class _PersistedState(persistence.base.State):
             and    id   = %s
             and    file = %s
         """
-        query_params = (state_id, file.db_id)
 
-        if stakeholder != persistence.Anything:
+        if stakeholder != _Anything:
+            query_params += (stakeholder.uid,)
             query_sql += """
                 and stakeholder = %s
             """
-            query_params += (stakeholder.uid,)
 
         t.execute(f"""
             insert into notifications (status, stakeholder)
@@ -106,23 +112,35 @@ class _PersistedState(persistence.base.State):
             on conflict do nothing;
         """, query_params)
 
-    @property
-    def file_cte(self) -> T.Tuple[str, T.Tuple]:
+    def file_cte(self, stakeholder:_MaybeStakeholder) -> _SQLSnippet:
         """
-        Return the SQL CTE snippet and parameters to fetch all files
-        satisfying the present state
+        Return the SQL CTE snippet and parameters to fetch the file IDs
+        satisfying the present state for the given stakeholder
+
+        @param   stakeholder  Stakeholder
+        @return  SQL CTE snippet and parameters
         """
+        # NOTE This interface is a bit kludgy; rather than returning SQL
+        # snippets to the persistence engine, we could return the actual
+        # files. However, that would need a reference to the persistence
+        # engine (and the IdM), so this is "the least bad" compromise!
         params = (self.db_type,)
         sql = """
             select file
-            from   status
+            from   stakeholder_notified
             where  state = %s
         """
 
-        if self.notified != persistence.Anything:
+        if self.notified != _Anything:
             params += (self.notified,)
             sql += """
                 and notified = %s
+            """
+
+        if stakeholder != _Anything:
+            params += (stakeholder.uid,)
+            sql += """
+                and stakeholder = %s
             """
 
         return sql, params
@@ -142,12 +160,12 @@ class State(T.SimpleNamespace):
     class Warned(_PersistedState):
         """ File warned for deletion """
         db_type = "warned"
-        tminus:T.Union[T.TimeDelta, T.Type[persistence.Anything]]
+        tminus:T.Union[T.TimeDelta, T.Type[_Anything]]
 
         def exists(self, t:Transaction, file:File) -> T.Optional[int]:
             # Warnings are special, so we override the superclass
             assert hasattr(file, "db_id")
-            assert self.tminus != persistence.Anything
+            assert self.tminus != _Anything
 
             t.execute("""
                 select status.id
@@ -165,7 +183,7 @@ class State(T.SimpleNamespace):
         def persist(self, t:Transaction, file:File) -> int:
             # Warnings are special, so we extend the superclass
             assert hasattr(file, "db_id")
-            assert self.tminus != persistence.Anything
+            assert self.tminus != _Anything
 
             state_id = super().persist(t, file)
             t.execute("""
@@ -175,25 +193,32 @@ class State(T.SimpleNamespace):
 
             return state_id
 
-        @property
-        def file_cte(self) -> T.Tuple[str, T.Tuple]:
+        def file_cte(self, stakeholder:_MaybeStakeholder) -> _SQLSnippet:
             # Warnings are special, so we override the superclass
+            # TODO There's scope for abstraction here: the query is the
+            # same, with an additional join and possible parameter
             params = (self.db_type,)
             sql = """
-               select distinct status.file
-               from   status
-               join   warnings
-               on     warnings.status = state.id
-               where  status.state    = %s
+                select distinct stakeholder_notified.file
+                from   stakeholder_notified
+                join   warnings
+                on     warnings.status = stakeholder_notified.id
+                where  stakeholder_notified.state = %s
             """
 
-            if self.notified != persistence.Anything:
+            if self.notified != _Anything:
                 params += (self.notified,)
                 sql += """
-                    and notified = %s
+                    and stakeholder_notified.notified = %s
                 """
 
-            if self.tminus != persistence.Anything:
+            if stakeholder != _Anything:
+                params += (stakeholder.uid,)
+                sql += """
+                    and stakeholder_notified.stakeholder = %s
+                """
+
+            if self.tminus != _Anything:
                 params += (self.tminus,)
                 sql += """
                     and warnings.tminus = %s

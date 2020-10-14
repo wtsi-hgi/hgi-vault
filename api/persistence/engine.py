@@ -144,37 +144,18 @@ class Persistence(persistence.base.Persistence, Loggable):
         collection = collection_type(self, criteria)
 
         with self._pg.transaction() as t:
-            # CTE snippet for state
-            state_cte, state_params = criteria.state.file_cte
+            # CTE snippet for matching files
+            cte_sql, params = criteria.state.file_cte(criteria.stakeholder)
 
-            # CTE snippet for stakeholder
-            stakeholder_params = ()
-            stakeholder_cte = """
-                select distinct file
-                from   file_stakeholders
-            """
-
-            if criteria.stakeholder != persistence.Anything:
-                stakeholder_params += (criteria.stakeholder.uid,)
-                stakeholder_cte += """
-                    where uid = %s
-                """
-
-            # Altogether
             t.execute(f"""
-                with state_files as (
-                    {state_cte}
-                ),
-                stakeholder_files as (
-                    {stakeholder_cte}
+                with matched as (
+                    {cte_sql}
                 )
                 select files.*
                 from   files
-                join   state_files
-                on     state_files.file = files.id
-                join   stakeholder_files
-                on     stakeholder_files.file = files.id;
-            """, state_params + stakeholder_params)
+                join   matched
+                on     matched.file = files.id;
+            """, params)
 
             for record in t:
                 self.log.debug(f"Adding {record.device}:{record.inode} to collection")
