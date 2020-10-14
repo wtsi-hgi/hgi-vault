@@ -27,7 +27,7 @@ begin transaction;
 
 -- Schema versioning
 do $$ declare
-  schema date := timestamp '2020-10-13';
+  schema date := timestamp '2020-10-14';
   actual date;
 begin
   create table if not exists __version__ (version date primary key);
@@ -224,17 +224,10 @@ create or replace view stakeholder_notified as
 -- General Notification State: A view of file status notifications
 -- FIXME? This query seems inelegant; there must be a better way...
 create or replace view status_notified as
-  with summary as (
-    select   id,
-             every(notified) as notified
-    from     stakeholder_notified
-    group by id
-  )
-  select status.*,
-         summary.notified
-  from   summary
-  join   status
-  on     status.id = summary.id;
+  select   id, file, state, timestamp,
+           every(notified) as notified
+  from     stakeholder_notified
+  group by id, file, state, timestamp; -- PG can't infer that id is the PK
 
 
 -- Clean orphaned states: When a file has been deleted, clear up any

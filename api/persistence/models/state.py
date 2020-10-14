@@ -19,7 +19,7 @@ with this program. If not, see https://www.gnu.org/licenses/
 
 from dataclasses import dataclass
 
-from core import idm, persistence, time, typing as T
+from core import idm, persistence, typing as T
 from api.persistence.postgres import Transaction
 from .file import File
 
@@ -64,7 +64,14 @@ class _PersistedState(persistence.base.State):
             values (%s, %s)
             returning id;
         """, (file.db_id, self.db_type))
-        return t.fetchone().id
+        state_id = t.fetchone().id
+
+        # Set the notification status for all stakeholders, if required
+        # (this should never happen in production)
+        if self.notified:
+            self.mark_notified(t, file, persistence.Anything)
+
+        return state_id
 
     def mark_notified(self, t:Transaction, file:File, stakeholder:T.Union[idm.base.User, T.Type[persistence.Anything]]) -> None:
         """
@@ -77,27 +84,27 @@ class _PersistedState(persistence.base.State):
         if (state_id := self.exists(t, file)) is None:
             state_id = self.persist(t, file)
 
-        # Establish stakeholders
-        # TODO This could probably be made more efficient with a
-        # suitable query, rather than iterating in code
-        if stakeholder == persistence.Anything:
-            t.execute("""
-                select stakeholder
-                from   file_stakeholders
-                where  file = %s;
-            """, (file.db_id,))
-            stakeholders = [s.stakeholder for s in t.fetchall()]
+        query_sql = """
+            select id,
+                   stakeholder
+            from   stakeholder_notified
+            where  (not notified)
+            and    id   = %s
+            and    file = %s
+        """
+        query_params = (state_id, file.db_id)
 
-        else:
-            stakeholders = [stakeholder.uid]
+        if stakeholder != persistence.Anything:
+            query_sql += """
+                and stakeholder = %s
+            """
+            query_params += (stakeholder.uid,)
 
-        # Iterate through stakeholders and mark them as notified
-        for s in stakeholders:
-            t.execute("""
-                insert into notifications (status, stakeholder)
-                values (%s, %s)
-                on conflict do nothing;
-            """, (state_id, s))
+        t.execute(f"""
+            insert into notifications (status, stakeholder)
+            values {query_sql}
+            on conflict do nothing;
+        """, query_params)
 
     @property
     def file_cte(self) -> T.Tuple[str, T.Tuple]:
