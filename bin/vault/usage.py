@@ -21,7 +21,7 @@ import argparse
 from dataclasses import dataclass
 
 from core import typing as T
-from ..common import version
+from bin.common import version
 
 
 @dataclass

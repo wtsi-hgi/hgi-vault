@@ -82,7 +82,7 @@ deletion:
 # - handler     Path to archiver/downstream handler executable
 
 # NOTE The consumer of the queue is intended to perform the archival,
-# however it is not # limited to this purpose.
+# however it is not limited to this purpose.
 
 archive:
   threshold: 1000
