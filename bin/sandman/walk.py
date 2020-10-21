@@ -18,10 +18,11 @@ with this program. If not, see https://www.gnu.org/licenses/
 """
 
 import os
+import gzip
 from abc import ABCMeta, abstractmethod
 from dataclasses import dataclass, field
 
-from core import time, typing as T
+from core import file, time, typing as T
 from core.utils import base64
 
 
@@ -74,6 +75,18 @@ def _common_branches(dirs:T.Iterator[T.Path]) -> T.List[T.Path]:
     return common
 
 
+def _is_vault_file(path:T.Path) -> bool:
+    """
+    Check whether the given file is a Vault file; that is, not a file
+    that is tracked by Vault, but rather a file that is physically
+    present within a vault
+
+    @param   path  Path to file
+    @return  Predicate value
+    """
+    raise NotImplementedError()
+
+
 class _BaseWalker(metaclass=ABCMeta):
     """ Abstract base class for file walkers """
     @abstractmethod
@@ -101,10 +114,32 @@ class FilesystemWalker(_BaseWalker):
         self._bases = _common_branches(b for base in bases if (b := base.resolve()).is_dir())
         assert len(self._bases) > 0
 
-    def files(self) -> T.Iterator[File]:
-        # TODO
-        raise NotImplementedError()
+    @staticmethod
+    def _walk_tree(path:T.Path) -> T.Iterator[File]:
+        # Recursively walk the tree from the given path
+        for f in path.iterdir():
+            if f.is_dir():
+                yield from FilesystemWalker._walk_tree(f)
 
+            elif file.is_regular(f) and not _is_vault_file(f):
+                yield File(f, f.stat())
+
+    def files(self) -> T.Iterator[File]:
+        for base in self._bases:
+            yield from FilesystemWalker._walk_tree(base)
+
+
+# mpistat field indices
+_SIZE   = 0
+_OWNER  = 1
+_GROUP  = 2
+_ATIME  = 3
+_MTIME  = 4
+_CTIME  = 5
+_MODE   = 6
+_INODE  = 7
+_NLINKS = 8
+_DEVICE = 9
 
 class mpistatWalker(_BaseWalker):
     """ Walk an mpistat output file """
@@ -149,6 +184,49 @@ class mpistatWalker(_BaseWalker):
 
         return bare[:i]
 
+    def _is_match(self, encoded_path:str) -> T.Optional[T.Path]:
+        """ Check that an encoded path is under one of our bases """
+        for prefix in self._prefixes:
+            if encoded_path.startswith(prefix):
+                # Only base64 decode if there's a potential match
+                decoded_path = T.Path(base64.decode(encoded_path).decode())
+
+                # Check we have an actual match
+                for base in self._bases:
+                    try:
+                        _ = decoded_path.relative_to(base)
+                        return decoded_path
+                    except ValueError:
+                        continue
+
+        # No match
+        return None
+
+    @staticmethod
+    def _make_stat(*stat:str) -> os.stat_result():
+        """ Convert an mpistat record into an os.stat_result """
+        # WARNING os.stat_result does not have a documented interface
+        assert len(stat) == 10
+        return os.stat_result((
+            0o100000,           # Mode: We only care about regular files
+            int(stat[_INODE]),  # inode ID
+            int(stat[_DEVICE]), # Device ID
+            int(stat[_NLINKS]), # Number of hardlinks
+            int(stat[_OWNER]),  # Owner ID
+            int(stat[_GROUP]),  # Group ID
+            int(stat[_SIZE]),   # Size
+            int(stat[_ATIME]),  # Last accessed time
+            int(stat[_MTIME]),  # Last modified time
+            int(stat[_CTIME])   # Last changed time
+        ))
+
     def files(self) -> T.Iterator[File]:
-        # TODO
-        raise NotImplementedError()
+        with gzip.open(self._mpistat, mode="rt") as mpistat:
+            while fields := mpistat.readline().strip().split("\t"):
+                encoded, *stat = fields
+                if stat[_MODE] == "f" \
+                   and (path := self._is_match(encoded)) is not None \
+                   and not _is_vault_file(path):
+                    yield File(path,
+                               mpistatWalker._make_stat(*stat),
+                               self._timestamp)
