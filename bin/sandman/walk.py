@@ -19,9 +19,13 @@ with this program. If not, see https://www.gnu.org/licenses/
 
 import os
 import gzip
+import stat
 from abc import ABCMeta, abstractmethod
 from dataclasses import dataclass, field
 
+import core.vault
+from api.vault import Vault, Branch
+from bin.common import idm
 from core import file, time, typing as T
 from core.utils import base64
 
@@ -33,6 +37,7 @@ _RESTAT_AFTER = time.delta(hours=int(os.getenv("RESTAT_AFTER", "36")))
 class File:
     """ Dataclass for walked files """
     path:T.Path
+    branch:T.Optional[Branch]
     _stat:os.stat_result
     _timestamp:T.DateTime = field(default_factory=time.now)
 
@@ -53,38 +58,51 @@ class File:
         return time.now() - mtime
 
 
-def _common_branches(dirs:T.Iterator[T.Path]) -> T.List[T.Path]:
+def _common_ancestors(dirs:T.Iterator[T.Path]) -> T.List[T.Path]:
     """
-    Strip any child subdirectories from within the given directories
+    Find the common ancestors of a collection of directories
 
     @param   dirs  Iterator of directory paths
     @return  List of common branch paths
     """
-    common:T.List[T.Path] = []
+    # By sorting the collection, we know that the first element is a
+    # common ancestor and all children follow ancestors. As such, we can
+    # simply iterate through the sorted collection checking for descent
+    # from the last known common ancestor; when this fails, we have
+    # found a new common ancestor and we continue the process.
+    first, *remainder = sorted(dirs)
+    common = [first]
 
-    for this in sorted(dirs):
-        if len(common) == 0:
-            common.append(this)
-            continue
-
+    for path in remainder:
         try:
-            _ = this.relative_to(common[-1])
+            _ = path.relative_to(common[-1])
         except ValueError:
-            common.append(this)
+            common.append(path)
 
     return common
 
 
-def _is_vault_file(path:T.Path) -> bool:
+class _PhysicalVaultFile:
     """
-    Check whether the given file is a Vault file; that is, not a file
-    that is tracked by Vault, but rather a file that is physically
-    present within a vault
+    Sentinel type to annotate files physically located within the
+    physical vault directories
+    """
+
+def _vault_branch(path:T.Path) -> T.Union[Branch, None, T.Type[_PhysicalVaultFile]]:
+    """
+    Determine a file's vault branch, if any
 
     @param   path  Path to file
-    @return  Predicate value
+    @return  Branch     if tracked by its respective vault
+             None       if not tracked by its respective vault
+             Sentinel   if within the physical vault directories
     """
-    raise NotImplementedError()
+    try:
+        vault = Vault(path, idm=idm)
+        return vault.branch(path)
+
+    except core.vault.exception.PhysicalVaultFile:
+        return _PhysicalVaultFile
 
 
 class _BaseWalker(metaclass=ABCMeta):
@@ -100,7 +118,7 @@ class _BaseWalker(metaclass=ABCMeta):
 
 
 class FilesystemWalker(_BaseWalker):
-    """ Walk the filesystem directly """
+    """ Walk the filesystem directly: Expensive, but accurate """
     _bases:T.List[T.Path]
 
     def __init__(self, *bases:T.Path) -> None:
@@ -111,7 +129,7 @@ class FilesystemWalker(_BaseWalker):
 
         @param  bases  Base paths
         """
-        self._bases = _common_branches(b for base in bases if (b := base.resolve()).is_dir())
+        self._bases = _common_ancestors(b for base in bases if (b := base.resolve()).is_dir())
         assert len(self._bases) > 0
 
     @staticmethod
@@ -121,8 +139,11 @@ class FilesystemWalker(_BaseWalker):
             if f.is_dir():
                 yield from FilesystemWalker._walk_tree(f)
 
-            elif file.is_regular(f) and not _is_vault_file(f):
-                yield File(f, f.stat())
+            # We only care about regular, non-physical vault files
+            elif file.is_regular(f) and \
+                 (branch := _vault_branch(f)) != _PhysicalVaultFile:
+
+                yield File(f, branch, f.stat())
 
     def files(self) -> T.Iterator[File]:
         for base in self._bases:
@@ -142,7 +163,7 @@ _NLINKS = 8
 _DEVICE = 9
 
 class mpistatWalker(_BaseWalker):
-    """ Walk an mpistat output file """
+    """ Walk an mpistat output file: Cheaper, but imprecise """
     _mpistat:T.Path
     _timestamp:T.DateTime
 
@@ -165,13 +186,13 @@ class mpistatWalker(_BaseWalker):
         self._mpistat = mpistat
         self._timestamp = time.epoch(mpistat.stat().st_mtime)
 
-        self._bases = _common_branches(b for base in bases if (b := base.resolve()).is_dir())
+        self._bases = _common_ancestors(b for base in bases if (b := base.resolve()).is_dir())
         self._prefixes = [mpistatWalker._base64_prefix(base) for base in self._bases]
         assert len(self._bases) > 0
 
     @staticmethod
     def _base64_prefix(path:T.Path) -> str:
-        # Find the common base64 prefix of a path to facilitate searching
+        # Find the common base64 prefix of a path to optimise searching
         bare    = base64.encode(path)
         slashed = base64.encode(f"{path}/")
 
@@ -179,7 +200,7 @@ class mpistatWalker(_BaseWalker):
             if lhs != rhs:
                 break
         else:
-            # If we reach the end, then bare is a prefix of slashed
+            # If we reach the end, then bare is a proper prefix of slashed
             i += 1
 
         return bare[:i]
@@ -191,42 +212,51 @@ class mpistatWalker(_BaseWalker):
                 # Only base64 decode if there's a potential match
                 decoded_path = T.Path(base64.decode(encoded_path).decode())
 
-                # Check we have an actual match
+                # Check if we have an actual match
                 for base in self._bases:
                     try:
                         _ = decoded_path.relative_to(base)
                         return decoded_path
                     except ValueError:
+                        # If decoded_path is not a child of base, then
+                        # rinse and repeat...
                         continue
 
-        # No match
+        # ...until no match
         return None
 
     @staticmethod
-    def _make_stat(*stat:str) -> os.stat_result():
+    def _make_stat(*stats:str) -> os.stat_result:
         """ Convert an mpistat record into an os.stat_result """
         # WARNING os.stat_result does not have a documented interface
-        assert len(stat) == 10
+        assert len(stats) == 10
         return os.stat_result((
-            0o100000,           # Mode: We only care about regular files
-            int(stat[_INODE]),  # inode ID
-            int(stat[_DEVICE]), # Device ID
-            int(stat[_NLINKS]), # Number of hardlinks
-            int(stat[_OWNER]),  # Owner ID
-            int(stat[_GROUP]),  # Group ID
-            int(stat[_SIZE]),   # Size
-            int(stat[_ATIME]),  # Last accessed time
-            int(stat[_MTIME]),  # Last modified time
-            int(stat[_CTIME])   # Last changed time
+            stat.S_IFREG,         # Mode: Regular file with null permissions
+            int(stats[_INODE]),   # inode ID
+            int(stats[_DEVICE]),  # Device ID
+            int(stats[_NLINKS]),  # Number of hardlinks
+            int(stats[_OWNER]),   # Owner ID
+            int(stats[_GROUP]),   # Group ID
+            int(stats[_SIZE]),    # Size
+            int(stats[_ATIME]),   # Last accessed time
+            int(stats[_MTIME]),   # Last modified time
+            int(stats[_CTIME])    # Last changed time
         ))
 
     def files(self) -> T.Iterator[File]:
         with gzip.open(self._mpistat, mode="rt") as mpistat:
+            # Strip excess whitespace and split each line by tabs
             while fields := mpistat.readline().strip().split("\t"):
-                encoded, *stat = fields
-                if stat[_MODE] == "f" \
-                   and (path := self._is_match(encoded)) is not None \
-                   and not _is_vault_file(path):
+                encoded, *stats = fields
+
+                # We only care about regular files that are in the
+                # vaults we are interested in (per the constructor), but
+                # not any physical vault files
+                if stats[_MODE] == "f" and \
+                   (path := self._is_match(encoded)) is not None and \
+                   (branch := _vault_branch(path)) != _PhysicalVaultFile:
+
                     yield File(path,
-                               mpistatWalker._make_stat(*stat),
+                               branch,
+                               mpistatWalker._make_stat(*stats),
                                self._timestamp)
