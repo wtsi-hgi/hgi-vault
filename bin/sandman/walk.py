@@ -105,7 +105,7 @@ def _vault_branch(path:T.Path) -> T.Union[Branch, None, T.Type[_PhysicalVaultFil
         return _PhysicalVaultFile
 
 
-class _BaseWalker(metaclass=ABCMeta):
+class BaseWalker(metaclass=ABCMeta):
     """ Abstract base class for file walkers """
     @abstractmethod
     def files(self) -> T.Iterator[File]:
@@ -117,7 +117,7 @@ class _BaseWalker(metaclass=ABCMeta):
         """
 
 
-class FilesystemWalker(_BaseWalker):
+class FilesystemWalker(BaseWalker):
     """ Walk the filesystem directly: Expensive, but accurate """
     _bases:T.List[T.Path]
 
@@ -162,7 +162,7 @@ _INODE  = 7
 _NLINKS = 8
 _DEVICE = 9
 
-class mpistatWalker(_BaseWalker):
+class mpistatWalker(BaseWalker):
     """ Walk an mpistat output file: Cheaper, but imprecise """
     _mpistat:T.Path
     _timestamp:T.DateTime

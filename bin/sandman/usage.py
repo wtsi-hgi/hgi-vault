@@ -41,6 +41,16 @@ def _parser_factory():
 
     top_level.add_argument("--version", action="version", version=f"%(prog)s {version.sandman}")
 
-    return top_level.parse_args
+    def parser(args:T.List[str]) -> argparse.Namespace:
+        parsed = top_level.parse_args(args)
+
+        if parsed.stats is not None:
+            parsed.stats = parsed.stats.resolve()
+
+        parsed.vaults = [path.resolve() for path in parsed.vaults]
+
+        return parsed
+
+    return parser
 
 parse_args = _parser_factory()
