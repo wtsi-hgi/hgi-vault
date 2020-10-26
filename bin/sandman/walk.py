@@ -30,6 +30,15 @@ from core import file, time, typing as T
 from core.utils import base64
 
 
+# Sentinel types to annotate exceptional vault file status
+# (We use the same exception types raised by vault for simplicity)
+_PhysicalVaultFile = core.vault.exception.PhysicalVaultFile
+_VaultCorruption = core.vault.exception.VaultCorruption
+
+# Downstream only cares about physical and corrupted vault files
+_VaultStatusT = T.Union[T.Optional[Branch], _PhysicalVaultFile, _VaultCorruption]
+
+
 # Automatic re-stat period
 _RESTAT_AFTER = time.delta(hours=int(os.getenv("RESTAT_AFTER", "36")))
 
@@ -37,7 +46,7 @@ _RESTAT_AFTER = time.delta(hours=int(os.getenv("RESTAT_AFTER", "36")))
 class File:
     """ Dataclass for walked files """
     path:T.Path
-    branch:T.Optional[Branch]
+    branch:_VaultStatusT
     _stat:os.stat_result
     _timestamp:T.DateTime = field(default_factory=time.now)
 
@@ -56,6 +65,23 @@ class File:
         """ The age of a file """
         mtime = time.epoch(self.stat.st_mtime)
         return time.now() - mtime
+
+
+def _vault_status(path:T.Path) -> _VaultStatusT:
+    """
+    Determine a file's vault branch/exceptional status, if any, for
+    downstream processing
+
+    @param   path  Path to file
+    @return  Branch/None   if tracked (or not) by its respective vault
+             Exception     if raises a Vault exception
+    """
+    try:
+        vault = Vault(path, idm=idm)
+        return vault.branch(path)
+
+    except (_PhysicalVaultFile, _VaultCorruption) as exc_status:
+        return exc_status
 
 
 def _common_ancestors(dirs:T.Iterator[T.Path]) -> T.List[T.Path]:
@@ -80,29 +106,6 @@ def _common_ancestors(dirs:T.Iterator[T.Path]) -> T.List[T.Path]:
             common.append(path)
 
     return common
-
-
-class _PhysicalVaultFile:
-    """
-    Sentinel type to annotate files physically located within the
-    physical vault directories
-    """
-
-def _vault_branch(path:T.Path) -> T.Union[Branch, None, T.Type[_PhysicalVaultFile]]:
-    """
-    Determine a file's vault branch, if any
-
-    @param   path  Path to file
-    @return  Branch     if tracked by its respective vault
-             None       if not tracked by its respective vault
-             Sentinel   if within the physical vault directories
-    """
-    try:
-        vault = Vault(path, idm=idm)
-        return vault.branch(path)
-
-    except core.vault.exception.PhysicalVaultFile:
-        return _PhysicalVaultFile
 
 
 class BaseWalker(metaclass=ABCMeta):
@@ -139,11 +142,9 @@ class FilesystemWalker(BaseWalker):
             if f.is_dir():
                 yield from FilesystemWalker._walk_tree(f)
 
-            # We only care about regular, non-physical vault files
-            elif file.is_regular(f) and \
-                 (branch := _vault_branch(f)) != _PhysicalVaultFile:
-
-                yield File(f, branch, f.stat())
+            # We only care about regular files
+            elif file.is_regular(f):
+                yield File(f, _vault_status(f), f.stat())
 
     def files(self) -> T.Iterator[File]:
         for base in self._bases:
@@ -250,13 +251,11 @@ class mpistatWalker(BaseWalker):
                 encoded, *stats = fields
 
                 # We only care about regular files that are in the
-                # vaults we are interested in (per the constructor), but
-                # not any physical vault files
+                # vaults we are interested in (per the constructor)
                 if stats[_MODE] == "f" and \
-                   (path := self._is_match(encoded)) is not None and \
-                   (branch := _vault_branch(path)) != _PhysicalVaultFile:
+                   (path := self._is_match(encoded)) is not None:
 
                     yield File(path,
-                               branch,
+                               _vault_status(path),
                                mpistatWalker._make_stat(*stats),
                                self._timestamp)
