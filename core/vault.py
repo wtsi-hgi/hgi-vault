@@ -56,6 +56,9 @@ class exception(T.SimpleNamespace):
     class VaultConflict(Exception):
         """ Raised whenever the vault conflicts with userland """
 
+    class NoSuchVault(Exception):
+        """ Raised whenever a vault doesn't exist where it's expected """
+
 
 class _BaseBranch(Enum):
     """ Base vault branch/namespace enumeration """

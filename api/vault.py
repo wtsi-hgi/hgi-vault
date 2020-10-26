@@ -305,7 +305,15 @@ class Vault(base.Vault, logging.base.LoggableMixin):
     _level     = logging.levels.default
     _formatter = logging.formats.with_username
 
-    def __init__(self, relative_to:T.Path, *, idm:IdM.base.IdentityManager) -> None:
+    def __init__(self, relative_to:T.Path, *, idm:IdM.base.IdentityManager, autocreate:bool = True) -> None:
+        """
+        Constructor
+
+        @param  relative_to  Location relative to Vault
+        @param  idm          Identity manager
+        @param  autocreate   Automatically create infrastructure if it
+                             doesn't exist, otherwise raise NoSuchVault
+        """
         self._idm = idm
 
         # NOTE self.root can only be set once
@@ -316,8 +324,12 @@ class Vault(base.Vault, logging.base.LoggableMixin):
         self.log.to_tty()
 
         with umask(_UMASK):
-            # Create vault, if it doesn't already exist
             if not self.location.is_dir():
+                # Fail if we're not autocreating
+                if not autocreate:
+                    raise exception.NoSuchVault(f"No vault contained in {root}")
+
+                # Create vault, if it doesn't already exist
                 try:
                     self.location.mkdir(_PERMS)
 

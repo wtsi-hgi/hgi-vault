@@ -23,41 +23,43 @@ import stat
 from abc import ABCMeta, abstractmethod
 from dataclasses import dataclass, field
 
-import core.vault
-from api.logging import log
+from api.logging import Loggable
 from api.vault import Vault, Branch
 from bin.common import idm
 from core import file, time, typing as T
 from core.utils import base64
+from core.vault import exception as VaultExc
 
 
-# Sentinel types to annotate exceptional vault file status
-# (We use the same exception types raised by vault for simplicity)
-_PhysicalVaultFile = core.vault.exception.PhysicalVaultFile
-_VaultCorruption = core.vault.exception.VaultCorruption
+# Automatic re-stat period (default: 36 hours)
+_RESTAT_AFTER = time.delta(hours=int(os.getenv("RESTAT_AFTER", "36")))
+
 
 # Downstream only cares about physical and corrupted vault files
-_VaultStatusT = T.Union[T.Optional[Branch], _PhysicalVaultFile, _VaultCorruption]
+# i.e., We use our vault exceptions as sentinel types
+_VaultStatusT = T.Union[T.Optional[Branch],
+                        VaultExc.PhysicalVaultFile,
+                        VaultExc.VaultCorruption]
 
-
-# Automatic re-stat period
-_RESTAT_AFTER = time.delta(hours=int(os.getenv("RESTAT_AFTER", "36")))
 
 @dataclass
 class File:
     """ Dataclass for walked files """
     path:T.Path
-    branch:_VaultStatusT
     _stat:os.stat_result
     _timestamp:T.DateTime = field(default_factory=time.now)
+
+    def restat(self) -> None:
+        """ Forcibly re-stat the file """
+        self._stat = self.path.stat()
+        self._timestamp = time.now()
 
     @property
     def stat(self) -> os.stat_result:
         """ The stat data of a file """
         # Re-stat the file if it's stale
         if time.now() - self._timestamp > _RESTAT_AFTER:
-            self._stat = self.path.stat()
-            self._timestamp = time.now()
+            self.restat()
 
         return self._stat
 
@@ -71,19 +73,19 @@ class File:
 # WARNING There can be pathological cases where a vault root is the
 # child of a different vault root; this may cause problems when
 # determining which vault a file that is a child of both belongs to...
-class BaseWalker(metaclass=ABCMeta):
+class BaseWalker(Loggable, metaclass=ABCMeta):
     """ Abstract base class for file walkers """
     @abstractmethod
-    def files(self) -> T.Iterator[File]:
+    def files(self) -> T.Iterator[T.Tuple[Vault, File, _VaultStatusT]]:
         """
         Walk the representation of a filesystem and generate files that
-        are found, with their stat information, outside of Vault files
+        are found, with their stat information, and corresponding vault
+        and vault status
 
-        @return  Generator of files
+        @return  Generator of Vault, file and status tuples
         """
 
-    @staticmethod
-    def _common_vaults(paths:T.Iterator[T.Path]) -> T.Set[Vault]:
+    def _common_vaults(self, paths:T.Iterator[T.Path]) -> T.Set[Vault]:
         """
         Find the common vaults covering a collection of paths
 
@@ -94,12 +96,13 @@ class BaseWalker(metaclass=ABCMeta):
 
         for path in paths:
             try:
-                vaults.add(Vault(path, idm=idm))
-            except core.vault.exception.VaultConflict as e:
-                log.warning(f"Skipping {path}: {e}")
+                vaults.add(Vault(path, idm=idm, autocreate=False))
+            except (VaultExc.VaultConflict, VaultExc.NoSuchVault) as e:
+                self.log.warning(f"Skipping {path}: {e}")
 
         return vaults
 
+    @staticmethod
     def _vault_status(vault:Vault, path:T.Path) -> _VaultStatusT:
         """
         Determine a file's vault branch/exceptional status, if any, for
@@ -113,7 +116,7 @@ class BaseWalker(metaclass=ABCMeta):
         try:
             return vault.branch(path)
 
-        except (_PhysicalVaultFile, _VaultCorruption) as exc_status:
+        except (VaultExc.PhysicalVaultFile, VaultExc.VaultCorruption) as exc_status:
             return exc_status
 
 
@@ -129,11 +132,11 @@ class FilesystemWalker(BaseWalker):
 
         @param  bases  Base paths
         """
-        self._vaults = FilesystemWalker._common_vaults(base for base in bases)
+        self._vaults = self._common_vaults(base for base in bases)
         assert len(self._vaults) > 0
 
     @staticmethod
-    def _walk_tree(path:T.Path, vault:Vault) -> T.Iterator[File]:
+    def _walk_tree(path:T.Path, vault:Vault) -> T.Iterator[T.Tuple[Vault, File, _VaultStatusT]]:
         # Recursively walk the tree from the given path
         for f in path.iterdir():
             if f.is_dir():
@@ -141,9 +144,11 @@ class FilesystemWalker(BaseWalker):
 
             # We only care about regular files
             elif file.is_regular(f):
-                yield File(f, FilesystemWalker._vault_status(vault, f), f.stat())
+                yield vault, \
+                      File(f, f.stat()), \
+                      FilesystemWalker._vault_status(vault, f)
 
-    def files(self) -> T.Iterator[File]:
+    def files(self) -> T.Iterator[T.Tuple[Vault, File, _VaultStatusT]]:
         for vault in self._vaults:
             yield from FilesystemWalker._walk_tree(vault.root, vault)
 
@@ -183,9 +188,13 @@ class mpistatWalker(BaseWalker):
         self._mpistat = mpistat
         self._timestamp = time.epoch(mpistat.stat().st_mtime)
 
+        # Log a warning if forcible restat'ing is going to happen
+        if time.now() - self._timestamp > _RESTAT_AFTER:
+            self.log.warning(f"mpistat file is out of date; files will be forcibly restat'ed")
+
         self._vaults = {
             mpistatWalker._base64_prefix(vault.root): vault
-            for vault in mpistatWalker._common_vaults(base for base in bases)
+            for vault in self._common_vaults(base for base in bases)
         }
         assert len(self._vaults) > 0
 
@@ -241,7 +250,7 @@ class mpistatWalker(BaseWalker):
             int(stats[_CTIME])    # Last changed time
         ))
 
-    def files(self) -> T.Iterator[File]:
+    def files(self) -> T.Iterator[T.Tuple[Vault, File, _VaultStatusT]]:
         with gzip.open(self._mpistat, mode="rt") as mpistat:
             # Strip excess whitespace and split each line by tabs
             while fields := mpistat.readline().strip().split("\t"):
@@ -253,7 +262,6 @@ class mpistatWalker(BaseWalker):
                    (match := self._is_match(encoded)) is not None:
 
                     vault, path = match
-                    yield File(path,
-                               mpistatWalker._vault_status(vault, path),
-                               mpistatWalker._make_stat(*stats),
-                               self._timestamp)
+                    yield vault, \
+                          File(path, mpistatWalker._make_stat(*stats), self._timestamp), \
+                          mpistatWalker._vault_status(vault, path)
