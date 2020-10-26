@@ -24,6 +24,7 @@ from abc import ABCMeta, abstractmethod
 from dataclasses import dataclass, field
 
 import core.vault
+from api.logging import log
 from api.vault import Vault, Branch
 from bin.common import idm
 from core import file, time, typing as T
@@ -67,47 +68,9 @@ class File:
         return time.now() - mtime
 
 
-def _vault_status(path:T.Path) -> _VaultStatusT:
-    """
-    Determine a file's vault branch/exceptional status, if any, for
-    downstream processing
-
-    @param   path  Path to file
-    @return  Branch/None   if tracked (or not) by its respective vault
-             Exception     if raises a Vault exception
-    """
-    try:
-        vault = Vault(path, idm=idm)
-        return vault.branch(path)
-
-    except (_PhysicalVaultFile, _VaultCorruption) as exc_status:
-        return exc_status
-
-
-def _common_ancestors(dirs:T.Iterator[T.Path]) -> T.List[T.Path]:
-    """
-    Find the common ancestors of a collection of directories
-
-    @param   dirs  Iterator of directory paths
-    @return  List of common branch paths
-    """
-    # By sorting the collection, we know that the first element is a
-    # common ancestor and all children follow ancestors. As such, we can
-    # simply iterate through the sorted collection checking for descent
-    # from the last known common ancestor; when this fails, we have
-    # found a new common ancestor and we continue the process.
-    first, *remainder = sorted(dirs)
-    common = [first]
-
-    for path in remainder:
-        try:
-            _ = path.relative_to(common[-1])
-        except ValueError:
-            common.append(path)
-
-    return common
-
-
+# WARNING There can be pathological cases where a vault root is the
+# child of a different vault root; this may cause problems when
+# determining which vault a file that is a child of both belongs to...
 class BaseWalker(metaclass=ABCMeta):
     """ Abstract base class for file walkers """
     @abstractmethod
@@ -119,10 +82,44 @@ class BaseWalker(metaclass=ABCMeta):
         @return  Generator of files
         """
 
+    @staticmethod
+    def _common_vaults(paths:T.Iterator[T.Path]) -> T.Set[Vault]:
+        """
+        Find the common vaults covering a collection of paths
+
+        @param   paths  Iterator of paths
+        @return  Set of common vault root paths
+        """
+        vaults = set()
+
+        for path in paths:
+            try:
+                vaults.add(Vault(path, idm=idm))
+            except core.vault.exception.VaultConflict as e:
+                log.warning(f"Skipping {path}: {e}")
+
+        return vaults
+
+    def _vault_status(vault:Vault, path:T.Path) -> _VaultStatusT:
+        """
+        Determine a file's vault branch/exceptional status, if any, for
+        downstream processing
+
+        @param   vault  Vault
+        @param   path    Path to file
+        @return  Branch/None if tracked (or not) by its respective vault
+                 Caught exception if a Vault exception is raised
+        """
+        try:
+            return vault.branch(path)
+
+        except (_PhysicalVaultFile, _VaultCorruption) as exc_status:
+            return exc_status
+
 
 class FilesystemWalker(BaseWalker):
     """ Walk the filesystem directly: Expensive, but accurate """
-    _bases:T.List[T.Path]
+    _vaults:T.Set[Vault]
 
     def __init__(self, *bases:T.Path) -> None:
         """
@@ -132,23 +129,23 @@ class FilesystemWalker(BaseWalker):
 
         @param  bases  Base paths
         """
-        self._bases = _common_ancestors(b for base in bases if (b := base.resolve()).is_dir())
-        assert len(self._bases) > 0
+        self._vaults = FilesystemWalker._common_vaults(base for base in bases)
+        assert len(self._vaults) > 0
 
     @staticmethod
-    def _walk_tree(path:T.Path) -> T.Iterator[File]:
+    def _walk_tree(path:T.Path, vault:Vault) -> T.Iterator[File]:
         # Recursively walk the tree from the given path
         for f in path.iterdir():
             if f.is_dir():
-                yield from FilesystemWalker._walk_tree(f)
+                yield from FilesystemWalker._walk_tree(f, vault)
 
             # We only care about regular files
             elif file.is_regular(f):
-                yield File(f, _vault_status(f), f.stat())
+                yield File(f, FilesystemWalker._vault_status(vault, f), f.stat())
 
     def files(self) -> T.Iterator[File]:
-        for base in self._bases:
-            yield from FilesystemWalker._walk_tree(base)
+        for vault in self._vaults:
+            yield from FilesystemWalker._walk_tree(vault.root, vault)
 
 
 # mpistat field indices
@@ -168,8 +165,7 @@ class mpistatWalker(BaseWalker):
     _mpistat:T.Path
     _timestamp:T.DateTime
 
-    _bases:T.List[T.Path]
-    _prefixes:T.List[str]
+    _vaults:T.Dict[str, Vault]
 
     def __init__(self, mpistat:T.Path, *bases:T.Path) -> None:
         """
@@ -187,9 +183,11 @@ class mpistatWalker(BaseWalker):
         self._mpistat = mpistat
         self._timestamp = time.epoch(mpistat.stat().st_mtime)
 
-        self._bases = _common_ancestors(b for base in bases if (b := base.resolve()).is_dir())
-        self._prefixes = [mpistatWalker._base64_prefix(base) for base in self._bases]
-        assert len(self._bases) > 0
+        self._vaults = {
+            mpistatWalker._base64_prefix(vault.root): vault
+            for vault in mpistatWalker._common_vaults(base for base in bases)
+        }
+        assert len(self._vaults) > 0
 
     @staticmethod
     def _base64_prefix(path:T.Path) -> str:
@@ -206,22 +204,21 @@ class mpistatWalker(BaseWalker):
 
         return bare[:i]
 
-    def _is_match(self, encoded_path:str) -> T.Optional[T.Path]:
-        """ Check that an encoded path is under one of our bases """
-        for prefix in self._prefixes:
+    def _is_match(self, encoded_path:str) -> T.Optional[T.Tuple[Vault, T.Path]]:
+        """ Check that an encoded path is in one of our vaults """
+        for prefix, vault in self._vaults.items():
             if encoded_path.startswith(prefix):
                 # Only base64 decode if there's a potential match
                 decoded_path = T.Path(base64.decode(encoded_path).decode())
 
                 # Check if we have an actual match
-                for base in self._bases:
-                    try:
-                        _ = decoded_path.relative_to(base)
-                        return decoded_path
-                    except ValueError:
-                        # If decoded_path is not a child of base, then
-                        # rinse and repeat...
-                        continue
+                try:
+                    _ = decoded_path.relative_to(vault.root)
+                    return vault, decoded_path
+                except ValueError:
+                    # If decoded_path is not a child of the vault
+                    # root, then rinse and repeat...
+                    continue
 
         # ...until no match
         return None
@@ -253,9 +250,10 @@ class mpistatWalker(BaseWalker):
                 # We only care about regular files that are in the
                 # vaults we are interested in (per the constructor)
                 if stats[_MODE] == "f" and \
-                   (path := self._is_match(encoded)) is not None:
+                   (match := self._is_match(encoded)) is not None:
 
+                    vault, path = match
                     yield File(path,
-                               _vault_status(path),
+                               mpistatWalker._vault_status(vault, path),
                                mpistatWalker._make_stat(*stats),
                                self._timestamp)
