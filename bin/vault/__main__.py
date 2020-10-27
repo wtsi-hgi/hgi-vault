@@ -115,7 +115,7 @@ _action_to_branch = {
     "archive": Branch.Archive
 }
 
-def main(argv:T.List[str] = sys.argv):
+def main(argv:T.List[str] = sys.argv) -> None:
     args = usage.parse_args(argv[1:])
 
     if args.action in ["keep", "archive"]:

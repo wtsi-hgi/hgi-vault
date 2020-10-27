@@ -49,6 +49,9 @@ class File:
     _stat:os.stat_result
     _timestamp:T.DateTime = field(default_factory=time.now)
 
+    def __str__(self) -> str:
+        return str(self.path)
+
     def restat(self) -> None:
         """ Forcibly re-stat the file """
         self._stat = self.path.stat()

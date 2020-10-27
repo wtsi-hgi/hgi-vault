@@ -23,11 +23,11 @@ from api.logging import log
 from core import typing as T
 from . import usage
 from .walk import FilesystemWalker, mpistatWalker
-from .sweep import sweep
+from .sweep import Sweeper
 from .drain import drain
 
 
-def main(argv:T.List[str] = sys.argv):
+def main(argv:T.List[str] = sys.argv) -> None:
     args = usage.parse_args(argv[1:])
 
     log.info("Enter Sandman")
@@ -35,6 +35,7 @@ def main(argv:T.List[str] = sys.argv):
         log.info("Dry Run: The filesystem will not be affected "
                  "and the drain phase will not run")
 
+    # Sweep Phase
     log.info("Starting the sweep phase")
 
     if args.stats is not None:
@@ -43,12 +44,13 @@ def main(argv:T.List[str] = sys.argv):
         walker = mpistatWalker(args.stats, *args.vaults)
 
     else:
-        log.info(f"Walking the filesystem directly")
+        log.info("Walking the filesystem directly")
         log.warning("This is an expensive operation")
         walker = FilesystemWalker(*args.vaults)
 
-    sweep(walker, dry_run=args.dry_run)
+    Sweeper(walker, args.dry_run)
 
+    # Drain Phase
     if not args.dry_run:
         log.info("Starting the drain phase")
         drain(force=args.force_drain)
