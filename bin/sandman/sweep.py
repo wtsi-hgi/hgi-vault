@@ -44,6 +44,7 @@ def _to_persistence(file:walk.File, vault_key:T.Optional[T.Path] = None) -> mode
     @param   vault_key  Vault key path (if known)
     @return  Persistence file
     """
+    # NOTE Do the conversion before any file operation (e.g., deletion)
     stat = file.stat
     return models.File(device = stat.st_dev,
                        inode  = stat.st_ino,
@@ -137,11 +138,12 @@ class Sweeper(Loggable):
         3. Are not staged, but have only 1 hardlink each
 
         1. and 2. should never happen during normal operation; while 3.
-        can happen and is corrected by the physical vault file handler
-        (above). Either way, we cannot distinguish amongst these cases
-        here, so all we can realistically do is log it and move on.
+        can happen, it would be impossible to detect from this direction
+        and, instead, is corrected by the physical vault file handler
+        (above). As such, as we cannot distinguish amongst these cases,
+        all we can realistically do is log it here and move on.
         """
-        self.log.warning(f"Corruption detected: {status}")
+        self.log.error(f"Corruption detected: {status}")
 
     ####################################################################
 

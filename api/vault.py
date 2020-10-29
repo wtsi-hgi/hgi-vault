@@ -170,6 +170,7 @@ class VaultFile(base.VaultFile):
             single_hardlink = file.hardlinks(self.path) == 1
 
             if not staged and single_hardlink:
+                # NOTE This is not physically possible
                 raise exception.VaultCorruption(f"The vault in {vault.root} contains {self.source}, but this no longer exists outside the vault")
 
             if staged and not single_hardlink:

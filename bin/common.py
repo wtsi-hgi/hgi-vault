@@ -42,4 +42,6 @@ except (config.exception.ConfigurationNotFound,
 
 
 # Common identity manager
+# NOTE This is mutable global state...which is not cool, but "should be
+# fine"™ provided we maintain serial execution
 idm = IdentityManager(config.identity)
