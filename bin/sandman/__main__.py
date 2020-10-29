@@ -20,6 +20,8 @@ with this program. If not, see https://www.gnu.org/licenses/
 import sys
 
 from api.logging import log
+from api.persistence import Persistence
+from bin.common import config, idm
 from core import typing as T
 from . import usage
 from .walk import FilesystemWalker, mpistatWalker
@@ -35,6 +37,8 @@ def main(argv:T.List[str] = sys.argv) -> None:
         log.info("Dry Run: The filesystem will not be affected "
                  "and the drain phase will not run")
 
+    persistence = Persistence(config.persistence, idm)
+
     # Sweep Phase
     log.info("Starting the sweep phase")
 
@@ -48,7 +52,7 @@ def main(argv:T.List[str] = sys.argv) -> None:
         log.warning("This is an expensive operation")
         walker = FilesystemWalker(*args.vaults)
 
-    Sweeper(walker, args.dry_run)
+    Sweeper(walker, persistence, args.dry_run)
 
     # Drain Phase
     if not args.dry_run:
