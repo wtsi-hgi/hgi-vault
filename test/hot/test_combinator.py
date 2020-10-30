@@ -19,7 +19,6 @@ with this program. If not, see https://www.gnu.org/licenses/
 
 import unittest
 
-
 from hot.combinator import agreed, exception
 
 
