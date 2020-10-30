@@ -28,32 +28,11 @@ with this program. If not, see https://www.gnu.org/licenses/
 from functools import singledispatchmethod
 
 from api.logging import Loggable
-from api.persistence import models
 from api.vault import Vault, Branch
-from bin.common import idm
-from core import persistence, time, typing as T
+from core import persistence
+from core.file import hardlinks
 from core.vault import exception as VaultExc
 from . import walk
-
-
-def _to_persistence(file:walk.File, vault_key:T.Optional[T.Path] = None) -> models.File:
-    """
-    Convert a walker file model into a persistence file model
-
-    @param   file       Walker file
-    @param   vault_key  Vault key path (if known)
-    @return  Persistence file
-    """
-    # NOTE Do the conversion before any file operation (e.g., deletion)
-    stat = file.stat
-    return models.File(device = stat.st_dev,
-                       inode  = stat.st_ino,
-                       path   = file.path,
-                       key    = vault_key,
-                       mtime  = time.epoch(stat.st_mtime),
-                       owner  = idm.user(uid=stat.st_uid),
-                       group  = idm.group(gid=stat.st_gid),
-                       size   = stat.st_size)
 
 
 class Sweeper(Loggable):
@@ -118,7 +97,7 @@ class Sweeper(Loggable):
                 # File is not in the current branch
                 continue
 
-            if file.stat.st_nlink == 1:
+            if hardlinks(file.path) == 1:
                 log.warning(f"Corruption detected: Physical vault file {file.path} does not link to any source")
                 if self.Yes_I_Really_Mean_It_This_Time:
                     # DELETION WARNING

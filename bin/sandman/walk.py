@@ -17,13 +17,15 @@ You should have received a copy of the GNU General Public License along
 with this program. If not, see https://www.gnu.org/licenses/
 """
 
+from __future__ import annotations
+
 import os
 import gzip
 import stat
 from abc import ABCMeta, abstractmethod
-from dataclasses import dataclass, field
 
 from api.logging import Loggable
+from api.persistence import models
 from api.vault import Vault, Branch
 from bin.common import idm
 from core import file, time, typing as T
@@ -42,35 +44,69 @@ _VaultStatusT = T.Union[T.Optional[Branch],
                         VaultExc.VaultCorruption]
 
 
-@dataclass
-class File:
-    """ Dataclass for walked files """
-    path:T.Path
-    _stat:os.stat_result
-    _timestamp:T.DateTime = field(default_factory=time.now)
+class File(file.BaseFile):
+    """ Walked file model (wrapper around persistence file model) """
+    _file:models.File
+    _timestamp:T.DateTime
+
+    def __init__(self, file:models.File, timestamp:T.Optional[T.DateTime] = None) -> None:
+        """ Construct from filesystem """
+        self._file = file
+        self._timestamp = timestamp or time.now()
+
+    @classmethod
+    def FromFS(cls, path:T.Path) -> File:
+        """ Construct from filesystem """
+        return cls(models.File.FromFS(path, idm))
+
+    @classmethod
+    def FromStat(cls, path:T.Path, stat:os.stat_result, timestamp:T.DateTime) -> File:
+        """ Construct from explicit stat data """
+        file = models.File(device = stat.st_dev,
+                           inode  = stat.st_ino,
+                           path   = path,
+                           key    = None,
+                           mtime  = time.epoch(stat.st_mtime),
+                           owner  = idm.user(uid=stat.st_uid),
+                           group  = idm.group(gid=stat.st_gid),
+                           size   = stat.st_size)
+
+        return cls(file, timestamp)
 
     def __str__(self) -> str:
         return str(self.path)
 
-    def restat(self) -> None:
-        """ Forcibly re-stat the file """
-        self._stat = self.path.stat()
-        self._timestamp = time.now()
-
     @property
-    def stat(self) -> os.stat_result:
-        """ The stat data of a file """
-        # Re-stat the file if it's stale
-        if time.now() - self._timestamp > _RESTAT_AFTER:
-            self.restat()
-
-        return self._stat
+    def path(self) -> T.Path:
+        return self._file.path
 
     @property
     def age(self) -> T.TimeDelta:
-        """ The age of a file """
-        mtime = time.epoch(self.stat.st_mtime)
-        return time.now() - mtime
+        self.restat()
+        return time.now() - self._file.mtime
+
+    def restat(self, *, force:bool = False) -> None:
+        """ Forcibly restat the file if it's stale """
+        # NOTE We backup and restore the key value because it's set to
+        # None in the constructor with no way to override it
+        if force or time.now() - self._timestamp > _RESTAT_AFTER:
+            key = self._file.key
+            self._file = models.File.FromFS(self.path, idm)
+            self._file.key = key
+
+            self._timestamp = time.now()
+
+    def to_persistence(self, vault_key:T.Optional[T.Path] = None) -> models.File:
+        """
+        Extract (and restat, if necessary) the persistence file model
+
+        @param   vault_key  Vault key path (if known)
+        @return  Persistence file
+        """
+        self.restat()
+        file = self._file
+        file.key = vault_key
+        return file
 
 
 # WARNING There can be pathological cases where a vault root is the
@@ -148,7 +184,7 @@ class FilesystemWalker(BaseWalker):
             # We only care about regular files
             elif file.is_regular(f):
                 yield vault, \
-                      File(f, f.stat()), \
+                      File.FromFS(f), \
                       FilesystemWalker._vault_status(vault, f)
 
     def files(self) -> T.Iterator[T.Tuple[Vault, File, _VaultStatusT]]:
@@ -266,5 +302,5 @@ class mpistatWalker(BaseWalker):
 
                     vault, path = match
                     yield vault, \
-                          File(path, mpistatWalker._make_stat(*stats), self._timestamp), \
+                          File.FromStat(path, mpistatWalker._make_stat(*stats), self._timestamp), \
                           mpistatWalker._vault_status(vault, path)

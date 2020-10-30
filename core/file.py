@@ -17,7 +17,22 @@ You should have received a copy of the GNU General Public License along
 with this program. If not, see https://www.gnu.org/licenses/
 """
 
+from abc import ABCMeta, abstractmethod
+
 from . import typing as T
+
+
+class BaseFile(metaclass=ABCMeta):
+    """ Base class for files """
+    @property
+    @abstractmethod
+    def path(self) -> T.Path:
+        """ Return the path of the file """
+
+    @property
+    @abstractmethod
+    def age(self) -> T.TimeDelta:
+        """ Return the age of the file """
 
 
 def cwd() -> T.Path:
