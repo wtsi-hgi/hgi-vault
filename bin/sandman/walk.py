@@ -20,6 +20,7 @@ with this program. If not, see https://www.gnu.org/licenses/
 from __future__ import annotations
 
 import os
+import fcntl
 import gzip
 import stat
 from abc import ABCMeta, abstractmethod
@@ -84,6 +85,22 @@ class File(file.BaseFile):
     def age(self) -> T.TimeDelta:
         self.restat()
         return time.now() - self._file.mtime
+
+    @property
+    def locked(self) -> bool:
+        """ Check the file is locked by the filesystem """
+        # NOTE This is intended to detect files that are currently in
+        # use, so we don't pull them out from under whatever process was
+        # reading/writing them. In practice, it checks on advisory locks
+        # which anecdotally aren't used much, making it redundant :P
+        with self.path.open() as fd:
+            try:
+                fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+                fcntl.flock(fd, fcntl.LOCK_UN)
+                return False
+
+            except OSError:
+                return True
 
     def restat(self, *, force:bool = False) -> None:
         """ Forcibly restat the file if it's stale """
