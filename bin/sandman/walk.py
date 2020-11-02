@@ -113,16 +113,16 @@ class File(file.BaseFile):
 
             self._timestamp = time.now()
 
-    def to_persistence(self, vault_key:T.Optional[T.Path] = None) -> models.File:
+    def to_persistence(self, *, key:T.Optional[T.Path] = None) -> models.File:
         """
         Extract (and restat, if necessary) the persistence file model
 
-        @param   vault_key  Vault key path (if known)
+        @param   key  Vault key path (if known)
         @return  Persistence file
         """
         self.restat()
         file = self._file
-        file.key = vault_key
+        file.key = key
         return file
 
 

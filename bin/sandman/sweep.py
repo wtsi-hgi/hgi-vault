@@ -28,6 +28,7 @@ with this program. If not, see https://www.gnu.org/licenses/
 from functools import singledispatchmethod
 
 from api.logging import Loggable
+from api.persistence.models import State
 from api.vault import Vault, Branch
 from core import persistence
 from core.file import hardlinks
@@ -49,6 +50,10 @@ class Sweeper(Loggable):
         # Run the phase steps
         self.sweep()
         self.notify()
+
+    def persist(self, file:persistence.base.File, state:persistence.base.State) -> None:
+        """ Convenience alias """
+        self._persistence.persist(file, state)
 
     def sweep(self) -> None:
         """ Walk the files and pass them off to be handled """
@@ -127,13 +132,41 @@ class Sweeper(Loggable):
     ####################################################################
 
     @_handler.register
-    def _(self, status:None, vault, file):
-        """ Handle files that are not tracked by the vault """
-        # TODO
+    def _(self, status:Branch, vault, file):
+        """
+        Handle files that are tracked by the vault
+
+        We only care about files that exist in the Archive branch;
+        everything else can be skipped over
+        """
+        log = self.log
+        log.debug(f"{file.path} is in the {status} branch of the vault in {vault.root}")
+
+        if status == Branch.Archive:
+            if file.locked:
+                log.info(f"Skipping: {file.path} is marked for archival, but is locked by another process")
+                return
+
+            log.info(f"Staging {file.path} for archival")
+
+            if self.Yes_I_Really_Mean_It_This_Time:
+                # 1. Move the file to the staging branch
+                staged = vault.add(Branch.Staged, file.path)
+
+                # 2. Persist to database
+                to_persist = file.to_persistence(key=staged.path)
+                self.persist(to_persist, State.Staged(notified=False))
+
+                # 3. Delete source
+                # DELETION WARNING
+                assert hardlinks(file.path) > 1
+                file.path.unlink()
+
+                log.info(f"{file.path} has been staged for archival")
 
     ####################################################################
 
     @_handler.register
-    def _(self, status:Branch, vault, file):
-        """ Handle files that are tracked by the vault """
+    def _(self, status:None, vault, file):
+        """ Handle files that are not tracked by the vault """
         # TODO
