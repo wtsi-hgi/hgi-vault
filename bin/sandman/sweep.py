@@ -30,10 +30,20 @@ from functools import singledispatchmethod
 from api.logging import Loggable
 from api.persistence.models import State
 from api.vault import Vault, Branch
+from bin.common import config
 from core import persistence
 from core.file import hardlinks
 from core.vault import exception as VaultExc
+from hot import ch12, an12, gn5, pa11
+from hot.combinator import agreed
 from . import walk
+
+
+# Hot code implementations
+_hot = agreed(*(m.can_delete for m in (ch12, an12, gn5, pa11)))
+
+def _can_delete(file:walk.File) -> bool:
+    return _hot(file, config.deletion.threshold)
 
 
 class Sweeper(Loggable):
@@ -105,8 +115,7 @@ class Sweeper(Loggable):
             if hardlinks(file.path) == 1:
                 log.warning(f"Corruption detected: Physical vault file {file.path} does not link to any source")
                 if self.Yes_I_Really_Mean_It_This_Time:
-                    # DELETION WARNING
-                    file.path.unlink()
+                    file.path.unlink()  # DELETION WARNING
                     log.info(f"Corruption corrected: {file.path} deleted")
 
     ####################################################################
@@ -158,9 +167,8 @@ class Sweeper(Loggable):
                 self.persist(to_persist, State.Staged(notified=False))
 
                 # 3. Delete source
-                # DELETION WARNING
                 assert hardlinks(file.path) > 1
-                file.path.unlink()
+                file.path.unlink()  # DELETION WARNING
 
                 log.info(f"{file.path} has been staged for archival")
 
@@ -168,5 +176,41 @@ class Sweeper(Loggable):
 
     @_handler.register
     def _(self, status:None, vault, file):
-        """ Handle files that are not tracked by the vault """
-        # TODO
+        """
+        Handle files that are not tracked by the vault
+
+        Untracked files that exceed the deletion threshold are deleted;
+        otherwise warning notifications are raised if their ages exceed
+        warning thresholds
+        """
+        log = self.log
+        log.debug(f"{file.path} is untracked")
+
+        if _can_delete(file):
+            if file.locked:
+                log.info(f"Skipping: {file.path} has passed the deletion threshold, but is locked by another process")
+                return
+
+            log.info(f"Deleting: {file.path} has passed the deletion threshold")
+            if self.Yes_I_Really_Mean_It_This_Time:
+                # 0. Instantiate the persisted file model before it's
+                #    deleted so we don't lose its stat information
+                to_persist = file.to_persistence()
+
+                # 1. Delete file
+                file.path.unlink()  # DELETION WARNING
+                log.info(f"Deleted {file.path}")
+
+                # 2. Persist to database
+                self.persist(to_persist, State.Deleted(notified=False))
+
+        elif self.Yes_I_Really_Mean_It_This_Time:
+            # Determine passed checkpoints, if any
+            until_delete = config.deletion.threshold - file.age
+            checkpoints = [t for t in config.deletion.warnings if t > until_delete]
+
+            # Persist warnings for passed checkpoints
+            if len(checkpoints) > 0:
+                to_persist = file.to_persistence()
+                for tminus in checkpoints:
+                    self.persist(to_persist, State.Warned(notified=False, tminus=tminus))
