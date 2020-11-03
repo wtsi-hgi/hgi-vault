@@ -20,7 +20,7 @@ with this program. If not, see https://www.gnu.org/licenses/
 def can_delete(file, threshold):
     file_lifespan = (file.age.days * 24 * 60 * 60) + file.age.seconds
     threshold_lifespan = (threshold.days * 24 * 60 * 60) + threshold.seconds
-    print(file_lifespan)
+
     if file_lifespan >= threshold_lifespan:
         return True
     else:
