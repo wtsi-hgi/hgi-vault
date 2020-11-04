@@ -25,14 +25,18 @@ with this program. If not, see https://www.gnu.org/licenses/
         ########################################################
 
 
+from contextlib import ExitStack
 from functools import singledispatchmethod
 
+import core.persistence
 from api.logging import Loggable
-from api.persistence.models import State
+from api.mail import Postman, NotificationEMail, GZippedFOFN
+from api.persistence.models import FileCollection, State
 from api.vault import Vault, Branch
 from bin.common import config
-from core import persistence
+from core import time, typing as T
 from core.file import hardlinks
+from core.persistence import Filter
 from core.vault import exception as VaultExc
 from hot import ch12, an12, gn5, pa11
 from hot.combinator import agreed
@@ -49,21 +53,23 @@ def _can_delete(file:walk.File) -> bool:
 class Sweeper(Loggable):
     """ Encapsulation of the sweep phase """
     _walker:walk.BaseWalker
-    _persistence:persistence.base.Persistence
+    _persistence:core.persistence.base.Persistence
     _dry_run:bool
 
-    def __init__(self, walker:walk.BaseWalker, persistence:persistence.base.Persistence, dry_run:bool) -> None:
+    def __init__(self, walker:walk.BaseWalker, persistence:core.persistence.base.Persistence, dry_run:bool) -> None:
         self._walker = walker
         self._persistence = persistence
         self._dry_run = dry_run
 
         # Run the phase steps
         self.sweep()
-        self.notify()
+        if self.Yes_I_Really_Mean_It_This_Time:
+            self.notify()
 
-    def persist(self, file:persistence.base.File, state:persistence.base.State) -> None:
-        """ Convenience alias """
-        self._persistence.persist(file, state)
+    @property
+    def Yes_I_Really_Mean_It_This_Time(self) -> bool:
+        # Solemnisation :)
+        return not self._dry_run
 
     def sweep(self) -> None:
         """ Walk the files and pass them off to be handled """
@@ -71,13 +77,65 @@ class Sweeper(Loggable):
             self._handler(status, vault, file)
 
     def notify(self) -> None:
-        """ E-mail stakeholders and output summary """
-        # TODO
+        """ E-mail stakeholders """
+        log = self._log
+        postman = Postman(config.email)
 
-    @property
-    def Yes_I_Really_Mean_It_This_Time(self) -> bool:
-        # Solemnisation :)
-        return not self._dry_run
+        # Create and send the e-mail for each stakeholder
+        for stakeholder in self._persistence.stakeholders:
+            log.debug(f"Creating e-mail for UID {stakeholder.uid}")
+
+            with ExitStack() as stack:
+                # For convenience
+                def _files(state:T.Type[core.persistence.base.State], **kwargs) -> FileCollection.User:
+                    """
+                    Filtered file factory for the current stakeholder in
+                    this context management stack with the given state
+                    """
+                    state_args = {"notified": False, **kwargs}
+                    criteria = Filter(state=state(**state_args), stakeholder=stakeholder)
+                    return stack.enter_context(self._persistence.files(criteria))
+
+                # Deleted and Staged files that require notification
+                attachments = {
+                    "deleted": _files(State.Deleted),
+                    "staged":  _files(State.Staged)
+                }
+
+                # Convenience aliases for e-mail constructor
+                deleted = attachments["deleted"].accumulator
+                staged  = attachments["staged"].accumulator
+                warned  = []
+
+                # Warned files that require notification
+                for tminus in config.deletion.warnings:
+                    to_warn = _files(State.Warned, tminus=tminus)
+
+                    hours = int(time.seconds(tminus) / 3600)
+                    attachments[f"delete-{hours}"] = to_warn
+                    warned.append((tminus, to_warn.accumulator))
+
+                # Construct e-mail and add non-trivial attachments
+                mail = NotificationEMail(stakeholder, deleted, staged, warned)
+                for filename, files in attachments.items():
+                    if len(files) > 0:
+                        mail += GZippedFOFN(f"{filename}.fofn.gz",
+                                            [file.path for file in files])
+
+                postman.send(mail, stakeholder)
+                log.info(f"Sent summary e-mail to {stakeholder.name} ({stakeholder.email})")
+
+        # TODO? The design states that an overall summary should be
+        # logged at the end of the notification step and output to the
+        # log stream. The current implementation doesn't allow for that
+        # because notifications are grouped by user and multiple users
+        # can be stakeholders of the same file (i.e., we can't simply
+        # add up the summaries for each user and present them at the
+        # end, because that will double count). For the same reason, we
+        # don't log the summary for each user, either; it would be
+        # confusing. However, is it right to log no summary whatsoever?
+        # Given that the details are logged by the sweep handlers, then
+        # for now the answer is: "Maybe"... :P
 
     @singledispatchmethod
     def _handler(self, status, vault:Vault, file:walk.File) -> None:
@@ -164,7 +222,7 @@ class Sweeper(Loggable):
 
                 # 2. Persist to database
                 to_persist = file.to_persistence(key=staged.path)
-                self.persist(to_persist, State.Staged(notified=False))
+                self._persistence.persist(to_persist, State.Staged(notified=False))
 
                 # 3. Delete source
                 assert hardlinks(file.path) > 1
@@ -202,7 +260,7 @@ class Sweeper(Loggable):
                 log.info(f"Deleted {file.path}")
 
                 # 2. Persist to database
-                self.persist(to_persist, State.Deleted(notified=False))
+                self._persistence.persist(to_persist, State.Deleted(notified=False))
 
         elif self.Yes_I_Really_Mean_It_This_Time:
             # Determine passed checkpoints, if any
@@ -213,4 +271,4 @@ class Sweeper(Loggable):
             if len(checkpoints) > 0:
                 to_persist = file.to_persistence()
                 for tminus in checkpoints:
-                    self.persist(to_persist, State.Warned(notified=False, tminus=tminus))
+                    self._persistence.persist(to_persist, State.Warned(notified=False, tminus=tminus))

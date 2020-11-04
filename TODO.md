@@ -38,7 +38,7 @@ time spent (rather than wall time).
   * [x] `vault`                                       <ETA: 2 days; Actual: 2 days>
   * [ ] `sandman`
     * [x] Plumbing                                    <ETA: 2 days; Actual: 3 days>
-    * [ ] Sweep phase                                 <ETA: 3 days>
+    * [x] Sweep phase                                 <ETA: 3 days; Actual: 3 days>
     * [ ] Drain phase                                 <ETA: 2 days>
   * [ ] `setup.py`                                    <ETA: 1 day>
 * [ ] Tests
