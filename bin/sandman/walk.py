@@ -113,6 +113,10 @@ class File(file.BaseFile):
 
             self._timestamp = time.now()
 
+    def delete(self) -> None:
+        """ Delete the file """
+        self.path.unlink()
+
     def to_persistence(self, *, key:T.Optional[T.Path] = None) -> models.File:
         """
         Extract (and restat, if necessary) the persistence file model

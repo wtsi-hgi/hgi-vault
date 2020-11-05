@@ -173,7 +173,7 @@ class Sweeper(Loggable):
             if hardlinks(file.path) == 1:
                 log.warning(f"Corruption detected: Physical vault file {file.path} does not link to any source")
                 if self.Yes_I_Really_Mean_It_This_Time:
-                    file.path.unlink()  # DELETION WARNING
+                    file.delete()  # DELETION WARNING
                     log.info(f"Corruption corrected: {file.path} deleted")
 
     ####################################################################
@@ -226,7 +226,7 @@ class Sweeper(Loggable):
 
                 # 3. Delete source
                 assert hardlinks(file.path) > 1
-                file.path.unlink()  # DELETION WARNING
+                file.delete()  # DELETION WARNING
 
                 log.info(f"{file.path} has been staged for archival")
 
@@ -256,7 +256,7 @@ class Sweeper(Loggable):
                 to_persist = file.to_persistence()
 
                 # 1. Delete file
-                file.path.unlink()  # DELETION WARNING
+                file.delete()  # DELETION WARNING
                 log.info(f"Deleted {file.path}")
 
                 # 2. Persist to database
