@@ -57,7 +57,8 @@ def main(argv:T.List[str] = sys.argv) -> None:
     # Drain Phase
     if not args.dry_run:
         log.info("Starting the drain phase")
-        drain(force=args.force_drain)
+        if (exit_code := drain(persistence, force=args.force_drain)) != 0:
+            sys.exit(exit_code)
 
     log.info("Off to Never, Neverland")
 
