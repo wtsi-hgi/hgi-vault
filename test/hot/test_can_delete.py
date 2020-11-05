@@ -21,7 +21,7 @@ import unittest
 from functools import partial
 
 from core import file, time, typing as T
-from hot import ch12, pa11, gn5
+from hot import ch12, pa11, gn5, an12
 
 
 class _DummyFile(file.BaseFile):
@@ -35,9 +35,10 @@ class _DummyFile(file.BaseFile):
 
 
 _implementations = [
-    ch12.can_delete
+    ch12.can_delete,
     # pa11.can_delete,
-    # gn5.can_delete
+    # gn5.can_delete,
+    an12.can_delete
 ]
 
 class TestCanDelete(unittest.TestCase):
