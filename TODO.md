@@ -34,7 +34,7 @@ time spent (rather than wall time).
     * [x] Chris
     * [x] Aiden
     * [ ] Piyush
-    * [ ] Guillaume
+    * [x] Guillaume
     * [ ] *Others?*
 * [ ] Executables and setup
   * [x] `vault`                                       <ETA: 2 days; Actual: 2 days>
