@@ -19,8 +19,13 @@ Then, to install HGI Vault:
     pip install git+https://github.com/wtsi-hgi/hgi-vault.git
 
 It is not recommended to install HGI Vault globally or in a shared
-virtual environment due to the risk of namespace clashes.
+virtual environment due to the risk of namespace collision.
 
 ## Usage
 
 See the [documentation](/doc) directory for full instructions.
+Specifically:
+
+* [End-user documentation](/doc/vault.md)
+* [Administrative documentation](/doc/sandman.md)
+* [Developer documentation](/doc/dev)
