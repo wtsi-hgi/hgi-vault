@@ -46,8 +46,24 @@ time spent (rather than wall time).
   * [ ] Automated testing and certification           <ETA: *Unknown*>
   * [ ] Unit testing
     * [ ] Core                                        <ETA: 1 day per module>
+      * [?] File interface
+      * [ ] Logging abstractions and interface
+      * [ ] Time interface
+      * [ ] Typing interface
+      * [?] Utilities
+      * [?] Vault abstractions
+      * [ ] IdM abstractions
+      * [?] Configuration abstractions and interface
+      * [ ] Persistence abstractions and interface
+      * [ ] E-mailing and templating abstractions
     * [ ] API                                         <ETA: 3 days per module>
-    * [ ] Hot code                                    <ETA: 1 day per function>
+      * [ ] Logging
+      * [?] Vault
+      * [?] IdM (LDAP)
+      * [?] Configuration parsing (YAML)
+      * [ ] Schema design and persistence engine
+      * [ ] E-Mail and templating
+    * [x] Hot code                                    <ETA: 1 day per function; Actual: 1 day>
   * [ ] Integration testing
     * [ ] LDAP                                        <ETA: 2 days>
     * [ ] E-mail                                      <ETA: 2 days>
