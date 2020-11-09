@@ -29,13 +29,12 @@ time spent (rather than wall time).
     * [x] Model implementation                        <ETA: 1 day; Actual: 4 days>
     * [x] Database engine                             <ETA: 3 days; Actual: 3 days>
   * [x] E-Mail and templating                         <ETA: 3 days; Actual 2 days>
-* [ ] Hot code
-  * [ ] `can_delete`                                  <ETA: less than 1 day>
+* [x] Hot code
+  * [x] `can_delete`                                  <ETA: less than 1 day>
     * [x] Chris
     * [x] Aiden
     * [x] Piyush
     * [x] Guillaume
-    * [ ] *Others?*
 * [x] Executables and setup
   * [x] `vault`                                       <ETA: 2 days; Actual: 2 days>
   * [x] `sandman`
@@ -49,11 +48,11 @@ time spent (rather than wall time).
     * [ ] Core                                        <ETA: 1 day per module>
     * [ ] API                                         <ETA: 3 days per module>
     * [ ] Hot code                                    <ETA: 1 day per function>
-    * [ ] Executables                                 <ETA: 2 days per executable>
   * [ ] Integration testing
     * [ ] LDAP                                        <ETA: 2 days>
     * [ ] E-mail                                      <ETA: 2 days>
     * [ ] PostgreSQL                                  <ETA: 2 days>
+    * [ ] Executables                                 <ETA: 2 days per executable>
   * [ ] User acceptance testing                       <ETA: *Unknown*>
 * [ ] Documentation
   * [ ] Core and API                                  <ETA: 1 day per module pair>
