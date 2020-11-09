@@ -28,11 +28,10 @@ environment. For example:
     python -m venv .venv
     source .venv/bin/activate
 
-Once activated, the project's requirements and testing requirements can
+Once activated, the project's dependencies and testing requirements can
 be installed with:
 
-    pip install -r .ci/test-requirements.txt \
-                -r requirements.txt
+    pip install . -r .ci/test-requirements.txt
 
 ## Manually Running the Test Suite
 

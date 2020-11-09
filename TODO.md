@@ -33,16 +33,16 @@ time spent (rather than wall time).
   * [ ] `can_delete`                                  <ETA: less than 1 day>
     * [x] Chris
     * [x] Aiden
-    * [ ] Piyush
+    * [x] Piyush
     * [x] Guillaume
     * [ ] *Others?*
-* [ ] Executables and setup
+* [x] Executables and setup
   * [x] `vault`                                       <ETA: 2 days; Actual: 2 days>
   * [x] `sandman`
     * [x] Plumbing                                    <ETA: 2 days; Actual: 3 days>
     * [x] Sweep phase                                 <ETA: 3 days; Actual: 3 days>
     * [x] Drain phase                                 <ETA: 2 days; Actual: 1 day>
-  * [ ] `setup.py`                                    <ETA: 1 day>
+  * [x] `setup.py`                                    <ETA: 1 day; Actual: 1 day>
 * [ ] Tests
   * [ ] Automated testing and certification           <ETA: *Unknown*>
   * [ ] Unit testing
