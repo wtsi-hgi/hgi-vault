@@ -5,7 +5,7 @@ python:
 
 install:
 - pip install -r .ci/test-requirements.txt
-- pip install -r requirements.txt
+- pip install .
 
 script:
 - .ci/run-tests.sh
