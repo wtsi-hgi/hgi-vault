@@ -36,7 +36,7 @@ class _DummyFile(file.BaseFile):
 
 _implementations = [
     ch12.can_delete,
-    # pa11.can_delete,
+    pa11.can_delete,
     gn5.can_delete,
     an12.can_delete
 ]
