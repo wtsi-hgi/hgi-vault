@@ -256,7 +256,7 @@ class VaultFile(base.VaultFile):
 
         source_mode = source.stat().st_mode
         ugrw = stat.S_IRUSR | stat.S_IWUSR | stat.S_IRGRP | stat.S_IWGRP
-        if not source_mode & ugrw:
+        if source_mode & ugrw != ugrw:
             log.info(f"{source} is not read-writable by both its owner and group")
             return False
 
@@ -268,7 +268,7 @@ class VaultFile(base.VaultFile):
 
         parent_mode = source.parent.stat().st_mode
         ugwx = stat.S_IWUSR | stat.S_IXUSR | stat.S_IWGRP | stat.S_IXGRP
-        if not parent_mode & ugwx:
+        if parent_mode & ugwx != ugwx:
             log.info(f"The parent directory of {source} is not writable or executable for both its owner and group")
             return False
 

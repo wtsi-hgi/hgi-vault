@@ -200,6 +200,9 @@ class _BaseVault(T.Container[_VFT], metaclass=ABCMeta):
         #      is much more convenient
         return bool(self.branch(path))
 
+    def __hash__(self) -> int:
+        return hash(self.root)
+
     def file(self, branch:_BranchT, path:T.Path) -> _VFT:
         """
         Return the vault file given by the specified branch and path;
@@ -220,8 +223,14 @@ class _BaseVault(T.Container[_VFT], metaclass=ABCMeta):
         @param   path  Path
         @return  Appropriate branch or None
         """
+        # FIXME This works, but our VaultFile implementation
+        # automatically corrects the branch, if the file is found in
+        # another branch; that makes this code redundant. However, this
+        # code is meant to be generic; maybe VaultFile.exists needs to
+        # be corrected...
         for branch in self._branch_enum:
-            if self.file(branch, path).exists:
+            vault_file = self.file(branch, path)
+            if vault_file.exists and vault_file.branch == branch:
                 return branch
 
         return None

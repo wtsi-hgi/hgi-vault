@@ -95,7 +95,6 @@ class Persistence(persistence.base.Persistence, Loggable):
         @param   file   File model to persist
         @param   state  State in which to set the state
         """
-        assert not hasattr(file, "db_id")
         file_id = f"{file.device}:{file.inode}"
 
         # If a persisted file's status (mtime, size, etc.) has changed

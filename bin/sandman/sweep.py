@@ -78,7 +78,7 @@ class Sweeper(Loggable):
 
     def notify(self) -> None:
         """ E-mail stakeholders """
-        log = self._log
+        log = self.log
         postman = Postman(config.email)
 
         # Create and send the e-mail for each stakeholder
@@ -116,14 +116,19 @@ class Sweeper(Loggable):
                     warned.append((tminus, to_warn.accumulator))
 
                 # Construct e-mail and add non-trivial attachments
+                non_trivial = False
                 mail = NotificationEMail(stakeholder, deleted, staged, warned)
                 for filename, files in attachments.items():
                     if len(files) > 0:
+                        non_trivial = True
                         mail += GZippedFOFN(f"{filename}.fofn.gz",
                                             [file.path for file in files])
+                if non_trivial:
+                    postman.send(mail, stakeholder)
+                    log.info(f"Sent summary e-mail to {stakeholder.name} ({stakeholder.email})")
 
-                postman.send(mail, stakeholder)
-                log.info(f"Sent summary e-mail to {stakeholder.name} ({stakeholder.email})")
+                else:
+                    log.debug("Skipping: Trivial e-mail")
 
         # TODO? The design states that an overall summary should be
         # logged at the end of the notification step and output to the

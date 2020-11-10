@@ -27,7 +27,7 @@ begin transaction;
 
 -- Schema versioning
 do $$ declare
-  schema date := timestamp '2020-10-14';
+  schema date := timestamp '2020-11-10';
   actual date;
 begin
   create table if not exists __version__ (version date primary key);
@@ -212,7 +212,7 @@ create or replace view stakeholders as
 create or replace view stakeholder_notified as
   select    status.*,
             file_stakeholders.stakeholder,
-            notifications.status is null as notified
+            notifications.status is not null as notified
   from      status
   join      file_stakeholders
   on        file_stakeholders.file    = status.file

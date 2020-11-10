@@ -108,7 +108,7 @@ class _PersistedState(persistence.base.State):
 
         t.execute(f"""
             insert into notifications (status, stakeholder)
-            values {query_sql}
+            {query_sql}
             on conflict do nothing;
         """, query_params)
 
@@ -174,7 +174,7 @@ class State(T.SimpleNamespace):
                 on     status.id       = warnings.status
                 where  status.file     = %s
                 and    warnings.tminus = %s;
-            """, (file.db_id, state.tminus))
+            """, (file.db_id, self.tminus))
 
             if (record := t.fetchone()) is None:
                 return None
