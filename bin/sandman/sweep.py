@@ -178,8 +178,11 @@ class Sweeper(Loggable):
             if hardlinks(file.path) == 1:
                 log.warning(f"Corruption detected: Physical vault file {file.path} does not link to any source")
                 if self.Yes_I_Really_Mean_It_This_Time:
-                    file.delete()  # DELETION WARNING
-                    log.info(f"Corruption corrected: {file.path} deleted")
+                    try:
+                        file.delete()  # DELETION WARNING
+                        log.info(f"Corruption corrected: {file.path} deleted")
+                    except PermissionError:
+                        log.error(f"Could not delete {file.path}: Permission denied")
 
     ####################################################################
 
@@ -231,7 +234,10 @@ class Sweeper(Loggable):
 
                 # 3. Delete source
                 assert hardlinks(file.path) > 1
-                file.delete()  # DELETION WARNING
+                try:
+                    file.delete()  # DELETION WARNING
+                except PermissionError:
+                    log.error(f"Could not delete {file.path}: Permission denied")
 
                 log.info(f"{file.path} has been staged for archival")
 
@@ -261,8 +267,11 @@ class Sweeper(Loggable):
                 to_persist = file.to_persistence()
 
                 # 1. Delete file
-                file.delete()  # DELETION WARNING
-                log.info(f"Deleted {file.path}")
+                try:
+                    file.delete()  # DELETION WARNING
+                    log.info(f"Deleted {file.path}")
+                except PermissionError:
+                    log.error(f"Could not delete {file.path}: Permission denied")
 
                 # 2. Persist to database
                 self._persistence.persist(to_persist, State.Deleted(notified=False))
