@@ -1,7 +1,7 @@
 # HGI Vault
 
 <!-- TODO Change these to the "release" branch when available -->
-[![Build Status](https://travis-ci.org/wtsi-hgi/hgi-vault.svg?branch=develop)](https://travis-ci.org/wtsi-hgi/hgi-vault)
+[![Build Status](https://travis-ci.com/wtsi-hgi/hgi-vault.svg?branch=develop)](https://travis-ci.com/wtsi-hgi/hgi-vault)
 [![Coverage Status](https://codecov.io/github/wtsi-hgi/hgi-vault/coverage.svg?branch=develop)](https://codecov.io/github/wtsi-hgi/hgi-vault?branch=develop)
 
 Data retention policy tools.
