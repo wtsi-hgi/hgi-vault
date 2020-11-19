@@ -17,9 +17,9 @@ You should have received a copy of the GNU General Public License along
 with this program. If not, see https://www.gnu.org/licenses/
 """
 
-from api.vault import _VaultFileKey
+from api.vault.key import VaultFileKey
 
 
 # For convenience
-VFK   = lambda inode, path: _VaultFileKey(path, inode)
-VFK_k = lambda path: _VaultFileKey.Reconstruct(path)
+VFK   = lambda path, inode: VaultFileKey(path, inode)
+VFK_k = lambda path: VaultFileKey.Reconstruct(path)
