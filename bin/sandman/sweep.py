@@ -36,11 +36,12 @@ from api.vault import Vault, Branch
 from bin.common import config
 from core import time, typing as T
 from core.file import hardlinks
-from core.persistence import Filter
 from core.vault import exception as VaultExc
 from hot import ch12, an12, gn5, pa11
 from hot.combinator import agreed
 from . import walk
+
+Filter = core.persistence.Filter
 
 
 # Hot code implementations
@@ -272,6 +273,7 @@ class Sweeper(Loggable):
                     log.info(f"Deleted {file.path}")
                 except PermissionError:
                     log.error(f"Could not delete {file.path}: Permission denied")
+                    return
 
                 # 2. Persist to database
                 self._persistence.persist(to_persist, State.Deleted(notified=False))

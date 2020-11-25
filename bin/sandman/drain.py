@@ -24,9 +24,11 @@ import core.persistence
 from api.logging import Loggable, log
 from api.persistence.models import State
 from core import typing as T
-from core.persistence import Anything, Filter
 from core.utils import human_size
 from bin.common import config
+
+Anything = core.persistence.Anything
+Filter = core.persistence.Filter
 
 
 class _StagingQueueEmpty(Exception):
