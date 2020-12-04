@@ -24,6 +24,7 @@ import core.persistence
 from api.logging import Loggable, log
 from api.persistence.models import State
 from core import typing as T
+from core.file import is_regular
 from core.utils import human_size
 from bin.common import config
 
@@ -79,14 +80,19 @@ class _Handler(Loggable):
         """
         Drain the files, NULL-delimited, through the handler's stdin
 
-        @param   files                File queue
+        @param   files                 File queue
         @raises  _UnknownHandlerError  Handler did not accept the queue
         """
+        log     = self.log
         handler = subprocess.Popen(self._handler, stdin=PIPE,
                                                   stdout=DEVNULL,
                                                   stderr=DEVNULL)
         for file in files:
-            self.log.info(f"Draining: {file}")
+            if not is_regular(file):
+                log.error("Skipping: {file} is not a regular file or does not exist")
+                continue
+
+            log.info(f"Draining: {file}")
             handler.stdin.write(bytes(file))
             handler.stdin.write(b"\0")
 

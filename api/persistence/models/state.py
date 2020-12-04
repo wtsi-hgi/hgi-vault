@@ -126,7 +126,7 @@ class _PersistedState(persistence.base.State):
         # engine (and the IdM), so this is "the least bad" compromise!
         params = (self.db_type,)
         sql = """
-            select file
+            select distinct file
             from   stakeholder_notified
             where  state = %s
         """

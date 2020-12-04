@@ -69,18 +69,20 @@ class Persistence(persistence.base.Persistence, Loggable):
 
     def _persist_group(self, t:Transaction, group:idm.base.Group) -> None:
         """ Persist a group and its owners from the IdM """
+        log = self.log
+
         if (gid := group.gid) in self._known_groups:
             # Don't refresh groups that are known to the session
             return
 
-        self.log.debug(f"Persisting group {gid}")
+        log.debug(f"Persisting group {gid}")
         t.execute("""
             insert into groups (gid) values (%s)
             on conflict do nothing;
         """, (gid,))
 
         for user in group.owners:
-            self.log.debug(f"Recording user {user.uid} as an owner of group {gid}")
+            log.debug(f"Recording user {user.uid} as an owner of group {gid}")
             t.execute("""
                 insert into group_owners (gid, owner) values (%s, %s)
                 on conflict do nothing;
@@ -95,6 +97,7 @@ class Persistence(persistence.base.Persistence, Loggable):
         @param   file   File model to persist
         @param   state  State in which to set the state
         """
+        log     = self.log
         file_id = f"{file.device}:{file.inode}"
 
         # If a persisted file's status (mtime, size, etc.) has changed
@@ -108,17 +111,20 @@ class Persistence(persistence.base.Persistence, Loggable):
             known = File.FromDBQuery(t, file, self._idm)
             if known is not None and file != known:
                 # Delete known file if it differs
-                self.log.debug(f"Deleting records for file {file_id}")
+                log.debug(f"Deleting records for file {file_id}")
                 known = known.purge(t)
 
-            if known is None:
-                # Insert the file record, if necessary
-                self.log.debug(f"Persisting file {file_id}")
+            if known is None or known.key != file.key:
+                # Insert/update the file record, if necessary
+                message = f"Persisting file {file_id}" if known is None \
+                          else f"Updating persisted key for {file_id}"
+
+                log.debug(message)
                 known = file.persist(t)
 
             if state.exists(t, known) is None:
                 # Set state, if not already
-                self.log.debug(f"Setting {state.db_type} status for file {file_id}")
+                log.debug(f"Setting {state.db_type} status for file {file_id}")
                 state.persist(t, known)
 
     @property

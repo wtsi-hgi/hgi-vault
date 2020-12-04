@@ -105,9 +105,11 @@ class File(persistence.base.File):
         # NOTE This depends on the group record being created first
         assert not hasattr(self, "db_id")
 
+        # NOTE We allow keys to be updated if the record already exists
         t.execute("""
             insert into files (device, inode, path, key, mtime, owner, group_id, size)
             values (%s, %s, %s, %s, %s, %s, %s, %s)
+            on conflict (device, inode) do update set key = excluded.key
             returning id;
         """, (self.device,
               self.inode,
