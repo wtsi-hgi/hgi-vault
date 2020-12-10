@@ -199,7 +199,10 @@ class FilesystemWalker(BaseWalker):
     def _walk_tree(path:T.Path, vault:Vault) -> T.Iterator[T.Tuple[Vault, File, _VaultStatusT]]:
         # Recursively walk the tree from the given path
         for f in path.iterdir():
-            if f.is_dir():
+            # NOTE Don't walk symlinked directories: if they're symlinks
+            # within the same root, we'll get to them eventually; if
+            # they're outside the root, things could go very wrong!
+            if (not f.is_symlink()) and f.is_dir():
                 yield from FilesystemWalker._walk_tree(f, vault)
 
             # We only care about regular files
