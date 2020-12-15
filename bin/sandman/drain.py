@@ -73,7 +73,7 @@ class _Handler(Loggable):
             subprocess.run([self._handler, "ready", str(capacity)],
                            capture_output=True, check=True)
 
-        except CalledProcessError as response:
+        except subprocess.CalledProcessError as response:
             raise _preflight_exception.get(response.returncode, _UnknownHandlerError)()
 
     def consume(self, files:T.Iterator[T.Path]) -> None:
