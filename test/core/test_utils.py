@@ -44,6 +44,13 @@ class TestBase64(unittest.TestCase):
         self.assertEqual(base64.decode(b"Zm9v"), b"foo")
         self.assertRaises(TypeError, base64.decode, 123)
 
+    def test_altchars(self):
+        self.assertEqual(base64.encode(b"\xfa"), "+g==")
+        self.assertEqual(base64.encode(b"\xff"), "_w==")
+
+        self.assertEqual(base64.decode("+g=="), b"\xfa")
+        self.assertEqual(base64.decode("_w=="), b"\xff")
+
 
 S_IRWXA = stat.S_IRWXU | stat.S_IRWXG | stat.S_IRWXO
 

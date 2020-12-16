@@ -27,17 +27,19 @@ from functools import singledispatch
 from . import typing as T
 
 
+_ALT_CHARS = b"+_"  # instead of "+/"
+
 @singledispatch
 def _b64encode(data:T.Stringable) -> T.NoReturn:
-    return b64encode(str(data).encode()).decode()
+    return _b64encode(str(data))
 
 @_b64encode.register
 def _(data:str) -> str:
-    return b64encode(data.encode()).decode()
+    return _b64encode(data.encode())
 
 @_b64encode.register
 def _(data:bytes) -> str:
-    return b64encode(data).decode()
+    return b64encode(data, altchars=_ALT_CHARS).decode()
 
 @singledispatch
 def _b64decode(data:T.Any) -> T.NoReturn:
@@ -45,11 +47,11 @@ def _b64decode(data:T.Any) -> T.NoReturn:
 
 @_b64decode.register
 def _(data:str) -> bytes:
-    return b64decode(data.encode())
+    return _b64decode(data.encode())
 
 @_b64decode.register
 def _(data:bytes) -> bytes:
-    return b64decode(data)
+    return b64decode(data, altchars=_ALT_CHARS)
 
 class base64(T.SimpleNamespace):
     """ base64 wrapper that handles strings properly (imo) """
