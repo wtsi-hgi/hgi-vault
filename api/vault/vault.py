@@ -21,7 +21,7 @@ import os
 import stat
 from functools import cached_property
 
-from core import typing as T
+from core import file, typing as T
 from core.idm import base as IdM, exception as IdMExc
 from core.utils import umask
 from core.vault import exception as VaultExc
@@ -126,7 +126,7 @@ class Vault(BaseHGIVault):
                 # its incorrect location and re-add it (rather than
                 # attempting to correct by moving)
                 log.info(f"Correcting vault entry for {path}")
-                to_add.path.unlink()
+                file.delete(to_add.path)
                 to_add = self.add(branch, path)
 
             else:
@@ -157,7 +157,7 @@ class Vault(BaseHGIVault):
         if to_remove.exists:
             # NOTE to_remove.branch and to_remove.source might not match
             # branch and path, respectively
-            to_remove.path.unlink()
+            file.delete(to_remove.path)
             log.info(f"{to_remove.source} has been removed from the {to_remove.branch} branch of the vault in {self.root}")
 
         else:

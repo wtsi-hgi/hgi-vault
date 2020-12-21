@@ -40,6 +40,17 @@ def cwd() -> T.Path:
     return T.Path.cwd()
 
 
+def delete(path:T.Path) -> None:
+    """
+    Delete the given file
+
+    @param  path  Path to file
+    """
+    # NOTE While trivial, this is for the sake of centralisation
+    # (i.e., all deletes must go through here)
+    path.unlink()
+
+
 def inode_id(path:T.Path) -> int:
     """
     Return the inode ID for the given file, without following symlinks
@@ -57,7 +68,8 @@ def is_regular(path:T.Path) -> bool:
     @param   path  Path
     @return  Predicate result
     """
-    return path.is_file() and not path.is_symlink()
+    # NOTE Order is important as Path.is_file looks to follow symlinks
+    return (not path.is_symlink()) and path.is_file()
 
 
 def hardlinks(path:T.Path) -> int:

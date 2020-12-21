@@ -115,7 +115,7 @@ class File(file.BaseFile):
 
     def delete(self) -> None:
         """ Delete the file """
-        self.path.unlink()
+        file.delete(self.path)
 
     def to_persistence(self, *, key:T.Optional[T.Path] = None) -> models.File:
         """
@@ -202,7 +202,7 @@ class FilesystemWalker(BaseWalker):
             # NOTE Don't walk symlinked directories: if they're symlinks
             # within the same root, we'll get to them eventually; if
             # they're outside the root, things could go very wrong!
-            if (not f.is_symlink()) and f.is_dir():
+            if (not f.is_symlink()) and f.is_dir() and os.access(f, os.X_OK):
                 yield from FilesystemWalker._walk_tree(f, vault)
 
             # We only care about regular files
