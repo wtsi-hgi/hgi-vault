@@ -33,7 +33,7 @@ def main(argv:T.List[str] = sys.argv) -> None:
     args = usage.parse_args(argv[1:])
 
     log.info("Enter Sandman")
-    if args.dry_run:
+    if not args.weaponise:
         log.info("Dry Run: The filesystem will not be affected "
                  "and the drain phase will not run")
 
@@ -52,10 +52,10 @@ def main(argv:T.List[str] = sys.argv) -> None:
         log.warning("This is an expensive operation")
         walker = FilesystemWalker(*args.vaults)
 
-    Sweeper(walker, persistence, args.dry_run)
+    Sweeper(walker, persistence, args.weaponise)
 
     # Drain Phase
-    if not args.dry_run:
+    if args.weaponise:
         log.info("Starting the drain phase")
         if (exit_code := drain(persistence, force=args.force_drain)) != 0:
             sys.exit(exit_code)

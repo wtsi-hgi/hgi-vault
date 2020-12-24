@@ -55,12 +55,12 @@ class Sweeper(Loggable):
     """ Encapsulation of the sweep phase """
     _walker:walk.BaseWalker
     _persistence:core.persistence.base.Persistence
-    _dry_run:bool
+    _weaponised:bool
 
-    def __init__(self, walker:walk.BaseWalker, persistence:core.persistence.base.Persistence, dry_run:bool) -> None:
-        self._walker = walker
+    def __init__(self, walker:walk.BaseWalker, persistence:core.persistence.base.Persistence, weaponised:bool) -> None:
+        self._walker      = walker
         self._persistence = persistence
-        self._dry_run = dry_run
+        self._weaponised  = weaponised
 
         # Run the phase steps
         self.sweep()
@@ -69,8 +69,8 @@ class Sweeper(Loggable):
 
     @property
     def Yes_I_Really_Mean_It_This_Time(self) -> bool:
-        # Solemnisation :)
-        return not self._dry_run
+        # Solemnisation :P
+        return self._weaponised
 
     def sweep(self) -> None:
         """ Walk the files and pass them off to be handled """
