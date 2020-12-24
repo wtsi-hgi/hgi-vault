@@ -24,7 +24,7 @@ from api.persistence import Persistence
 from bin.common import config, idm
 from core import typing as T
 from . import usage
-from .walk import FilesystemWalker, mpistatWalker
+from .walk import InvalidVaultBases, FilesystemWalker, mpistatWalker
 from .sweep import Sweeper
 from .drain import drain
 
@@ -42,15 +42,21 @@ def main(argv:T.List[str] = sys.argv) -> None:
     # Sweep Phase
     log.info("Starting the sweep phase")
 
-    if args.stats is not None:
-        log.info(f"Walking mpistat output from {args.stats}")
-        log.warning("mpistat data may not be up to date")
-        walker = mpistatWalker(args.stats, *args.vaults)
+    try:
+        if args.stats is not None:
+            log.info(f"Walking mpistat output from {args.stats}")
+            log.warning("mpistat data may not be up to date")
+            walker = mpistatWalker(args.stats, *args.vaults)
 
-    else:
-        log.info("Walking the filesystem directly")
-        log.warning("This is an expensive operation")
-        walker = FilesystemWalker(*args.vaults)
+        else:
+            log.info("Walking the filesystem directly")
+            log.warning("This is an expensive operation")
+            walker = FilesystemWalker(*args.vaults)
+
+    except InvalidVaultBases as e:
+        # Safety checks failed on input Vault paths
+        log.critical(e)
+        sys.exit(1)
 
     Sweeper(walker, persistence, args.weaponise)
 

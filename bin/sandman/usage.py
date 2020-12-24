@@ -28,7 +28,7 @@ def _parser_factory():
     top_level = argparse.ArgumentParser("sandman")
 
     top_level.add_argument("vaults", metavar="PATH", type=T.Path, nargs="+",
-        help="path to a location covered by a vault")
+        help="path to a Vault root directory")
 
     top_level.add_argument("--weaponise", action="store_false",
         help="delete expired files and perform the drain phase (i.e., don't do a dry run)")

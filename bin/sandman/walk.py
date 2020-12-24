@@ -24,6 +24,7 @@ import fcntl
 import gzip
 import stat
 from abc import ABCMeta, abstractmethod
+from os.path import commonprefix
 
 from api.logging import Loggable
 from api.persistence import models
@@ -43,6 +44,10 @@ _RESTAT_AFTER = time.delta(hours=int(os.getenv("RESTAT_AFTER", "36")))
 _VaultStatusT = T.Union[T.Optional[Branch],
                         VaultExc.PhysicalVaultFile,
                         VaultExc.VaultCorruption]
+
+
+class InvalidVaultBases(Exception):
+    """ Raised when invalid Vault base directories are specified """
 
 
 class File(file.BaseFile):
@@ -130,9 +135,6 @@ class File(file.BaseFile):
         return file
 
 
-# WARNING There can be pathological cases where a vault root is the
-# child of a different vault root; this may cause problems when
-# determining which vault a file that is a child of both belongs to...
 class BaseWalker(Loggable, metaclass=ABCMeta):
     """ Abstract base class for file walkers """
     @abstractmethod
@@ -145,20 +147,38 @@ class BaseWalker(Loggable, metaclass=ABCMeta):
         @return  Generator of Vault, file and status tuples
         """
 
-    def _common_vaults(self, paths:T.Iterator[T.Path]) -> T.Set[Vault]:
+    @staticmethod
+    def _fetch_vaults(*paths:T.Path) -> T.Set[Vault]:
         """
-        Find the common vaults covering a collection of paths
+        Return the Vaults covered by the given paths
 
-        @param   paths  Iterator of paths
-        @return  Set of common vault root paths
+        @param   paths  Search paths
+        @return  Set of Vaults under said paths
         """
         vaults = set()
 
+        given = 0
         for path in paths:
+            given += 1
+
             try:
-                vaults.add(Vault(path, idm=idm, autocreate=False))
+                if (vault := Vault(path, idm=idm, autocreate=False)).root != path:
+                    # Safety feature: Only allow Vault root directories
+                    raise InvalidVaultBases(f"The Vault at {path} is rooted at {vault.root}; the Vault root directory must be provided")
+
+                vaults.add(vault)
+
             except (VaultExc.VaultConflict, VaultExc.NoSuchVault) as e:
-                self.log.warning(f"Skipping {path}: {e}")
+                # Safety feature: Don't allow non-Vault controlled paths
+                raise InvalidVaultBases(f"No Vault at {path}: {e}")
+
+        if len(vaults) == 0:
+            # Safety feature: Require at least one Vault directory
+            raise InvalidVaultBases("At least one Vault directory must be provided")
+
+        if len(vaults) != given:
+            # Safety feature: Don't allow duplicate entries
+            raise InvalidVaultBases("Duplicate Vault directories detected; check command line arguments")
 
         return vaults
 
@@ -192,8 +212,7 @@ class FilesystemWalker(BaseWalker):
 
         @param  bases  Base paths
         """
-        self._vaults = self._common_vaults(base for base in bases)
-        assert len(self._vaults) > 0
+        self._vaults = self._fetch_vaults(*bases)
 
     @staticmethod
     def _walk_tree(path:T.Path, vault:Vault) -> T.Iterator[T.Tuple[Vault, File, _VaultStatusT]]:
@@ -257,9 +276,8 @@ class mpistatWalker(BaseWalker):
 
         self._vaults = {
             mpistatWalker._base64_prefix(vault.root): vault
-            for vault in self._common_vaults(base for base in bases)
+            for vault in self._fetch_vaults(*bases)
         }
-        assert len(self._vaults) > 0
 
     @staticmethod
     def _base64_prefix(path:T.Path) -> str:
@@ -267,14 +285,7 @@ class mpistatWalker(BaseWalker):
         bare    = base64.encode(path)
         slashed = base64.encode(f"{path}/")
 
-        for i, (lhs, rhs) in enumerate(zip(bare, slashed)):
-            if lhs != rhs:
-                break
-        else:
-            # If we reach the end, then bare is a proper prefix of slashed
-            i += 1
-
-        return bare[:i]
+        return commonprefix([bare, slashed])
 
     def _is_match(self, encoded_path:str) -> T.Optional[T.Tuple[Vault, T.Path]]:
         """ Check that an encoded path is in one of our vaults """
