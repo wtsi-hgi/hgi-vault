@@ -1,3 +1,7 @@
+**NOTE** This is now largely of historical significance, to establish
+the original design. Changes to the design will be documented alongside
+here in "Vault enhancement proposal" files named `VEPxxx-Title.md`.
+
 # Design Document
 
 ## Risk Mitigation and Certification
