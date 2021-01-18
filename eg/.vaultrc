@@ -58,13 +58,15 @@ email:
   sender: vault@example.com
 
 # Deletion Control
-# - threshold   Age (in days) at which a file can be deleted
+# - threshold   Age (in days) after which a file will be soft-deleted.
+# - limbo       Age (in days) after which a soft-deleted file will be
+#               hard-deleted.
 # - warnings    List of warning times (in hours before the deletion age)
-#               at which a file's owner and group owner(s) should be
+#               after which a file's owner and group owner(s) should be
 #               notified. Note that no warning should exceed the
 #               equivalent of 90 days (2160 hours).
 
-# NOTE These timings are relative to the fidelity in which the batch
+# NOTE These timings are relative to the fidelity at which the batch
 # process is run. For example, if it's only run once per week and a
 # warning time of one hour is specified, it's very likely that this
 # warning will never be triggered.

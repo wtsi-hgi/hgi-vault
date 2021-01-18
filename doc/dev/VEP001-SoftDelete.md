@@ -1,4 +1,4 @@
-# Vault Enhancement Proposal 1: Limbo
+# Vault Enhancement Proposal 1: Soft-Deletion
 
 ## Current Behaviour
 
@@ -8,7 +8,7 @@ When a file's age exceeds a configured threshold value and it has not
 been tracked in any Vault (e.g., for retention or archival), it will be
 deleted during Sandman's sweep phase.
 
-## New Behaviour
+## Proposed Behaviour
 
 ### Configuration
 
@@ -25,7 +25,7 @@ numeric value, representing a "number of days". For example:
 #               notified. Note that no warning should exceed the
 #               equivalent of 90 days (2160 hours).
 
-# NOTE These timings are relative to the fidelity in which the batch
+# NOTE These timings are relative to the fidelity at which the batch
 # process is run. For example, if it's only run once per week and a
 # warning time of one hour is specified, it's very likely that this
 # warning will never be triggered.
@@ -77,8 +77,8 @@ within the `.limbo` branch exceeds `deletion.limbo` days:
 #### Notification E-Mail
 
 The text of the notification e-mail will be changed to reflect the
-"soft" deletion of files. Specifically, "IRRECOVERABLY" should be
-removed in the phrase:
+soft-deletion of files. Specifically, "IRRECOVERABLY" should be removed
+in the phrase:
 
 > IRRECOVERABLY DELETED
 
@@ -168,3 +168,55 @@ Likewise:
 
     # Recover some/file1 and some/path/file1
     some/path$ vault recover ../file1 file1
+
+## Implementation Details
+
+All development must be done in the `feature/limbo` branch.
+
+* [ ] Core
+  * [ ] Method to update a file's `mtime` (`core/file.py`, tests in
+        `test/core/test_file.py`).\
+        <ETA: 1 hour>
+* [ ] API
+  * [ ] Update the configuration schema to include `deletion.limbo`
+        (`api/config.py`, tests in `test/api/test_config.py`).\
+        <ETA: 1 hour>
+  * [ ] Add `.limbo` branch (`api/vault/common.py`).\
+        <ETA: 10 minutes>
+  * [ ] Change text of notification e-mail
+        (`api/mail/notification.js`).\
+        <ETA: 10 minutes>
+* [ ] Vault (`bin/vault`)
+  * [ ] Method that canonicalises a Vault path (which is relative to the
+        Vault root), such that it is also relative to any directory
+        under the Vault root, both up and down the tree. (See examples
+        [above](#vault).)\
+        <ETA: 1 day>
+  * [ ] Method that takes a canonicalised Vault path, relative to some
+        directory under the Vault root, and converts it back to a "full"
+        Vault path (i.e., the inverse of the above).\
+        <ETA: 0.5 days>
+  * [ ] Update command line argument parser to accept new subcommand and
+        its options (`bin/vault/usage.py`), with appropriate help text.\
+        <ETA: 1 day>
+  * [ ] Method that recovers a file from the `.limbo` branch, per the
+        steps outlined [above](#vault).\
+        <ETA: 2 days>
+  * [ ] Expose `--view` option, wrapped in the aforementioned
+        canonicalisation method with respect to the current working
+        directory.\
+        <ETA: 1 hour>
+  * [ ] Expose `FILE...` recovery option, wrapped in the aforementioned
+        inverse canonicalisation method with respect to the current
+        working directory.\
+        <ETA: 0.5 days>
+  * [ ] Expose `--all` option, as a special case of the above two.\
+        <ETA: 0.5 days>
+* [ ] Sandman (`bin/sandman`)
+  * [ ] Update the untracked file sweeper handler to soft-delete files
+        that have exceeded their maximum age, rather than hard-delete
+        them (`bin/sandman/sweep.py`).\
+        <ETA: 3 days>
+  * [ ] Update the branch sweeper handler to hard-delete limboed files
+        that have exceeded their grace age (`bin/sandman/sweep.py`).\
+        <ETA: 1 day>
