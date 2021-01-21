@@ -28,6 +28,7 @@ class Branch(core.vault.base.Branch):
     Keep    = T.Path("keep")
     Archive = T.Path("archive")
     Staged  = T.Path(".staged")
+    Limbo   = T.Path(".limbo")
 
 
 class BaseHGIVault(core.vault.base.Vault, logging.base.LoggableMixin):
