@@ -14,7 +14,7 @@ Full listings can be found in the attachments. You MUST act now to
 prevent these files from being deleted!
 
 {% for warning in (warned or []) | sort(attribute="tminus") %}
-Your files will be IRRECOVERABLY DELETED from the following locations
+Your files will be DELETED from the following locations
 within {{ warning.tminus | human_time(threshold=5) }}:
 
 {{ summarise(warning.summary) }}
@@ -22,7 +22,7 @@ within {{ warning.tminus | human_time(threshold=5) }}:
 * None
 
 {% endfor %}
-Space has been recovered from the following locations:
+Space will be recovered from the following locations:
 
 {{ summarise(deleted) }}
 The following locations contain data that is staged for archival:
