@@ -177,18 +177,22 @@ class TestVault(unittest.TestCase):
         self.tmp_file_c = self.child_dir_two / "c"
         self.child_dir_one.mkdir(parents=True, exist_ok=True)
         self.child_dir_two.mkdir(parents=True, exist_ok=True)
-
+       
         self.tmp_file_a.touch()
         self.tmp_file_b.touch()
         self.tmp_file_c.touch()
-         # The following conditions should be checked upfront for each file and, if not satisfied, that action should fail for that file, logged appropriately:
+ 
+        # The following conditions should be checked upfront for each file and, if not satisfied, that action should fail for that file, logged appropriately:
         #     Check that the permissions of the file are at least ug+rw; 660+
         #     Check that the user and group permissions of the file are equal;66* or 77*
         #     Check that the file's parent directory permissions are at least ug+wx. 330+
 
+        # Default file permissions can be unsuitable for archiving, like 644 (rw-r--r--, where owner and group dont have same permissions.
         self.tmp_file_a.chmod(0o660) # rw, rw, _
         self.tmp_file_b.chmod(0o644) # rw, r, r
         self.tmp_file_c.chmod(0o777) # rwx, rwx, rwx
+
+        # Default parent dir permissions can be unsuitable for archiving, like 755 -  write permissions are missing.
         self.child_dir_one.chmod(0o330) # wx, wx, _
         self.parent_dir.chmod(0o777) # rwx, rwx, rwx 
 
@@ -220,6 +224,21 @@ class TestVault(unittest.TestCase):
         vault_file_path = self._path / T.Path("parent_dir/child_dir_one/.vault/keep") / vault_file_key_path
         self.assertTrue(os.path.isfile(vault_file_path))
 
+    def test_add_incorrect_parent_perms(self):
+        # Add child_dir_one/tmp_file_b to vault and check whether hard link exists at desired location.
+    
+        self.child_dir_one.chmod(0o577)
+        self.assertRaises(Exception, self.vault.add, Branch.Keep, self.tmp_file_a)
+        self.child_dir_one.chmod(0o677)
+        self.assertRaises(Exception, self.vault.add, Branch.Keep, self.tmp_file_a)
+        self.child_dir_one.chmod(0o757)
+        self.assertRaises(exception.PermissionDenied, self.vault.add, Branch.Keep, self.tmp_file_a)
+        self.child_dir_one.chmod(0o767)
+        self.assertRaises(exception.PermissionDenied, self.vault.add, Branch.Keep, self.tmp_file_a)
+        self.child_dir_one.chmod(0o755)
+        self.assertRaises(exception.PermissionDenied, self.vault.add, Branch.Keep, self.tmp_file_a)
+  
+    
     def test_add_already_existing(self):
 
         self.vault.add(Branch.Keep, self.tmp_file_a)
@@ -240,11 +259,6 @@ class TestVault(unittest.TestCase):
         self.assertRaises(exception.PermissionDenied, self.vault.add, Branch.Keep, self.tmp_file_b)
 
 
-    def test_parent_incorrect_permission(self):
-        self.child_dir_one.chmod(0o660)
-        self.assertRaises(Exception, self.vault.add, Branch.Keep, self.tmp_file_a)
-
-    
 
 
     def test_change_location_of_vaulted_file(self):
@@ -321,8 +335,11 @@ class TestVault(unittest.TestCase):
     def test_existing_file_but_incorrect_vault(self):
         self.assertRaises(exception.IncorrectVault, self.vault.remove, Branch.Keep, self.tmp_file_c)
 
+    def test_incorrect_parent_directory_permissions(self):
 
-    # # To test:
+        self.assertRaises(exception.IncorrectVault, self.vault.remove, Branch.Keep, self.tmp_file_c)
+
+    # To test:
     # Remove raises PermissionDenied if the current user is not owner of the file or group and tries to add or remove (294-295, 419)
     # VaultConflict if a file exists at .vault, .vault/{keep, archive, staged, .audit} locations (339-340, 354-356)
     # Root finding (364-369)
