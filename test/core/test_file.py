@@ -1,7 +1,9 @@
 """
 Copyright (c) 2020 Genome Research Limited
 
-Author: Christopher Harrison <ch12@sanger.ac.uk>
+Author: 
+* Christopher Harrison <ch12@sanger.ac.uk>
+* Piyush Ahuja <pa11@sanger.ac.uk>
 
 This program is free software: you can redistribute it and/or modify it
 under the terms of the GNU General Public License as published by the
@@ -71,12 +73,20 @@ class TestFile(unittest.TestCase):
     def test_update_mtime(self) -> None:
         tmp_file = self._path / "foo"
         dt_now = time.now()
-        
+
         file.update_mtime(tmp_file, dt_now)
 
         unix_time = int(dt_now.timestamp())
         self.assertEqual(tmp_file.stat().st_mtime, unix_time)
 
+    def test_update_mtime_with_diff_tz(self) -> None:
+        tmp_file = self._path / "foo"
+        tz_dummy = time.timezone(time.timedelta(seconds=14400))
+        time_dummy = time.datetime(2007, 12, 6, 15, 29, 43, 79060, tzinfo = tz_dummy)
+        file.update_mtime(tmp_file, time_dummy)
+        self.assertEqual(tmp_file.stat().st_mtime, int(time_dummy.timestamp()))
+
+   
 
 if __name__ == "__main__":
     unittest.main()

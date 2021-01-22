@@ -1,7 +1,9 @@
 """
 Copyright (c) 2020 Genome Research Limited
 
-Author: Christopher Harrison <ch12@sanger.ac.uk>
+Author: 
+* Christopher Harrison <ch12@sanger.ac.uk>
+* Piyush Ahuja <pa11@sanger.ac.uk>
 
 This program is free software: you can redistribute it and/or modify it
 under the terms of the GNU General Public License as published by the
@@ -90,7 +92,14 @@ def update_mtime(path: T.Path, dt: T.DateTime) -> None:
     @path dt DateTime, which is "naive". From datetime docs: "d is naive iff: d.tzinfo is None or d.tzinfo.utcoffset(d) is None"
 
     """
-    mtime = int(dt.timestamp())
+    mtime = None
+
+    if dt.tzinfo is None or dt.tzinfo.utcoffset(dt) is None:
+        mtime = int(dt.timestamp())
+    else:
+        unix_time = (dt - time.datetime(1970, 1, 1, tzinfo=time.timezone.utc)).total_seconds()
+        mtime  = int(unix_time)
+
     atime = path.stat().st_atime
     # Naive dt instances are assumed to represent local time and timestamp()  method relies on the platform C mktime() function to perform the conversion. For "aware" dt instances, the mtime is to be computed as: (dt - datetime(1970, 1, 1, tzinfo=timezone.utc)).total_seconds()
 
