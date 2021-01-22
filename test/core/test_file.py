@@ -21,7 +21,9 @@ import os
 import unittest
 from tempfile import TemporaryDirectory
 
-from core import file, typing as T
+import time as ti
+
+from core import file, time, typing as T
 
 
 class TestFile(unittest.TestCase):
@@ -65,6 +67,15 @@ class TestFile(unittest.TestCase):
     def test_hardlinks(self) -> None:
         tmp_file = self._path / "foo"
         self.assertTrue(file.hardlinks(tmp_file), 2)
+
+    def test_update_mtime(self) -> None:
+        tmp_file = self._path / "foo"
+        dt_now = time.now()
+        
+        file.update_mtime(tmp_file, dt_now)
+
+        unix_time = int(dt_now.timestamp())
+        self.assertEqual(tmp_file.stat().st_mtime, unix_time)
 
 
 if __name__ == "__main__":

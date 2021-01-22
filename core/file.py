@@ -18,8 +18,9 @@ with this program. If not, see https://www.gnu.org/licenses/
 """
 
 from abc import ABCMeta, abstractmethod
+import os
 
-from . import typing as T
+from . import typing as T, time
 
 
 class BaseFile(metaclass=ABCMeta):
@@ -80,3 +81,17 @@ def hardlinks(path:T.Path) -> int:
     @return  Number of hardlinks
     """
     return path.stat().st_nlink
+
+def update_mtime(path: T.Path, dt: T.DateTime) -> None:
+    """
+    Update the modification time of the file to the given time.
+
+    @param path Path to file
+    @path dt DateTime, which is "naive". From datetime docs: "d is naive iff: d.tzinfo is None or d.tzinfo.utcoffset(d) is None"
+
+    """
+    mtime = int(dt.timestamp())
+    atime = path.stat().st_atime
+    # Naive dt instances are assumed to represent local time and timestamp()  method relies on the platform C mktime() function to perform the conversion. For "aware" dt instances, the mtime is to be computed as: (dt - datetime(1970, 1, 1, tzinfo=timezone.utc)).total_seconds()
+
+    os.utime(path, (atime, mtime ))
