@@ -73,6 +73,7 @@ email:
 
 deletion:
   threshold: 90
+  limbo: 14
   warnings:
   - 240  # 10 days' notice
   - 72   # 3 days' notice

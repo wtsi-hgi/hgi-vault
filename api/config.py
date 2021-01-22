@@ -1,7 +1,9 @@
 """
 Copyright (c) 2020 Genome Research Limited
 
-Author: Christopher Harrison <ch12@sanger.ac.uk>
+Author: 
+* Christopher Harrison <ch12@sanger.ac.uk>
+* Piyush Ahuja <pa11@sanger.ac.uk>
 
 This program is free software: you can redistribute it and/or modify it
 under the terms of the GNU General Public License as published by the
@@ -112,6 +114,7 @@ _schema = {
 
     "deletion": {
         "threshold":         _Setting(cast=_Days),
+        "limbo":             _Setting(cast=_Days),
         "warnings":          _Setting(cast=_ListOf(_HoursLessThanThreeMonths), default=[])},
 
     "archive": {

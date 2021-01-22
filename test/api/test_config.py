@@ -4,6 +4,7 @@ Copyright (c) 2020 Genome Research Limited
 Authors:
 * Aiden Neale <an12@sanger.ac.uk>
 * Christopher Harrison <ch12@sanger.ac.uk>
+* Piyush Ahuja <pa11@sanger.ac.uk>
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -64,6 +65,9 @@ _MISSING_OPTIONAL_CONFIG = _EXAMPLE_CONFIG_TEXT.replace(
     "port: 25",
     "")
 
+_MISSING_DELETION_LIMBO = _EXAMPLE_CONFIG_TEXT.replace(
+    "limbo: 14",
+    "")
 
 class TestConfig(unittest.TestCase):
     _tmp:NamedTemporaryFile
@@ -108,6 +112,7 @@ class TestConfig(unittest.TestCase):
 
         self.assertEqual(config.deletion.threshold, time.delta(days=90))
         self.assertEqual(config.deletion.warnings, [time.delta(days=10), time.delta(days=3), time.delta(days=1)])
+        self.assertEqual(config.deletion.limbo, time.delta(days=14))
 
         self.assertEqual(config.archive.threshold, 1000)
         self.assertEqual(config.archive.handler, T.Path("/path/to/executable"))
@@ -140,6 +145,12 @@ class TestConfig(unittest.TestCase):
         self.assertTrue((c := Config(self.temp_config))._is_valid)
         self.assertEqual(c.email.smtp.port, 25)
 
+        self.temp_config.write_text(_MISSING_DELETION_LIMBO)
+
+
+    
+
+  
 
 if __name__ == "__main__":
     unittest.main()
