@@ -173,17 +173,17 @@ Likewise:
 
 All development must be done in the `feature/limbo` branch.
 
-* [ ] Core
-  * [ ] Method to update a file's `mtime` (`core/file.py`, tests in
+* [x] Core
+  * [x] Method to update a file's `mtime` (`core/file.py`, tests in
         `test/core/test_file.py`).\
         <ETA: 1 hour>
-* [ ] API
-  * [ ] Update the configuration schema to include `deletion.limbo`
+* [x] API
+  * [x] Update the configuration schema to include `deletion.limbo`
         (`api/config.py`, tests in `test/api/test_config.py`).\
         <ETA: 1 hour>
-  * [ ] Add `.limbo` branch (`api/vault/common.py`).\
+  * [x] Add `.limbo` branch (`api/vault/common.py`).\
         <ETA: 10 minutes>
-  * [ ] Change text of notification e-mail
+  * [x] Change text of notification e-mail
         (`api/mail/notification.js`).\
         <ETA: 10 minutes>
 * [ ] Vault (`bin/vault`)
