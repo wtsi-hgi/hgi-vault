@@ -89,18 +89,13 @@ def update_mtime(path: T.Path, dt: T.DateTime) -> None:
     Update the modification time of the file to the given time.
 
     @param path Path to file
-    @path dt DateTime, which is "naive". From datetime docs: "d is naive iff: d.tzinfo is None or d.tzinfo.utcoffset(d) is None"
+    @path dt DateTime
 
     """
-    mtime = None
+    # Naive dt instances are assumed to represent local time and timestamp()  method relies on the platform C mktime() function to perform the conversion. For "aware" dt instances, the mtime is to be computed as: (dt - datetime(1970, 1, 1, tzinfo=timezone.utc)).total_seconds(). To simply and not have to make this calculation, we convert every dt to UTC.
 
-    if dt.tzinfo is None or dt.tzinfo.utcoffset(dt) is None:
-        mtime = int(dt.timestamp())
-    else:
-        unix_time = (dt - time.datetime(1970, 1, 1, tzinfo=time.timezone.utc)).total_seconds()
-        mtime  = int(unix_time)
-
+    dt = time.to_utc(dt)
+    mtime = int(dt.timestamp())
     atime = path.stat().st_atime
-    # Naive dt instances are assumed to represent local time and timestamp()  method relies on the platform C mktime() function to perform the conversion. For "aware" dt instances, the mtime is to be computed as: (dt - datetime(1970, 1, 1, tzinfo=timezone.utc)).total_seconds()
 
     os.utime(path, (atime, mtime ))
