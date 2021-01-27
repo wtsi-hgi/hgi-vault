@@ -36,7 +36,9 @@ _actions = {
     "archive": _ActionText("file archival operations",
                            "view files annotated for archival"),
 
-    "remove":  _ActionText("remove files from their vault")
+    "remove":  _ActionText("remove files from their vault"),
+
+    "recover": _ActionText("file recovery from recycle bin operations", "view files currently in the recycle bin")
 }
 
 def _parser_factory():
@@ -73,16 +75,18 @@ def _parser_factory():
             help=f"file to {action} (at most 10)",
             metavar="FILE")
 
+    action_level["recover"].add_argument("--all", action="store_true", help="recover all files in the current recycle bin")
+
+
     def parser(args:T.List[str]) -> argparse.Namespace:
         # Parse the given arguments and ensure mutual exclusivity
         parsed = top_level.parse_args(args)
 
         text = _actions[parsed.action]
         if text.view_help is not None:
-            if parsed.view:
+            if parsed.view || parsed.all:
                 # Nullify file arguments if asked to view
                 del parsed.files
-
             else:
                 if not parsed.files:
                     # Must have either --view or FILEs
