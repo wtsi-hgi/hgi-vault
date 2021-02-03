@@ -22,9 +22,6 @@ with this program. If not, see https://www.gnu.org/licenses/
 import os
 import unittest
 from tempfile import TemporaryDirectory
-
-import time as ti
-
 from core import file, time, typing as T
 
 
