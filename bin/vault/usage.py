@@ -84,7 +84,7 @@ def _parser_factory():
 
         text = _actions[parsed.action]
         if text.view_help is not None:
-            if parsed.view || parsed.all:
+            if parsed.view or parsed.all:
                 # Nullify file arguments if asked to view
                 del parsed.files
             else:

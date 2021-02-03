@@ -133,7 +133,7 @@ _action_to_branch = {
 def main(argv:T.List[str] = sys.argv) -> None:
     args = usage.parse_args(argv[1:])
 
-    if args.action in ["keep", "archive"]:
+    if args.action in ["keep", "archive", "recover"]:
         branch = _action_to_branch[args.action]
 
         if args.view:
