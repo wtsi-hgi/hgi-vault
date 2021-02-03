@@ -20,9 +20,10 @@ with this program. If not, see https://www.gnu.org/licenses/
 import os
 from os.path import relpath
 import stat
+import logging
 
 import core.vault
-from core import file, typing as T
+from core import time, file, typing as T
 from .common import Branch, BaseHGIVault
 from .key import VaultFileKey
 
@@ -51,6 +52,26 @@ def convert_work_dir_rel_to_vault_rel(path, relative_to, vault_path):
     resolved_vault_path = vault_path.resolve()
     vault_relative_path = T.Path(relpath(new_resolved_path, resolved_vault_path))
     return vault_relative_path
+
+
+def hardlink_and_remove(full_source_path: T.Path, full_dest_path: T.Path) -> None:
+    """Method that recovers a file from the .limbo branch"""
+    if not full_source_path.exists():
+        logging.error(f"Source file {full_source_path} does not exist")
+        return
+    if not full_dest_path.parent.exists():
+        logging.error(f"Source path exists {full_source_path} but destination {full_dest_path} does not seem to exist")
+        return     
+
+    full_source_path.link_to(full_dest_path)
+    logging.debug(f"{full_source_path} hardlinked at {full_dest_path} ")
+    current_time = time.now()
+    file.update_mtime(full_dest_path, current_time)
+    full_source_path.unlink()
+    logging.debug(f"File has been removed from {full_source_path}")
+    logging.info(f"File has been restored at {full_dest_path}")
+
+
 
 
 class VaultFile(core.vault.base.VaultFile):
