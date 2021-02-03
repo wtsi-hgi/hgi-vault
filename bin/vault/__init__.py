@@ -1,4 +1,4 @@
-"""
+""" 
 Copyright (c) 2020 Genome Research Limited
 
 Author: Christopher Harrison <ch12@sanger.ac.uk>
@@ -112,7 +112,8 @@ def remove(files:T.List[T.Path]) -> None:
 # Mapping of actions to branch enumeration
 _action_to_branch = {
     "keep":    Branch.Keep,
-    "archive": Branch.Archive
+    "archive": Branch.Archive,
+    "recover": Branch.Limbo
 }
 
 def main(argv:T.List[str] = sys.argv) -> None:
