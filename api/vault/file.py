@@ -18,6 +18,7 @@ with this program. If not, see https://www.gnu.org/licenses/
 """
 
 import os
+from os.path import relpath
 import stat
 
 import core.vault
@@ -26,6 +27,16 @@ from .common import Branch, BaseHGIVault
 from .key import VaultFileKey
 
 VaultExc = core.vault.exception
+
+def convert_vault_rel_to_work_dir_rel(path: T.Path, relative_to: T.Path) -> T.Path:
+    """
+    Method that canonicalises a Vault path (which is relative to the Vault root), such that it is also relative to any directory under the Vault root, both up and down the tree.
+    Example: this/is/another/path, this/is/my/path -> ../../path
+    """
+
+    #Both the inputs need to be relativised to the same Vault root. .vault/
+    return T.Path(relpath(path, relative_to))
+
 
 
 class VaultFile(core.vault.base.VaultFile):
