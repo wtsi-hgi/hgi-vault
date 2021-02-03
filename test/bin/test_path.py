@@ -2,10 +2,10 @@ import unittest
 import logging
 
 import os
-
+from tempfile import TemporaryDirectory
 
 from core import typing as T
-from api.vault.file import convert_vault_rel_to_work_dir_rel, convert_work_dir_rel_to_vault_rel
+from api.vault.file import convert_vault_rel_to_work_dir_rel, convert_work_dir_rel_to_vault_rel, hardlink_and_remove
 
 # At the vault root
 # +- some/
@@ -58,5 +58,45 @@ class TestWorkDirRelativeToVaultRelative(unittest.TestCase):
 
 
 
+
+class TestHardLinkAndRemove(unittest.TestCase):
+    _tmp:TemporaryDirectory
+    _path:T.Path
+
+    def setUp(self) -> None:
+        self._tmp = TemporaryDirectory()
+        self._path = path = T.Path(self._tmp.name)
+
+        tmp_file = path / "foo"
+        tmp_file.touch()
+
+    
+    def tearDown(self) -> None:
+        self._tmp.cleanup()
+        del self._path
+
+
+    def test_basic_case(self):
+        #file1, some/path -> some/path/file1
+        full_source_path = self._path / "foo"
+        full_dest_path = self._path / "quux"
+        hardlink_and_remove(full_source_path, full_dest_path)
+        self.assertFalse(os.path.isfile(full_source_path))
+        self.assertTrue(os.path.isfile(full_dest_path))
+
+    def test_source_does_not_exist(self):
+        #file1, some/path -> some/path/file1
+        full_source_path = self._path / "new"
+        full_dest_path = self._path / "quux"
+        hardlink_and_remove(full_source_path, full_dest_path)
+        # self.assertRaises(hardlink_and_remove(full_source_path, full_dest_path))
+    def test_destination_does_not_exist(self):
+        #file1, some/path -> some/path/file1
+        full_source_path = self._path / "foo"
+        full_dest_path = self._path / "new" / "quux"
+        hardlink_and_remove(full_source_path, full_dest_path)
+        # self.assertRaises(hardlink_and_remove(full_source_path, full_dest_path))
+
+    
 
 
