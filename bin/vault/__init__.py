@@ -22,6 +22,8 @@ import sys
 import core.vault
 from api.logging import log
 from api.vault import Branch, Vault
+from api.vault.file import hardlink_and_remove
+
 from bin.common import idm
 from core import file, typing as T
 from . import usage
@@ -107,6 +109,18 @@ def remove(files:T.List[T.Path]) -> None:
             except core.vault.exception.PhysicalVaultFile:
                 # This wouldn't make sense, so we just skip it sans log
                 pass
+
+
+def recover(files: T.List[T.Path]) -> None:
+    """Recover the given files"""
+    cwd = file.cwd()
+    vault = _create_vault(f)
+    vault_root_path = vault._find_root()
+    for f in files:
+        vault_relative_path = convert_work_dir_rel_to_vault_rel(f, cwd , vault_root_path)
+        full_source_path = vault_root_path/ T.Path(".vault/.limbo")/vault_relative_path
+        full_dest_path = vault_root_path/ vault_relative_path
+        file.hardlink_and_remove(full_source_path, full_dest_path)
 
 
 # Mapping of actions to branch enumeration
