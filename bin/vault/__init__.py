@@ -22,7 +22,7 @@ import sys
 import core.vault
 from api.logging import log
 from api.vault import Branch, Vault
-from api.vault.file import hardlink_and_remove, convert_work_dir_rel_to_vault_rel
+from api.vault.file import hardlink_and_remove, convert_work_dir_rel_to_vault_rel, convert_vault_rel_to_work_dir_rel
 
 from bin.common import idm
 from core import file, typing as T
@@ -42,14 +42,29 @@ def _create_vault(relative_to:T.Path) -> Vault:
 
 def view(branch:Branch) -> None:
     """ List the contents of the given branch """
-    vault = _create_vault(file.cwd())
-
+    cwd = file.cwd()
+    vault = _create_vault(cwd)
+    
     count = 0
-    for path in vault.list(branch):
-        print(path)
-        count += 1
+    if branch == Branch.Limbo:
+        vault_root = vault._find_root()
+        bpath = vault_root / ".vault"/ branch
+        for dirname, _, files in os.walk(bpath):
+            for f in files:
+                count +=1
+                full_file_path = T.Path(dirname) / T.Path(f)
+                vault_relativized_work_dir = T.Path(os.path.relpath(cwd, vault_root))
+                work_dir_in_vault = bpath / vault_relativized_work_dir
+                relative_path = convert_vault_rel_to_work_dir_rel(full_file_path, work_dir_in_vault )
+                print(relative_path)
+    else:
+        for path in vault.list(branch):
+            print(path)
+            count += 1
 
     log.info(f"{branch} branch of the vault in {vault.root} contains {count} files")
+
+
 
 
 def add(branch:Branch, files:T.List[T.Path]) -> None:
@@ -113,7 +128,7 @@ def remove(files:T.List[T.Path]) -> None:
 
 def recover(files: T.List[T.Path]) -> None:
     """Recover the given files"""
-    cwd = os.getcwd()
+    cwd = file.cwd()
    
     for f in files:
         vault = _create_vault(f)
