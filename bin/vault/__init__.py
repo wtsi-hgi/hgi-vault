@@ -22,12 +22,12 @@ import sys
 import core.vault
 from api.logging import log
 from api.vault import Branch, Vault
-from api.vault.file import hardlink_and_remove
+from api.vault.file import hardlink_and_remove, convert_work_dir_rel_to_vault_rel
 
 from bin.common import idm
 from core import file, typing as T
 from . import usage
-
+import os
 
 def _create_vault(relative_to:T.Path) -> Vault:
     # Defensively create a vault with the common IdM
@@ -113,14 +113,15 @@ def remove(files:T.List[T.Path]) -> None:
 
 def recover(files: T.List[T.Path]) -> None:
     """Recover the given files"""
-    cwd = file.cwd()
-    vault = _create_vault(f)
-    vault_root_path = vault._find_root()
+    cwd = os.getcwd()
+   
     for f in files:
-        vault_relative_path = convert_work_dir_rel_to_vault_rel(f, cwd , vault_root_path)
+        vault = _create_vault(f)
+        vault_root_path = vault._find_root()
+        vault_relative_path = convert_work_dir_rel_to_vault_rel(f, cwd , vault_root_path)     
         full_source_path = vault_root_path/ T.Path(".vault/.limbo")/vault_relative_path
         full_dest_path = vault_root_path/ vault_relative_path
-        file.hardlink_and_remove(full_source_path, full_dest_path)
+        hardlink_and_remove(full_source_path, full_dest_path)
 
 
 # Mapping of actions to branch enumeration
