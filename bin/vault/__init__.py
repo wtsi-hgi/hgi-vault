@@ -23,7 +23,7 @@ import core.vault
 from api.logging import log
 from api.vault import Branch, Vault
 from api.vault.file import hardlink_and_remove, convert_work_dir_rel_to_vault_rel, convert_vault_rel_to_work_dir_rel
-
+from api.vault.key import VaultFileKey
 from bin.common import idm
 from core import file, typing as T
 from . import usage
@@ -125,17 +125,32 @@ def remove(files:T.List[T.Path]) -> None:
                 # This wouldn't make sense, so we just skip it sans log
                 pass
 
+def find_vfpath_without_inode(path: T.Path, vault_root: T.Path, branch) -> T.Path:
+    bpath = vault_root / ".vault"/ branch
+    for dirname, _, files in os.walk(bpath):
+        for file in files:
+            vault_file_key = VaultFileKey.Reconstruct(T.Path(dirname, file).relative_to(bpath))
+            original_source = vault_root / vault_file_key.source
+            if original_source.resolve() == path.resolve():
+                vault_file_path = bpath/ vault_file_key.path
+                log.info(f"Found VFK for source {path} at location {vault_file_path}")
+                return vault_file_path
 
 def recover(files: T.List[T.Path]) -> None:
-    """Recover the given files"""
+    """Recover the given files from Limbo branch
+    Command to recover some/file1 and some/path/file1:
+    some/path$ vault recover ../file1 file1
+    """
+
     cwd = file.cwd()
-   
+
     for f in files:
         vault = _create_vault(f)
-        vault_root_path = vault._find_root()
-        vault_relative_path = convert_work_dir_rel_to_vault_rel(f, cwd , vault_root_path)     
-        full_source_path = vault_root_path/ T.Path(".vault/.limbo")/vault_relative_path
-        full_dest_path = vault_root_path/ vault_relative_path
+        vault_root = vault._find_root()
+        # Converts ../file1 to .vault/limbo/enc(/some/file1)
+        vault_relative_path = convert_work_dir_rel_to_vault_rel(f, cwd , vault_root)
+        full_dest_path = vault_root / vault_relative_path
+        full_source_path = find_vfpath_without_inode(full_dest_path, vault_root, Branch.Limbo)
         hardlink_and_remove(full_source_path, full_dest_path)
 
 

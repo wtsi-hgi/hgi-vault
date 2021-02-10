@@ -40,7 +40,7 @@ def convert_vault_rel_to_work_dir_rel(path: T.Path, relative_to: T.Path) -> T.Pa
 
 
 
-def convert_work_dir_rel_to_vault_rel(path, relative_to, vault_root_path):
+def convert_work_dir_rel_to_vault_rel(path, relative_to, vault_root):
     """
     Method that takes a canonicalised Vault path, relative to some directory under the Vault root, and converts it back to a "full" Vault path (i.e., the inverse of the above).
     Example: ../../another/path, this/is/my/path -> this/is/another/path
@@ -50,7 +50,7 @@ def convert_work_dir_rel_to_vault_rel(path, relative_to, vault_root_path):
     #Both the inputs need to be relativised to the same Vault root. .vault/
     joined_path = (relative_to / path)
     new_resolved_path = joined_path.resolve()
-    resolved_vault_path = vault_root_path.resolve()
+    resolved_vault_path = vault_root.resolve()
     vault_relative_path = T.Path(relpath(new_resolved_path, resolved_vault_path))
     return vault_relative_path
 
