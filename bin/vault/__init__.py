@@ -18,16 +18,16 @@ with this program. If not, see https://www.gnu.org/licenses/
 """
 
 import sys
-
+import os
 import core.vault
 from api.logging import log
 from api.vault import Branch, Vault
-from api.vault.file import hardlink_and_remove, convert_work_dir_rel_to_vault_rel, convert_vault_rel_to_work_dir_rel
-from api.vault.key import VaultFileKey
 from bin.common import idm
 from core import file, typing as T
 from . import usage
-import os
+from .limbo import hardlink_and_remove, convert_work_dir_rel_to_vault_rel, convert_vault_rel_to_work_dir_rel, find_vfpath_without_inode
+
+
 
 def _create_vault(relative_to:T.Path) -> Vault:
     # Defensively create a vault with the common IdM
@@ -125,16 +125,6 @@ def remove(files:T.List[T.Path]) -> None:
                 # This wouldn't make sense, so we just skip it sans log
                 pass
 
-def find_vfpath_without_inode(path: T.Path, vault_root: T.Path, branch) -> T.Path:
-    bpath = vault_root / ".vault"/ branch
-    for dirname, _, files in os.walk(bpath):
-        for file in files:
-            vault_file_key = VaultFileKey.Reconstruct(T.Path(dirname, file).relative_to(bpath))
-            original_source = vault_root / vault_file_key.source
-            if original_source.resolve() == path.resolve():
-                vault_file_path = bpath/ vault_file_key.path
-                log.info(f"Found VFK for source {path} at location {vault_file_path}")
-                return vault_file_path
 
 def recover(files: T.List[T.Path]) -> None:
     """Recover the given files from Limbo branch
@@ -143,7 +133,6 @@ def recover(files: T.List[T.Path]) -> None:
     """
 
     cwd = file.cwd()
-
     for f in files:
         vault = _create_vault(f)
         vault_root = vault._find_root()

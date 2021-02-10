@@ -8,8 +8,7 @@ from core import typing as T
 from tempfile import TemporaryDirectory
 from api.vault import Branch, Vault
 from api.vault.key import VaultFileKey as VFK
-from api.vault.file import convert_vault_rel_to_work_dir_rel, convert_work_dir_rel_to_vault_rel, hardlink_and_remove
-
+from bin.vault.limbo import convert_vault_rel_to_work_dir_rel, convert_work_dir_rel_to_vault_rel, hardlink_and_remove
 from bin.vault import recover, view
 from bin.common import idm
 from unittest import mock
