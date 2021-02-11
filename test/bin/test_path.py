@@ -9,7 +9,7 @@ from tempfile import TemporaryDirectory
 from api.vault import Branch, Vault
 from api.vault.key import VaultFileKey as VFK
 from bin.vault.limbo import convert_vault_rel_to_work_dir_rel, convert_work_dir_rel_to_vault_rel, hardlink_and_remove
-from bin.vault import recover, view
+from bin.vault import recover, view, recover_all
 from bin.common import idm
 from unittest import mock
 # At the vault root
@@ -145,9 +145,52 @@ class TestRecover(unittest.TestCase):
         del self.parent
 
     
+    # @mock.patch('bin.vault.file.cwd')
+    # @mock.patch('bin.vault._create_vault')
+    # def test_basic_case(self, vault_mock, cwd_mock):
+        
+
+    #     self.vault.add(Branch.Limbo, self.file_one)
+    #     self.vault.add(Branch.Limbo, self.file_two)
+    #     self.vault.add(Branch.Limbo, self.file_three)
+
+    #     limbo_root = self.parent/ ".vault"/ ".limbo"
+
+    #     inode_no = self.file_one.stat().st_ino
+    #     vault_relative_path = self.file_one.relative_to(self.parent)
+    #     vault_file_path_one = limbo_root / VFK(vault_relative_path, inode_no).path
+
+    #     inode_no = self.file_two.stat().st_ino
+    #     vault_relative_path = self.file_two.relative_to(self.parent)
+    #     vault_file_path_two = limbo_root / VFK(vault_relative_path, inode_no).path
+
+    #     inode_no = self.file_three.stat().st_ino
+    #     vault_relative_path = self.file_three.relative_to(self.parent)
+    #     vault_file_path_three = limbo_root / VFK(vault_relative_path, inode_no).path
+
+
+    #     self.file_one.unlink()
+    #     self.file_two.unlink()
+    #     self.file_three.unlink()
+
+    #     cwd_mock.return_value = self.some
+    #     vault_mock.return_value = self.vault
+    #     files = ["../file1", "file2"]
+    #     recover(files)
+
+    #     self.assertTrue(os.path.isfile(self.file_one))
+    #     self.assertFalse(os.path.isfile(vault_file_path_one))
+
+
+    #     self.assertTrue(os.path.isfile(self.file_two))
+    #     self.assertFalse(os.path.isfile(vault_file_path_two))
+
+    #     self.assertTrue(os.path.isfile(vault_file_path_three))
+    #     self.assertFalse(os.path.isfile(self.file_three))
+
     @mock.patch('bin.vault.file.cwd')
     @mock.patch('bin.vault._create_vault')
-    def test_basic_case(self, vault_mock, cwd_mock):
+    def test_all_case(self, vault_mock, cwd_mock):
         
 
         self.vault.add(Branch.Limbo, self.file_one)
@@ -175,8 +218,8 @@ class TestRecover(unittest.TestCase):
 
         cwd_mock.return_value = self.some
         vault_mock.return_value = self.vault
-        files = ["../file1", "file2"]
-        recover(files)
+        
+        recover_all()
 
         self.assertTrue(os.path.isfile(self.file_one))
         self.assertFalse(os.path.isfile(vault_file_path_one))
@@ -184,10 +227,9 @@ class TestRecover(unittest.TestCase):
 
         self.assertTrue(os.path.isfile(self.file_two))
         self.assertFalse(os.path.isfile(vault_file_path_two))
-
-        self.assertTrue(os.path.isfile(vault_file_path_three))
-        self.assertFalse(os.path.isfile(self.file_three))
-
+        self.assertTrue(os.path.isfile(self.file_three))
+        self.assertFalse(os.path.isfile(vault_file_path_three))
+        
 # class TestView(unittest.TestCase):
 
 # # At the vault root

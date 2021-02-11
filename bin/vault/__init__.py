@@ -22,6 +22,7 @@ import os
 import core.vault
 from api.logging import log
 from api.vault import Branch, Vault
+from api.vault.key import VaultFileKey
 from bin.common import idm
 from core import file, typing as T
 from . import usage
@@ -44,15 +45,17 @@ def view(branch:Branch) -> None:
     """ List the contents of the given branch """
     cwd = file.cwd()
     vault = _create_vault(cwd)
-    count = 0    
+    count = 0
+    paths = []    
     for path in vault.list(branch):
         if branch == Branch.Limbo:
             path = convert_vault_rel_to_work_dir_rel(path, cwd)
         print(path)
+        paths.append(path)
         count += 1
 
     log.info(f"{branch} branch of the vault in {vault.root} contains {count} files")
-
+    return paths
 
 
 
@@ -122,14 +125,31 @@ def recover(files: T.List[T.Path]) -> None:
     """
 
     cwd = file.cwd()
+    vault = _create_vault(f)
+    vault_root = vault.root
     for f in files:
-        vault = _create_vault(f)
-        vault_root = vault.root
         # Converts ../file1 to .vault/limbo/enc(/some/file1)
         vault_relative_path = convert_work_dir_rel_to_vault_rel(f, cwd , vault_root)
         full_dest_path = vault_root / vault_relative_path
         full_source_path = find_vfpath_without_inode(full_dest_path, vault_root, Branch.Limbo)
         hardlink_and_remove(full_source_path, full_dest_path)
+
+def recover_all() -> None:
+    """
+    Recover all files from Limbo branch
+    """
+    cwd = file.cwd()
+    vault = _create_vault(cwd)   
+    bpath = vault.location / ".limbo"  
+    for dirname, _, files in os.walk(bpath):
+        for f in files:
+            limbo_relative_path = T.Path(dirname, f).relative_to(bpath)
+            vfk = VaultFileKey.Reconstruct(limbo_relative_path)
+            original_source = vault.root / vfk.source
+            vfkpath = bpath / vfk.path
+            hardlink_and_remove(vfkpath, original_source)
+    
+
 
 
 # Mapping of actions to branch enumeration
@@ -144,9 +164,10 @@ def main(argv:T.List[str] = sys.argv) -> None:
 
     if args.action in ["keep", "archive", "recover"]:
         branch = _action_to_branch[args.action]
-
         if args.view:
             view(branch)
+        elif branch == Branch.Limbo:
+           recover_all()
         else:
             add(branch, args.files)
 
