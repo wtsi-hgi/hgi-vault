@@ -1,7 +1,9 @@
 """ 
 Copyright (c) 2020 Genome Research Limited
 
-Author: Christopher Harrison <ch12@sanger.ac.uk>
+Author: 
+Christopher Harrison <ch12@sanger.ac.uk>
+Piyush Ahuja <pa11@sanger.ac.uk>
 
 This program is free software: you can redistribute it and/or modify it
 under the terms of the GNU General Public License as published by the
@@ -123,9 +125,8 @@ def recover(files: T.List[T.Path]) -> None:
     Command to recover some/file1 and some/path/file1:
     some/path$ vault recover ../file1 file1
     """
-
     cwd = file.cwd()
-    vault = _create_vault(f)
+    vault = _create_vault(cwd)
     vault_root = vault.root
     for f in files:
         # Converts ../file1 to .vault/limbo/enc(/some/file1)
@@ -149,8 +150,6 @@ def recover_all() -> None:
             vfkpath = bpath / vfk.path
             hardlink_and_remove(vfkpath, original_source)
     
-
-
 
 # Mapping of actions to branch enumeration
 _action_to_branch = {

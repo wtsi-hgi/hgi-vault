@@ -1,7 +1,7 @@
 """
 Copyright (c) 2020 Genome Research Limited
 
-Author: Christopher Harrison <ch12@sanger.ac.uk>
+Author: Piyush Ahuja <pa11@sanger.ac.uk>
 
 This program is free software: you can redistribute it and/or modify it
 under the terms of the GNU General Public License as published by the
