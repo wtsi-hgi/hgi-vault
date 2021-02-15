@@ -1,5 +1,5 @@
 """ 
-Copyright (c) 2020 Genome Research Limited
+Copyright (c) 2020, 2021 Genome Research Limited
 
 Author: 
 Christopher Harrison <ch12@sanger.ac.uk>
@@ -28,7 +28,7 @@ from api.vault.key import VaultFileKey
 from bin.common import idm
 from core import file, typing as T
 from . import usage
-from .limbo import hardlink_and_remove, convert_work_dir_rel_to_vault_rel, convert_vault_rel_to_work_dir_rel, find_vfpath_without_inode
+from .recover import hardlink_and_remove, vault_relative_to_wd_relative, wd_relative_to_vault_relative
 
 
 
@@ -51,7 +51,7 @@ def view(branch:Branch) -> None:
     paths = []    
     for path in vault.list(branch):
         if branch == Branch.Limbo:
-            path = convert_vault_rel_to_work_dir_rel(path, cwd)
+            path = vault_relative_to_wd_relative(path, cwd)
         print(path)
         paths.append(path)
         count += 1
@@ -119,7 +119,6 @@ def remove(files:T.List[T.Path]) -> None:
                 # This wouldn't make sense, so we just skip it sans log
                 pass
 
-
 def recover(files: T.List[T.Path]) -> None:
     """Recover the given files from Limbo branch
     Command to recover some/file1 and some/path/file1:
@@ -128,27 +127,31 @@ def recover(files: T.List[T.Path]) -> None:
     cwd = file.cwd()
     vault = _create_vault(cwd)
     vault_root = vault.root
-    for f in files:
-        # Converts ../file1 to .vault/limbo/enc(/some/file1)
-        vault_relative_path = convert_work_dir_rel_to_vault_rel(f, cwd , vault_root)
-        full_dest_path = vault_root / vault_relative_path
-        full_source_path = find_vfpath_without_inode(full_dest_path, vault_root, Branch.Limbo)
-        hardlink_and_remove(full_source_path, full_dest_path)
-
-def recover_all() -> None:
-    """
-    Recover all files from Limbo branch
-    """
-    cwd = file.cwd()
-    vault = _create_vault(cwd)   
-    bpath = vault.location / ".limbo"  
+    bpath = vault.location / Branch.Limbo
+    project_files = [vault_root / wd_relative_to_vault_relative(path, cwd , vault_root) for path in files]
     for dirname, _, files in os.walk(bpath):
         for f in files:
             limbo_relative_path = T.Path(dirname, f).relative_to(bpath)
             vfk = VaultFileKey.Reconstruct(limbo_relative_path)
-            original_source = vault.root / vfk.source
+            project_source = vault.root / vfk.source
             vfkpath = bpath / vfk.path
-            hardlink_and_remove(vfkpath, original_source)
+            if project_source in project_files:
+                hardlink_and_remove(vfkpath, project_source)
+
+def recover_all() -> None:
+    """
+    Recover all files from the Limbo branch
+    """
+    cwd = file.cwd()
+    vault = _create_vault(cwd)   
+    bpath = vault.location / Branch.Limbo  
+    for dirname, _, files in os.walk(bpath):
+        for f in files:
+            limbo_relative_path = T.Path(dirname, f).relative_to(bpath)
+            vfk = VaultFileKey.Reconstruct(limbo_relative_path)
+            project_source = vault.root / vfk.source
+            vfkpath = bpath / vfk.path
+            hardlink_and_remove(vfkpath, project_source)
     
 
 # Mapping of actions to branch enumeration

@@ -1,5 +1,5 @@
 """
-Copyright (c) 2020 Genome Research Limited
+Copyright (c) 2020, 2021 Genome Research Limited
 
 Author: Piyush Ahuja <pa11@sanger.ac.uk>
 
@@ -17,7 +17,6 @@ You should have received a copy of the GNU General Public License along
 with this program. If not, see https://www.gnu.org/licenses/
 """
 
-
 import unittest
 import logging
 
@@ -28,10 +27,15 @@ from core import typing as T
 from tempfile import TemporaryDirectory
 from api.vault import Branch, Vault
 from api.vault.key import VaultFileKey as VFK
-from bin.vault.limbo import convert_vault_rel_to_work_dir_rel, convert_work_dir_rel_to_vault_rel, hardlink_and_remove
+from bin.vault.recover import vault_relative_to_wd_relative, wd_relative_to_vault_relative, hardlink_and_remove
 from bin.vault import recover, view, recover_all
 from bin.common import idm
 from unittest import mock
+
+
+
+class TestVaultRelativeToWorkDirRelative(unittest.TestCase):
+
 # At the vault root
 # +- some/
 #    +- path/
@@ -40,14 +44,12 @@ from unittest import mock
 
 #    +- file3
 
-class TestVaultRelativeToWorkDirRelative(unittest.TestCase):
-
     def test_child_to_work_dir(self):
         #  some/path/file1, some/path ->  file1
         work_dir = T.Path("some/path")
         vault_relative_path = T.Path("some/path/file1")
         expected = T.Path("file1")
-        work_dir_rel = convert_vault_rel_to_work_dir_rel(vault_relative_path, work_dir)
+        work_dir_rel = vault_relative_to_wd_relative(vault_relative_path, work_dir)
         self.assertEqual(expected, work_dir_rel)
 
 
@@ -56,7 +58,7 @@ class TestVaultRelativeToWorkDirRelative(unittest.TestCase):
         work_dir = T.Path("this/is/my/path")
         vault_relative_path = T.Path("this/is/my/file3")
         expected = T.Path("../file3")
-        work_dir_rel = convert_vault_rel_to_work_dir_rel(vault_relative_path, work_dir)
+        work_dir_rel = vault_relative_to_wd_relative(vault_relative_path, work_dir)
         self.assertEqual(expected, work_dir_rel)
 
 
@@ -67,7 +69,7 @@ class TestWorkDirRelativeToVaultRelative(unittest.TestCase):
         work_dir = T.Path("some/path")
         work_dir_rel = T.Path("file1")
         vault_path = T.Path(".")
-        vault_relative_path = convert_work_dir_rel_to_vault_rel(work_dir_rel, work_dir, vault_path)
+        vault_relative_path = wd_relative_to_vault_relative(work_dir_rel, work_dir, vault_path)
         expected = T.Path("some/path/file1")
         self.assertEqual(expected, vault_relative_path)
 
@@ -77,7 +79,7 @@ class TestWorkDirRelativeToVaultRelative(unittest.TestCase):
         work_dir = T.Path("this/is/my/path")
         work_dir_rel = T.Path("../file3")
         vault_path = T.Path(".")
-        vault_relative_path = convert_work_dir_rel_to_vault_rel(work_dir_rel, work_dir, vault_path)
+        vault_relative_path = wd_relative_to_vault_relative(work_dir_rel, work_dir, vault_path)
         expected = T.Path("this/is/my/file3")
         self.assertEqual(expected, vault_relative_path)
 
@@ -121,8 +123,6 @@ class TestHardLinkAndRemove(unittest.TestCase):
         full_dest_path = self._path / "new" / "quux"
         hardlink_and_remove(full_source_path, full_dest_path)
         # self.assertRaises(hardlink_and_remove(full_source_path, full_dest_path))
-
-
 
 
 class TestRecover(unittest.TestCase):
@@ -174,7 +174,7 @@ class TestRecover(unittest.TestCase):
         self.vault.add(Branch.Limbo, self.file_two)
         self.vault.add(Branch.Limbo, self.file_three)
 
-        limbo_root = self.parent/ ".vault"/ ".limbo"
+        limbo_root = self.parent/ ".vault"/ Branch.Limbo
 
         inode_no = self.file_one.stat().st_ino
         vault_relative_path = self.file_one.relative_to(self.parent)
@@ -195,7 +195,7 @@ class TestRecover(unittest.TestCase):
 
         cwd_mock.return_value = self.some
         vault_mock.return_value = self.vault
-        files = ["../file1", "file2"]
+        files = [T.Path("../file1"), T.Path("file2")]
         recover(files)
 
         self.assertTrue(os.path.isfile(self.file_one))
@@ -217,7 +217,7 @@ class TestRecover(unittest.TestCase):
         self.vault.add(Branch.Limbo, self.file_two)
         self.vault.add(Branch.Limbo, self.file_three)
 
-        limbo_root = self.parent/ ".vault"/ ".limbo"
+        limbo_root = self.parent/ ".vault"/ Branch.Limbo
 
         inode_no = self.file_one.stat().st_ino
         vault_relative_path = self.file_one.relative_to(self.parent)
@@ -296,9 +296,6 @@ class TestView(unittest.TestCase):
         self.vault.add(Branch.Limbo, self.file_three)
 
         cwd_mock.return_value = self.parent / "some"
-        # custom_mock = vault_mock()
-        # custom_mock._find_root.return_value = self._path
-        # vault_mock.return_value = custom_mock
         view(Branch.Limbo)
 
 
