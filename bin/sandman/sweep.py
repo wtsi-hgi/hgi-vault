@@ -49,8 +49,11 @@ Filter = core.persistence.Filter
 # Hot code implementations
 _hot = agreed(*(m.can_delete for m in (ch12, an12, gn5, pa11)))
 
-def _can_delete(file:walk.File) -> bool:
+def _can_soft_delete(file:walk.File) -> bool:
     return _hot(file, config.deletion.threshold)
+
+def _can_permanently_delete(file:walk.File) -> bool:
+    return _hot(file, config.deletion.limbo)
 
 
 class Sweeper(Loggable):
@@ -244,6 +247,17 @@ class Sweeper(Loggable):
 
                 log.info(f"{file.path} has been staged for archival")
 
+        if status == Branch.Limbo:
+            # self._persistence.persist(to_persist, State.Deleted(notified=False)) should go here if Limbo is added to State model
+            if _can_permanently_delete(file):
+                log.info(f"Permanently Deleting: {file.path} has passed the hard-deletion threshold")
+                if self.Yes_I_Really_Mean_It_This_Time:
+                    try:
+                        file.delete()  # DELETION WARNING
+                    except PermissionError:
+                        log.error(f"Could not delete {file.path}: Permission denied")
+
+
     ####################################################################
 
     @_handler.register
@@ -258,12 +272,12 @@ class Sweeper(Loggable):
         log = self.log
         log.debug(f"{file.path} is untracked")
 
-        if _can_delete(file):
+        if _can_soft_delete(file):
             if file.locked:
-                log.info(f"Skipping: {file.path} has passed the deletion threshold, but is locked by another process")
+                log.info(f"Skipping: {file.path} has passed the soft-deletion threshold, but is locked by another process")
                 return
 
-            log.info(f"Deleting: {file.path} has passed the deletion threshold")
+            log.info(f"Deleting: {file.path} has passed the soft-deletion threshold")
             if self.Yes_I_Really_Mean_It_This_Time:
                 # 0. Instantiate the persisted file model before it's
                 #    deleted so we don't lose its stat information
@@ -277,12 +291,13 @@ class Sweeper(Loggable):
                     log.info(f"Deleted {file.path}")
 
                 except PermissionError:
-                    log.error(f"Could not add to limbo {file.path}: Permission denied")
+                    log.error(f"Could not delete {file.path}: Permission denied")
                     return
 
                 log.info(f"{file.path} has been moved to limbo for deletion")
 
                 # 2. Persist to database
+                # self._persistence.persist(to_persist, State.Limboed(notified=False)) should go here if Limbo is added to State model
                 self._persistence.persist(to_persist, State.Deleted(notified=False))
 
         elif self.Yes_I_Really_Mean_It_This_Time:
