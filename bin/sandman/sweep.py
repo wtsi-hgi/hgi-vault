@@ -1,7 +1,9 @@
 """
-Copyright (c) 2020 Genome Research Limited
+Copyright (c) 2020, 2021 Genome Research Limited
 
-Author: Christopher Harrison <ch12@sanger.ac.uk>
+Author: 
+Christopher Harrison <ch12@sanger.ac.uk>
+Piyush Ahuja <pa11@sanger.ac.uk>
 
 This program is free software: you can redistribute it and/or modify it
 under the terms of the GNU General Public License as published by the
@@ -267,13 +269,18 @@ class Sweeper(Loggable):
                 #    deleted so we don't lose its stat information
                 to_persist = file.to_persistence()
 
-                # 1. Delete file
+                # 1. Move file to Limbo and delete source
                 try:
+                    limboed = vault.add(Branch.Limbo, file.path)
+                    assert hardlinks(file.path) > 1
                     file.delete()  # DELETION WARNING
                     log.info(f"Deleted {file.path}")
+
                 except PermissionError:
-                    log.error(f"Could not delete {file.path}: Permission denied")
+                    log.error(f"Could not add to limbo {file.path}: Permission denied")
                     return
+
+                log.info(f"{file.path} has been moved to limbo for deletion")
 
                 # 2. Persist to database
                 self._persistence.persist(to_persist, State.Deleted(notified=False))
