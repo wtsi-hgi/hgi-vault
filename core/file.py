@@ -1,5 +1,5 @@
 """
-Copyright (c) 2020 Genome Research Limited
+Copyright (c) 2020, 2021 Genome Research Limited
 
 Author: 
 * Christopher Harrison <ch12@sanger.ac.uk>
@@ -92,7 +92,12 @@ def update_mtime(path: T.Path, dt: T.DateTime) -> None:
     @path dt DateTime
 
     """
-    # Naive dt instances are assumed to represent local time and timestamp()  method relies on the platform C mktime() function to perform the conversion. For "aware" dt instances, the mtime is to be computed as: (dt - datetime(1970, 1, 1, tzinfo=timezone.utc)).total_seconds(). To simply and not have to make this calculation, we convert every dt to UTC.
+    # Naive dt instances are assumed to represent local time and 
+    # timestamp()  method relies on the platform C mktime() function 
+    # to perform the conversion. For "aware" dt instances, the mtime 
+    #  is to be computed as: 
+    # (dt - datetime(1970, 1, 1, tzinfo=timezone.utc)).total_seconds(). 
+    # To simply and not have to make this calculation, we convert every dt to UTC.
 
     dt = time.to_utc(dt)
     mtime = int(dt.timestamp())

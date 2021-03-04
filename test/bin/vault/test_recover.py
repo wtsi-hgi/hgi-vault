@@ -1,5 +1,5 @@
 """
-Copyright (c) 2020, 2021 Genome Research Limited
+Copyright (c) 2021 Genome Research Limited
 
 Author: Piyush Ahuja <pa11@sanger.ac.uk>
 
@@ -84,8 +84,6 @@ class TestWorkDirRelativeToVaultRelative(unittest.TestCase):
         self.assertEqual(expected, vault_relative_path)
 
 
-
-
 class TestHardLinkAndRemove(unittest.TestCase):
     _tmp:TemporaryDirectory
     _path:T.Path
@@ -158,17 +156,13 @@ class TestRecover(unittest.TestCase):
         Vault._find_root = mock.MagicMock(return_value = self.parent)
         self.vault = Vault(relative_to = self.file_one, idm = idm)
 
-
-
     def tearDown(self) -> None:
         self._tmp.cleanup()
         del self.parent
 
-    
     @mock.patch('bin.vault.file.cwd')
     @mock.patch('bin.vault._create_vault')
     def test_basic_case(self, vault_mock, cwd_mock):
-        
 
         self.vault.add(Branch.Limbo, self.file_one)
         self.vault.add(Branch.Limbo, self.file_two)
@@ -212,7 +206,6 @@ class TestRecover(unittest.TestCase):
     @mock.patch('bin.vault._create_vault')
     def test_all_case(self, vault_mock, cwd_mock):
         
-
         self.vault.add(Branch.Limbo, self.file_one)
         self.vault.add(Branch.Limbo, self.file_two)
         self.vault.add(Branch.Limbo, self.file_three)
@@ -231,7 +224,6 @@ class TestRecover(unittest.TestCase):
         vault_relative_path = self.file_three.relative_to(self.parent)
         vault_file_path_three = limbo_root / VFK(vault_relative_path, inode_no).path
 
-
         self.file_one.unlink()
         self.file_two.unlink()
         self.file_three.unlink()
@@ -244,12 +236,12 @@ class TestRecover(unittest.TestCase):
         self.assertTrue(os.path.isfile(self.file_one))
         self.assertFalse(os.path.isfile(vault_file_path_one))
 
-
         self.assertTrue(os.path.isfile(self.file_two))
         self.assertFalse(os.path.isfile(vault_file_path_two))
         self.assertTrue(os.path.isfile(self.file_three))
         self.assertFalse(os.path.isfile(vault_file_path_three))
         
+
 class TestView(unittest.TestCase):
 
 # At the vault root
@@ -282,11 +274,9 @@ class TestView(unittest.TestCase):
         Vault._find_root = mock.MagicMock(return_value = self.parent)
         self.vault = Vault(relative_to = self.file_one, idm = idm)
 
-
     def tearDown(self) -> None:
         self._tmp.cleanup()
         del self.parent
-
 #     def test_basic_case(self, vault_mock, cwd_mock):
     @mock.patch('bin.vault.file.cwd')
     def test_basic_case(self, cwd_mock):

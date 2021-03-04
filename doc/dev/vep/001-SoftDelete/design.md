@@ -186,37 +186,37 @@ All development must be done in the `feature/limbo` branch.
   * [x] Change text of notification e-mail
         (`api/mail/notification.js`).\
         <ETA: 10 minutes>
-* [ ] Vault (`bin/vault`)
-  * [ ] Method that canonicalises a Vault path (which is relative to the
+* [x] Vault (`bin/vault`)
+  * [x] Method that canonicalises a Vault path (which is relative to the
         Vault root), such that it is also relative to any directory
         under the Vault root, both up and down the tree. (See examples
         [above](#vault).)\
         <ETA: 1 day>
-  * [ ] Method that takes a canonicalised Vault path, relative to some
+  * [x] Method that takes a canonicalised Vault path, relative to some
         directory under the Vault root, and converts it back to a "full"
         Vault path (i.e., the inverse of the above).\
         <ETA: 0.5 days>
-  * [ ] Update command line argument parser to accept new subcommand and
+  * [x] Update command line argument parser to accept new subcommand and
         its options (`bin/vault/usage.py`), with appropriate help text.\
         <ETA: 1 day>
-  * [ ] Method that recovers a file from the `.limbo` branch, per the
+  * [x] Method that recovers a file from the `.limbo` branch, per the
         steps outlined [above](#vault).\
         <ETA: 2 days>
-  * [ ] Expose `--view` option, wrapped in the aforementioned
+  * [x] Expose `--view` option, wrapped in the aforementioned
         canonicalisation method with respect to the current working
         directory.\
         <ETA: 1 hour>
-  * [ ] Expose `FILE...` recovery option, wrapped in the aforementioned
+  * [x] Expose `FILE...` recovery option, wrapped in the aforementioned
         inverse canonicalisation method with respect to the current
         working directory.\
         <ETA: 0.5 days>
-  * [ ] Expose `--all` option, as a special case of the above two.\
+  * [x] Expose `--all` option, as a special case of the above two.\
         <ETA: 0.5 days>
-* [ ] Sandman (`bin/sandman`)
-  * [ ] Update the untracked file sweeper handler to soft-delete files
+* [x] Sandman (`bin/sandman`)
+  * [x] Update the untracked file sweeper handler to soft-delete files
         that have exceeded their maximum age, rather than hard-delete
         them (`bin/sandman/sweep.py`).\
         <ETA: 3 days>
-  * [ ] Update the branch sweeper handler to hard-delete limboed files
+  * [x] Update the branch sweeper handler to hard-delete limboed files
         that have exceeded their grace age (`bin/sandman/sweep.py`).\
         <ETA: 1 day>

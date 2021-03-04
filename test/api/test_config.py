@@ -1,5 +1,5 @@
 """
-Copyright (c) 2020 Genome Research Limited
+Copyright (c) 2020, 2021 Genome Research Limited
 
 Authors:
 * Aiden Neale <an12@sanger.ac.uk>
