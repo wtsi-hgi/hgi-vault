@@ -73,7 +73,7 @@ class TestFile(unittest.TestCase):
 
         file.update_mtime(tmp_file, dt_now)
 
-        unix_time = int(dt_now.timestamp())
+        unix_time = time.timestamp(dt_now)
         self.assertEqual(tmp_file.stat().st_mtime, unix_time)
 
     def test_update_mtime_with_diff_tz(self) -> None:
@@ -81,7 +81,7 @@ class TestFile(unittest.TestCase):
         tz_dummy = time.timezone(time.timedelta(seconds=14400))
         time_dummy = time.datetime(2007, 12, 6, 15, 29, 43, 79060, tzinfo = tz_dummy)
         file.update_mtime(tmp_file, time_dummy)
-        self.assertEqual(tmp_file.stat().st_mtime, int(time_dummy.timestamp()))
+        self.assertEqual(tmp_file.stat().st_mtime, time.timestamp(time_dummy))
 
    
 

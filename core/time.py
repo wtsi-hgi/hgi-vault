@@ -22,6 +22,7 @@ from datetime import datetime, timedelta, timezone
 now     = lambda: datetime.now(timezone.utc)
 epoch   = lambda ts: datetime.fromtimestamp(ts, timezone.utc)
 to_utc  = lambda dt: dt.astimezone(timezone.utc)
+timestamp = lambda dt: int(to_utc(dt).timestamp())
 
 delta   = timedelta
 seconds = lambda d: d.total_seconds()
