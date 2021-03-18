@@ -1,4 +1,4 @@
-    """
+"""
 Copyright (c) 2020, 2021 Genome Research Limited
 
 Author: 
@@ -28,8 +28,6 @@ from .common import Branch, BaseHGIVault
 from .key import VaultFileKey
 
 VaultExc = core.vault.exception
-
-
 
 
 class VaultFile(core.vault.base.VaultFile):

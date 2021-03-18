@@ -17,10 +17,9 @@ You should have received a copy of the GNU General Public License along
 with this program. If not, see https://www.gnu.org/licenses/
 """
 
-import os
 from os.path import relpath
-from core import time,file, typing as T
-from api.vault.key import VaultFileKey
+
+from core import time,file,typing as T
 from api.logging import log
 
 def vault_relative_to_wd_relative(path: T.Path, working_directory: T.Path) -> T.Path:
@@ -32,7 +31,10 @@ def vault_relative_to_wd_relative(path: T.Path, working_directory: T.Path) -> T.
     @param  working_directory  working directory relative to vault
 
     Example: 
-    f(this/is/project/this/is/file, this/is/project/this/is/working/directory) = ../../file
+    path: this/is/project/this/is/file
+    working_directory: this/is/project/this/is/working/directory)
+
+    output: ../../file
     """
     return T.Path(relpath(path, working_directory))
 
@@ -46,20 +48,21 @@ def wd_relative_to_vault_relative(path: T.Path, working_directory: T.Path, vault
 
     @param  path  location relative to some directory under vault root
     @param  working_directory  working directory relative to vault
+    @param  vault_root full path to the root of the vault
 
     Example: 
-    f(../../relative/path, this/is/working/directory) = this/is/relative/path
+    path: ../../relative/path
+    working_diretory: this/is/working/directory)
+    vault_root: /this/is/vault/root
+
+    output: this/is/relative/path
     """
 
-    # this/is/working/directory/../../relative/path
-    joined_path = (working_directory / path) 
-    # /path/to/vault/root/this/is/relative/path
-    new_resolved_path = joined_path.resolve() 
-    # /path/to/vault/root
-    resolved_vault_root = vault_root.resolve() 
-    # this/is/another/path
-    vault_relative_path = T.Path(relpath(new_resolved_path, resolved_vault_root))
-    return vault_relative_path
+    full_path = (vault_root/ working_directory / path).resolve() 
+    return T.Path(relpath(full_path, vault_root))
+
+  
+   
 
 
 def hardlink_and_remove(full_source_path: T.Path, full_dest_path: T.Path) -> None:
