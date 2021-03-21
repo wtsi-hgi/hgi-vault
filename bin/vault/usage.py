@@ -30,18 +30,30 @@ from bin.common import version
 class _ActionText:
     help:str
     view_help:T.Optional[str] = None
+    usage: T.Optional[str] = None
+    args_error: T.Optional[str] = None
 
 _actions = {
     "keep":    _ActionText("file retention operations",
-                           "view files annotated for retention"),
+                           "view files annotated for retention",
+                           "%(prog)s [-h] (--view | FILE [FILE...])",
+                           "one of the arguments --view or FILE is required"),
 
     "archive": _ActionText("file archival operations",
-                           "view files annotated for archival"),
+                           "view files annotated for archival",
+                           "%(prog)s [-h] (--view | FILE [FILE...])",
+                           "one of the arguments --view or FILE is required"),
 
     "remove":  _ActionText("remove files from their vault"),
 
-    "recover": _ActionText("file recovery from recycle bin operations", "view files currently in the recycle bin")
+    "recover": _ActionText("file recovery operations", 
+                            "view recoverable files",
+                            "%(prog)s [-h] (--view | --all | FILE [FILE...])",
+                            "one of the arguments --view or --all or FILE is required")
 }
+
+
+
 
 def _parser_factory():
     """ Build an argument parser meeting requirements """
@@ -55,52 +67,109 @@ def _parser_factory():
         metavar="ACTION")
 
     action_level = {}
-    for action, text in _actions.items():
-        action_level[action] = sub_level.add_parser(action, help=text.help)
 
-        # We can't have a mutually exclusive group containing a --view
-        # argument or at least one positional argument, so we have to
-        # roll our own with a bit of downstream processing
-        file_nargs = "+"
-        if text.view_help is not None:
-            file_nargs = "*"
-            action_level[action].usage = "%(prog)s [-h] (--view | FILE [FILE...])"
-            action_level[action].add_argument(
+    action = "keep"
+    sub_parser = sub_level.add_parser(action, help= _actions[action].help)
+    sub_parser.usage = _actions[action].usage
+    sub_parser.add_argument(
                 "--view",
                 action="store_true",
-                help=text.view_help)
-
-        action_level[action].add_argument(
-            "files",
-            nargs=file_nargs,
+                help=_actions[action].view_help)
+    sub_parser.add_argument(
+            "files",    
+            nargs="*",
             type=T.Path,
-            help=f"file to {action} (at most 10)",
+            help=f"file to keep (at most 10)",
             metavar="FILE")
 
-    action_level["recover"].add_argument("--all", action="store_true", help="recover all files in the current recycle bin")
+
+    action = "archive"
+    sub_parser = sub_level.add_parser(action, help= _actions[action].help)
+    sub_parser.usage = _actions[action].usage
+    sub_parser.add_argument(
+                "--view",
+                action="store_true",
+                help=_actions[action].view_help)
+    sub_parser.add_argument(
+            "files",    
+            nargs="*",
+            type=T.Path,
+            help=f"file to archive (at most 10)",
+            metavar="FILE")
+
+
+    action = "remove"
+    sub_parser = sub_level.add_parser(action, help= _actions[action].help)
+    sub_parser.add_argument(
+            "files",    
+            nargs="+",
+            type=T.Path,
+            help=f"file to remove",
+            metavar="FILE")
+
+
+    action = "recover"
+    sub_parser = sub_level.add_parser(action, help= _actions[action].help)
+    sub_parser.usage = _actions[action].usage
+    sub_parser.add_argument(
+                "--view",
+                action="store_true",
+                help=_actions[action].view_help)
+
+    sub_parser.add_argument(
+                "--all",
+                action="store_true",
+                help="recover all recoverable files")
+
+    sub_parser.add_argument(
+            "files",    
+            nargs="*",
+            type=T.Path,
+            help=f"file to recover",
+            metavar="FILE")
+
 
 
     def parser(args:T.List[str]) -> argparse.Namespace:
         # Parse the given arguments and ensure mutual exclusivity
         parsed = top_level.parse_args(args)
-
         text = _actions[parsed.action]
-        if text.view_help is not None:
-            if parsed.view or parsed.all:
-                # Nullify file arguments if asked to view
+        
+        if parsed.action == "keep":
+            if parsed.view:
                 del parsed.files
             else:
                 if not parsed.files:
-                    # Must have either --view or FILEs
-                    action_level[parsed.action].error("one of the arguments --view or FILE is required")
-
-                if len(parsed.files) > 10:
+                    action_level[parsed.action].error(_actions[parsed.action].args_error)
+                elif len(parsed.files) > 10:
                     # Limit number of files to at most 10
                     action_level[parsed.action].error("too many FILEs; you may specify no more than 10")
 
-                # Resolve all paths
-                parsed.files = [path.resolve() for path in parsed.files]
+        if parsed.action == "archive":
+            if parsed.view:
+                del parsed.files
+            else:
+                if not parsed.files:
+                    action_level[parsed.action].error(_actions[parsed.action].args_error)
+                elif len(parsed.files) > 10:
+                    # Limit number of files to at most 10
+                    action_level[parsed.action].error("too many FILEs; you may specify no more than 10")
 
+        if parsed.action == "recover":
+            if parsed.view or parsed.all:
+                del parsed.files 
+                if parsed.view and parsed.all:
+                    action_level[parsed.action].error("cannot accept arguments --view and --all simultaenously")
+            else:
+                if not parsed.files:
+                    action_level[parsed.action].error(_actions[parsed.action].args_error)     
+           
+        if parsed.action == "remove":
+            pass
+
+        if "files" in parsed:
+        # Resolve all paths
+            parsed.files = [path.resolve() for path in parsed.files]
         return parsed
 
     return parser
