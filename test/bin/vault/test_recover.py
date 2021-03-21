@@ -27,7 +27,7 @@ from core import typing as T
 from tempfile import TemporaryDirectory
 from api.vault import Branch, Vault
 from api.vault.key import VaultFileKey as VFK
-from bin.vault.recover import vault_relative_to_wd_relative, wd_relative_to_vault_relative, hardlink_and_remove
+from bin.vault.recover import relativise, derelativise, hardlink_and_remove
 from bin.vault import recover, view, recover_all
 from bin.common import idm
 from unittest import mock
@@ -50,7 +50,7 @@ class TestVaultRelativeToWorkDirRelative(unittest.TestCase):
         work_dir = T.Path("some/path")
         vault_relative_path = T.Path("some/path/file1")
         expected = T.Path("file1")
-        work_dir_rel = vault_relative_to_wd_relative(vault_relative_path, work_dir)
+        work_dir_rel = relativise(vault_relative_path, work_dir)
         self.assertEqual(expected, work_dir_rel)
 
 
@@ -59,7 +59,7 @@ class TestVaultRelativeToWorkDirRelative(unittest.TestCase):
         work_dir = T.Path("this/is/my/path")
         vault_relative_path = T.Path("this/is/my/file3")
         expected = T.Path("../file3")
-        work_dir_rel = vault_relative_to_wd_relative(vault_relative_path, work_dir)
+        work_dir_rel = relativise(vault_relative_path, work_dir)
         self.assertEqual(expected, work_dir_rel)
 
 
@@ -70,7 +70,7 @@ class TestWorkDirRelativeToVaultRelative(unittest.TestCase):
         work_dir = T.Path("some/path")
         work_dir_rel = T.Path("file1")
         vault_path = T.Path("/this/is/vault/root")
-        vault_relative_path = wd_relative_to_vault_relative(work_dir_rel, work_dir, vault_path)
+        vault_relative_path = derelativise(work_dir_rel, work_dir, vault_path)
         expected = T.Path("some/path/file1")
         self.assertEqual(expected, vault_relative_path)
 
@@ -80,7 +80,7 @@ class TestWorkDirRelativeToVaultRelative(unittest.TestCase):
         work_dir = T.Path("this/is/my/path")
         work_dir_rel = T.Path("../file3")
         vault_path = T.Path("/this/is/vault/root")
-        vault_relative_path = wd_relative_to_vault_relative(work_dir_rel, work_dir, vault_path)
+        vault_relative_path = derelativise(work_dir_rel, work_dir, vault_path)
         expected = T.Path("this/is/my/file3")
         self.assertEqual(expected, vault_relative_path)
 

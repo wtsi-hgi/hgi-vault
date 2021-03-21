@@ -28,7 +28,7 @@ from api.vault.key import VaultFileKey
 from bin.common import idm
 from core import file, typing as T
 from . import usage
-from .recover import hardlink_and_remove, vault_relative_to_wd_relative, wd_relative_to_vault_relative
+from .recover import hardlink_and_remove, relativise, derelativise
 
 
 
@@ -51,7 +51,7 @@ def view(branch:Branch) -> None:
     paths = []    
     for path in vault.list(branch):
         if branch == Branch.Limbo:
-            path = vault_relative_to_wd_relative(path, cwd)
+            path = relativise(path, cwd)
         print(path)
         paths.append(path)
         count += 1
@@ -128,7 +128,7 @@ def recover(files: T.List[T.Path]) -> None:
     vault = _create_vault(cwd)
     vault_root = vault.root
     bpath = vault.location / Branch.Limbo
-    project_files = [vault_root / wd_relative_to_vault_relative(path, cwd , vault_root) for path in files]
+    project_files = [vault_root / derelativise(path, cwd , vault_root) for path in files]
     for dirname, _, files in os.walk(bpath):
         for f in files:
             limbo_relative_path = T.Path(dirname, f).relative_to(bpath)

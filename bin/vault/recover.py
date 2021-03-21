@@ -22,7 +22,7 @@ from os.path import relpath
 from core import time,file,typing as T
 from api.logging import log
 
-def vault_relative_to_wd_relative(path: T.Path, working_directory: T.Path) -> T.Path:
+def relativise(path: T.Path, working_directory: T.Path) -> T.Path:
     """
     Canonicalises a path relative to the Vault root, such that it is 
     also relative to the working directory under the Vault root
@@ -39,7 +39,7 @@ def vault_relative_to_wd_relative(path: T.Path, working_directory: T.Path) -> T.
     return T.Path(relpath(path, working_directory))
 
 
-def wd_relative_to_vault_relative(path: T.Path, working_directory: T.Path, vault_root: T.Path) -> T.Path:
+def derelativise(path: T.Path, working_directory: T.Path, vault_root: T.Path) -> T.Path:
     """
     Takes a canonicalises Vault path, relative to some directory under 
     the Vault root, and converts it back to a "full" Vault path
