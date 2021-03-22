@@ -37,7 +37,7 @@ from api.persistence.models import FileCollection, State
 from api.vault import Vault, Branch
 from bin.common import config
 from core import time, typing as T
-from core.file import hardlinks
+from core.file import hardlinks, update_mtime
 from core.vault import exception as VaultExc
 from hot import ch12, an12, gn5, pa11
 from hot.combinator import agreed
@@ -218,7 +218,8 @@ class Sweeper(Loggable):
         Handle files that are tracked by the vault
 
         We only care about files that exist in the Archive branch;
-        everything else can be skipped over
+        everything else can be skipped over. Once the file is added to staging, 
+        the original source file is hard-deleted
         """
         log = self.log
         log.debug(f"{file.path} is in the {status} branch of the vault in {vault.root}")
@@ -243,12 +244,11 @@ class Sweeper(Loggable):
                 try:
                     file.delete()  # DELETION WARNING
                 except PermissionError:
-                    log.error(f"Could not delete {file.path}: Permission denied")
+                    log.error(f"Could not hard-delete {file.path}: Permission denied")
 
                 log.info(f"{file.path} has been staged for archival")
 
         if status == Branch.Limbo:
-            # self._persistence.persist(to_persist, State.Deleted(notified=False)) should go here if Limbo is added to State model
             if _can_permanently_delete(file):
                 log.info(f"Permanently Deleting: {file.path} has passed the hard-deletion threshold")
                 if self.Yes_I_Really_Mean_It_This_Time:
@@ -265,7 +265,7 @@ class Sweeper(Loggable):
         """
         Handle files that are not tracked by the vault
 
-        Untracked files that exceed the deletion threshold are deleted;
+        Untracked files that exceed the deletion threshold are soft-deleted;
         otherwise warning notifications are raised if their ages exceed
         warning thresholds
         """
@@ -284,20 +284,21 @@ class Sweeper(Loggable):
                 to_persist = file.to_persistence()
 
                 # 1. Move file to Limbo and delete source
-                try:
-                    limboed = vault.add(Branch.Limbo, file.path)
-                    assert hardlinks(file.path) > 1
+                limboed = vault.add(Branch.Limbo, file.path)
+                current_time = time.now()
+                update_mtime(limboed.path, current_time)
+                assert hardlinks(file.path) > 1
+                try:    
                     file.delete()  # DELETION WARNING
-                    log.info(f"Deleted {file.path}")
+                    log.info(f"Soft-deleted {file.path}")
 
                 except PermissionError:
-                    log.error(f"Could not delete {file.path}: Permission denied")
+                    log.error(f"Could not soft-delete {file.path}: Permission denied")
                     return
 
-                log.info(f"{file.path} has been moved to limbo for deletion")
+                log.info(f"{file.path} has been soft-deleted")
 
                 # 2. Persist to database
-                # self._persistence.persist(to_persist, State.Limboed(notified=False)) should go here if Limbo is added to State model
                 self._persistence.persist(to_persist, State.Deleted(notified=False))
 
         elif self.Yes_I_Really_Mean_It_This_Time:
