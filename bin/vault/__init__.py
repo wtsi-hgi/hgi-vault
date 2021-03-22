@@ -117,41 +117,38 @@ def remove(files:T.List[T.Path]) -> None:
                 # This wouldn't make sense, so we just skip it sans log
                 pass
 
-def recover(files: T.List[T.Path]) -> None:
+def recover(files: T.Optional[T.List[T.Path]]) -> None:
     """
-    Recover the given files from Limbo branch
-
+    Recover the given files from Limbo branch or Recover all files from the Limbo branch
+    
     @ param list of file paths relative to the working directory
     example: ["../file1" "file1"]
     """
     cwd = file.cwd()
     vault = _create_vault(cwd)
-    vault_root = vault.root
     bpath = vault.location / Branch.Limbo
-    project_files = [vault_root / derelativise(path, cwd , vault_root) for path in files]
-    for dirname, _, files in os.walk(bpath):
-        for f in files:
-            limbo_relative_path = T.Path(dirname, f).relative_to(bpath)
-            vfk = VaultFileKey.Reconstruct(limbo_relative_path)
-            project_source = vault.root / vfk.source
-            vfkpath = bpath / vfk.path
-            if project_source in project_files:
+
+    if files:
+        vault_root = vault.root
+        project_files = [vault_root / derelativise(path, cwd , vault_root) for path in files]
+        for dirname, _, files in os.walk(bpath):
+            for f in files:
+                limbo_relative_path = T.Path(dirname, f).relative_to(bpath)
+                vfk = VaultFileKey.Reconstruct(limbo_relative_path)
+                project_source = vault.root / vfk.source
+                vfkpath = bpath / vfk.path
+                if project_source in project_files:
+                    move_with_path_safety_checks(vfkpath, project_source)
+    else:
+        for dirname, _, files in os.walk(bpath):
+            for f in files:
+                limbo_relative_path = T.Path(dirname, f).relative_to(bpath)
+                vfk = VaultFileKey.Reconstruct(limbo_relative_path)
+                project_source = vault.root / vfk.source
+                vfkpath = bpath / vfk.path
                 move_with_path_safety_checks(vfkpath, project_source)
 
-def recover_all() -> None:
-    """
-    Recover all files from the Limbo branch
-    """
-    cwd = file.cwd()
-    vault = _create_vault(cwd)   
-    bpath = vault.location / Branch.Limbo  
-    for dirname, _, files in os.walk(bpath):
-        for f in files:
-            limbo_relative_path = T.Path(dirname, f).relative_to(bpath)
-            vfk = VaultFileKey.Reconstruct(limbo_relative_path)
-            project_source = vault.root / vfk.source
-            vfkpath = bpath / vfk.path
-            move_with_path_safety_checks(vfkpath, project_source)
+
     
 
 # Mapping of actions to branch enumeration
@@ -164,14 +161,20 @@ _action_to_branch = {
 def main(argv:T.List[str] = sys.argv) -> None:
     args = usage.parse_args(argv[1:])
 
-    if args.action in ["keep", "archive", "recover"]:
+    if args.action in ["keep", "archive"]:
         branch = _action_to_branch[args.action]
         if args.view:
             view(branch)
-        elif branch == Branch.Limbo:
-           recover_all()
         else:
             add(branch, args.files)
-
     else:
         remove(args.files)
+
+    if args.action == "recover":
+        if args.view:
+            view(branch)
+        elif args.all:
+            recover([])
+        else:
+            recover(args.files)
+

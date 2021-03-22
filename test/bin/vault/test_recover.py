@@ -28,7 +28,7 @@ from tempfile import TemporaryDirectory
 from api.vault import Branch, Vault
 from api.vault.key import VaultFileKey as VFK
 from bin.vault.recover import relativise, derelativise, move_with_path_safety_checks, exception
-from bin.vault import recover, view, recover_all
+from bin.vault import recover, view
 from bin.common import idm
 from unittest import mock
 
@@ -229,7 +229,7 @@ class TestRecover(unittest.TestCase):
         cwd_mock.return_value = self.some
         vault_mock.return_value = self.vault
         
-        recover_all()
+        recover([])
 
         self.assertTrue(os.path.isfile(self.file_one))
         self.assertFalse(os.path.isfile(vault_file_path_one))
