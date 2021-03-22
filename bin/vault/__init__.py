@@ -48,17 +48,13 @@ def view(branch:Branch) -> None:
     """ List the contents of the given branch """
     cwd = file.cwd()
     vault = _create_vault(cwd)
-    count = 0
-    paths = []    
+    count = 0  
     for path in vault.list(branch):
         if branch == Branch.Limbo:
             path = relativise(path, cwd)
         print(path)
-        paths.append(path)
         count += 1
-
     log.info(f"{branch} branch of the vault in {vault.root} contains {count} files")
-    return paths
 
 
 def add(branch:Branch, files:T.List[T.Path]) -> None:

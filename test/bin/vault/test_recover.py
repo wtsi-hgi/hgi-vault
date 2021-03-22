@@ -112,7 +112,7 @@ class TestHardLinkAndRemove(unittest.TestCase):
     def test_source_does_not_exist(self):
         full_source_path = self._path / "new"
         full_dest_path = self._path / "quux"
-        self.assertRaises(exception.NoSource, move_with_path_safety_checks, full_source_path, full_dest_path)
+        self.assertRaises(exception.NoSourceFound, move_with_path_safety_checks, full_source_path, full_dest_path)
     
     def test_destination_does_not_exist(self):
         full_source_path = self._path / "foo"
@@ -122,19 +122,20 @@ class TestHardLinkAndRemove(unittest.TestCase):
 
 class TestRecover(unittest.TestCase):
 
-    """
-    The following tests will emulate the following directory structure
-    relative to the vault root    
-    +- some/
-        +- path/
-        |  +- file1
-        |  +- file2
-        +- file3
-    """
     _tmp:TemporaryDirectory
     _path:T.Path
 
+
     def setUp(self) -> None:
+        """
+        The following tests will emulate the following directory structure
+        relative to the vault root    
+            +- some/
+                +- path/
+                |  +- file1
+                |  +- file2
+            +- file3
+        """
         self._tmp = TemporaryDirectory()
         self.parent = path = T.Path(self._tmp.name).resolve() / "parent"
         self.some = path / "some"
@@ -145,9 +146,12 @@ class TestRecover(unittest.TestCase):
         self.file_one.touch()
         self.file_two.touch()
         self.file_three.touch()
-
+        # Ensure permissions are right for the vault add api to work. 
+        # The default permissions do not fly. 
+        # For files, ensure they are readable, writable and u=g (66x) is sufficient.
+        # Parent directories should be executable and should have u=g(33x)
         self.file_one.chmod(0o660)
-        self.file_two.chmod(0o664)
+        self.file_two.chmod(0o660)
         self.file_three.chmod(0o660)
         self.parent.chmod(0o330)
         self.some.chmod(0o330)
@@ -242,19 +246,21 @@ class TestRecover(unittest.TestCase):
 
 class TestView(unittest.TestCase):
 
-    """
-    The following tests will emulate the following directory structure
-    relative to the vault root    
-    +- some/
-        +- path/
-        |  +- file1
-        |  +- file2
-        +- file3
-    """
+   
     _tmp:TemporaryDirectory
     parent:T.Path
 
+
     def setUp(self) -> None:
+        """
+        The following tests will emulate the following directory structure
+        relative to the vault root    
+            +- some/
+                +- path/
+                |  +- file1
+                |  +- file2
+            +- file3
+        """
         self._tmp = TemporaryDirectory()
         self.parent = path = T.Path(self._tmp.name).resolve() / "parent"
         self.some = path / "some"
@@ -266,8 +272,12 @@ class TestView(unittest.TestCase):
         self.file_two.touch()
         self.file_three.touch()
 
+        # Ensure permissions are right for the vault add api to work. 
+        # The default permissions do not fly. 
+        # For files, ensure they are readable, writable and u=g (66x) is sufficient.
+        # Parent directories should be executable and should have u=g(33x)
         self.file_one.chmod(0o660)
-        self.file_two.chmod(0o664)
+        self.file_two.chmod(0o660)
         self.file_three.chmod(0o660)
         self.parent.chmod(0o330)
         self.some.chmod(0o330)
@@ -280,7 +290,8 @@ class TestView(unittest.TestCase):
 
     @mock.patch('bin.vault.file.cwd')
     def test_basic_case(self, cwd_mock):
-
+        """This does not test anything (except possibly for syntax errors
+        , but is useful for understanding purpose"""
         self.vault.add(Branch.Limbo, self.file_one)
         self.vault.add(Branch.Limbo, self.file_two)
         self.vault.add(Branch.Limbo, self.file_three)
