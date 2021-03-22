@@ -22,13 +22,15 @@ with this program. If not, see https://www.gnu.org/licenses/
 import sys
 import os
 import core.vault
+from core.vault import exception as VaultExc
 from api.logging import log
 from api.vault import Branch, Vault
 from api.vault.key import VaultFileKey
 from bin.common import idm
 from core import file, typing as T
+
 from . import usage
-from .recover import move_with_path_safety_checks, relativise, derelativise
+from .recover import move_with_path_safety_checks, relativise, derelativise, exception as RecoverExc
 
 
 def _create_vault(relative_to:T.Path) -> Vault:
@@ -130,23 +132,47 @@ def recover(files: T.Optional[T.List[T.Path]]) -> None:
 
     if files:
         vault_root = vault.root
-        project_files = [vault_root / derelativise(path, cwd , vault_root) for path in files]
+        files_to_recover = [vault_root / derelativise(path, cwd , vault_root) for path in files]
         for dirname, _, files in os.walk(bpath):
             for f in files:
                 limbo_relative_path = T.Path(dirname, f).relative_to(bpath)
-                vfk = VaultFileKey.Reconstruct(limbo_relative_path)
-                project_source = vault.root / vfk.source
-                vfkpath = bpath / vfk.path
-                if project_source in project_files:
-                    move_with_path_safety_checks(vfkpath, project_source)
+                try:
+                    vfk = VaultFileKey.Reconstruct(limbo_relative_path)
+                except Exception as e:
+                    raise core.vault.exception.VaultCorruption(f"Failed to reconstruct VaultFileKey for {limbo_relative_path}")
+                else:
+                    original_file = vault.root / vfk.source
+                    vfkpath = bpath / vfk.path
+                    if original_file in files_to_recover:
+                        try:
+                            move_with_path_safety_checks(vfkpath, original_file)
+                        except RecoverExc.NoSourceFound as e:
+                            log.error(f"Source file {original_file} does not exist: {e}")
+                        except RecoverExc.NoParentForDestination as e:
+                            log.error(f"Source path exists {full_source_path} but destination parent {full_dest_path.parent} does not exist")
+                        except RecoverExc.DestinationAlreadyExists as e:
+                            log.error(f"Destination {full_dest_path} already has an existing file")
+
+
     else:
         for dirname, _, files in os.walk(bpath):
             for f in files:
                 limbo_relative_path = T.Path(dirname, f).relative_to(bpath)
-                vfk = VaultFileKey.Reconstruct(limbo_relative_path)
-                project_source = vault.root / vfk.source
-                vfkpath = bpath / vfk.path
-                move_with_path_safety_checks(vfkpath, project_source)
+                try:
+                    vfk = VaultFileKey.Reconstruct(limbo_relative_path)
+                except Exception as e:
+                    raise core.vault.exception.VaultCorruption(f"Failed to reconstruct VaultFileKey for {limbo_relative_path}")
+                else:
+                    original_file = vault.root / vfk.source
+                    vfkpath = bpath / vfk.path
+                    try:
+                        move_with_path_safety_checks(vfkpath, original_file)
+                    except RecoverExc.NoSourceFound as e:
+                        log.error(f"Source file {original_file} does not exist: {e}")
+                    except RecoverExc.NoParentForDestination as e:
+                        log.error(f"Source path exists {full_source_path} but destination parent {full_dest_path.parent} does not exist")
+                    except RecoverExc.DestinationAlreadyExists as e:
+                        log.error(f"Destination {full_dest_path} already has an existing file")
 
 
     

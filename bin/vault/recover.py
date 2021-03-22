@@ -25,7 +25,7 @@ from api.logging import log
 
 class exception(T.SimpleNamespace):
     """ Namespace of exceptions to make importing easier """
-    class NoSource(Exception):
+    class NoSourceFound(Exception):
         """ Raised when a setting access is attempted that does not exist """
 
     class NoParentForDestination(Exception):
@@ -86,7 +86,7 @@ def move_with_path_safety_checks(full_source_path: T.Path, full_dest_path: T.Pat
     """
 
     if not full_source_path.exists():
-        raise exception.NoSource(f"Source file {full_source_path} does not exist")
+        raise exception.NoSourceFound(f"Source file {full_source_path} does not exist")
     if not full_dest_path.parent.exists():
         raise exception.NoParentForDestination(f"Source path exists {full_source_path} but destination parent {full_dest_path.parent} does not exist")
     if full_dest_path.exists():
