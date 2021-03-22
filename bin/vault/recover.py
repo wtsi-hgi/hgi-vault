@@ -22,6 +22,19 @@ from os.path import relpath
 from core import time,file,typing as T
 from api.logging import log
 
+
+class exception(T.SimpleNamespace):
+    """ Namespace of exceptions to make importing easier """
+    class NoSource(Exception):
+        """ Raised when a setting access is attempted that does not exist """
+
+    class NoParentForDestination(Exception):
+        """ Raised when configuration validation fails """
+
+    class DestinationAlreadyExists(Exception):
+        """ Raised when validation fails due to semantic error """
+
+
 def relativise(path: T.Path, working_directory: T.Path) -> T.Path:
     """
     Canonicalises a path relative to the Vault root, such that it is 
@@ -61,26 +74,26 @@ def derelativise(path: T.Path, working_directory: T.Path, vault_root: T.Path) ->
     full_path = (vault_root/ working_directory / path).resolve() 
     return T.Path(relpath(full_path, vault_root))
 
-  
-   
-
-
-def hardlink_and_remove(full_source_path: T.Path, full_dest_path: T.Path) -> None:
+def move_with_path_safety_checks(full_source_path: T.Path, full_dest_path: T.Path) -> None:
     """
-    Method that recovers a file from the Limbo branchm, with various 
-    checks that the source and desination are well behaved
+    Method that creates a hardlink at destination, with the latest mtime,
+    and the hardlink from source, with checks that the source and 
+    desination are well-behaved
+
+    @param full_source_path full path to the source file 
+    @param full_dest_path location full path to the destination
+
     """
+
     if not full_source_path.exists():
-        log.error(f"Source file {full_source_path} does not exist")
-        return
+        raise exception.NoSource(f"Source file {full_source_path} does not exist")
     if not full_dest_path.parent.exists():
-        log.error(f"Source path exists {full_source_path} but destination {full_dest_path.parent} does not seem to exist")
-        return     
+        raise exception.NoParentForDestination(f"Source path exists {full_source_path} but destination parent {full_dest_path.parent} does not exist")
+    if full_dest_path.exists():
+        raise exception.DestinationAlreadyExists(f"Destination {full_dest_path} already has an existing file")
 
-    full_source_path.link_to(full_dest_path)
-    log.debug(f"{full_source_path} hardlinked at {full_dest_path} ")
+    full_source_path.replace(full_dest_path)
+    log.debug(f"{full_source_path} moved to {full_dest_path} ")
     current_time = time.now()
     file.update_mtime(full_dest_path, current_time)
-    full_source_path.unlink()
-    log.debug(f"File has been removed from {full_source_path}")
     log.info(f"File has been restored at {full_dest_path}")

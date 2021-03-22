@@ -28,8 +28,7 @@ from api.vault.key import VaultFileKey
 from bin.common import idm
 from core import file, typing as T
 from . import usage
-from .recover import hardlink_and_remove, relativise, derelativise
-
+from .recover import move_with_path_safety_checks, relativise, derelativise
 
 
 def _create_vault(relative_to:T.Path) -> Vault:
@@ -58,7 +57,6 @@ def view(branch:Branch) -> None:
 
     log.info(f"{branch} branch of the vault in {vault.root} contains {count} files")
     return paths
-
 
 
 def add(branch:Branch, files:T.List[T.Path]) -> None:
@@ -120,9 +118,11 @@ def remove(files:T.List[T.Path]) -> None:
                 pass
 
 def recover(files: T.List[T.Path]) -> None:
-    """Recover the given files from Limbo branch
-    Command to recover some/file1 and some/path/file1:
-    some/path$ vault recover ../file1 file1
+    """
+    Recover the given files from Limbo branch
+
+    @ param list of file paths relative to the working directory
+    example: ["../file1" "file1"]
     """
     cwd = file.cwd()
     vault = _create_vault(cwd)
@@ -136,7 +136,7 @@ def recover(files: T.List[T.Path]) -> None:
             project_source = vault.root / vfk.source
             vfkpath = bpath / vfk.path
             if project_source in project_files:
-                hardlink_and_remove(vfkpath, project_source)
+                move_with_path_safety_checks(vfkpath, project_source)
 
 def recover_all() -> None:
     """
@@ -151,7 +151,7 @@ def recover_all() -> None:
             vfk = VaultFileKey.Reconstruct(limbo_relative_path)
             project_source = vault.root / vfk.source
             vfkpath = bpath / vfk.path
-            hardlink_and_remove(vfkpath, project_source)
+            move_with_path_safety_checks(vfkpath, project_source)
     
 
 # Mapping of actions to branch enumeration

@@ -78,14 +78,19 @@ class VaultFile(core.vault.base.VaultFile):
         # * Exactly one hardlink, when in the Staged branch
         if self.exists:
             staged = self.branch == Branch.Staged
+            limboed = self.branch == Branch.Limbo
             single_hardlink = file.hardlinks(self.path) == 1
 
-            if not staged and single_hardlink:
+            if not staged and not limboed and single_hardlink:
                 # NOTE This is not physically possible
                 raise VaultExc.VaultCorruption(f"The vault in {vault.root} contains {self.source}, but this no longer exists outside the vault")
 
             if staged and not single_hardlink:
                 raise VaultExc.VaultCorruption(f"{self.source} is staged in the vault in {vault.root}, but also exists outside the vault")
+
+            if limboed and not single_hardlink:
+                raise VaultExc.VaultCorruption(f"{self.source} is soft deleted in the vault in {vault.root}, but also exists outside the vault")
+
 
     def _relative_path(self, path:T.Path) -> T.Path:
         """

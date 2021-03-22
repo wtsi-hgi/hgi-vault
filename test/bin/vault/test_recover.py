@@ -27,7 +27,7 @@ from core import typing as T
 from tempfile import TemporaryDirectory
 from api.vault import Branch, Vault
 from api.vault.key import VaultFileKey as VFK
-from bin.vault.recover import relativise, derelativise, hardlink_and_remove
+from bin.vault.recover import relativise, derelativise, move_with_path_safety_checks, exception
 from bin.vault import recover, view, recover_all
 from bin.common import idm
 from unittest import mock
@@ -101,39 +101,36 @@ class TestHardLinkAndRemove(unittest.TestCase):
         self._tmp.cleanup()
         del self._path
 
-
     def test_basic_case(self):
-        #file1, some/path -> some/path/file1
+  
         full_source_path = self._path / "foo"
         full_dest_path = self._path / "quux"
-        hardlink_and_remove(full_source_path, full_dest_path)
+        move_with_path_safety_checks(full_source_path, full_dest_path)
         self.assertFalse(os.path.isfile(full_source_path))
         self.assertTrue(os.path.isfile(full_dest_path))
 
     def test_source_does_not_exist(self):
-        #file1, some/path -> some/path/file1
         full_source_path = self._path / "new"
         full_dest_path = self._path / "quux"
-        hardlink_and_remove(full_source_path, full_dest_path)
-        # self.assertRaises(hardlink_and_remove(full_source_path, full_dest_path))
+        self.assertRaises(exception.NoSource, move_with_path_safety_checks, full_source_path, full_dest_path)
+    
     def test_destination_does_not_exist(self):
-        #file1, some/path -> some/path/file1
         full_source_path = self._path / "foo"
         full_dest_path = self._path / "new" / "quux"
-        hardlink_and_remove(full_source_path, full_dest_path)
-        # self.assertRaises(hardlink_and_remove(full_source_path, full_dest_path))
+        self.assertRaises(exception.NoParentForDestination, move_with_path_safety_checks, full_source_path, full_dest_path)
 
 
 class TestRecover(unittest.TestCase):
 
-# At the vault root
-# +- project/  
-#   +- some/
-#       +- path/
-#       |  +- file2
-#       |  +- file3
-
-#   +- file1
+    """
+    The following tests will emulate the following directory structure
+    relative to the vault root    
+    +- some/
+        +- path/
+        |  +- file1
+        |  +- file2
+        +- file3
+    """
     _tmp:TemporaryDirectory
     _path:T.Path
 
@@ -245,13 +242,15 @@ class TestRecover(unittest.TestCase):
 
 class TestView(unittest.TestCase):
 
-# At the vault root
-# +- some/
-#    +- path/
-#    |  +- file2
-#    |  +- file3
-
-#    +- file1
+    """
+    The following tests will emulate the following directory structure
+    relative to the vault root    
+    +- some/
+        +- path/
+        |  +- file1
+        |  +- file2
+        +- file3
+    """
     _tmp:TemporaryDirectory
     parent:T.Path
 
@@ -278,7 +277,7 @@ class TestView(unittest.TestCase):
     def tearDown(self) -> None:
         self._tmp.cleanup()
         del self.parent
-#     def test_basic_case(self, vault_mock, cwd_mock):
+
     @mock.patch('bin.vault.file.cwd')
     def test_basic_case(self, cwd_mock):
 
