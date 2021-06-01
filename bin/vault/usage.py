@@ -159,13 +159,13 @@ def _parser_factory():
             if parsed.view or parsed.all:
                 del parsed.files 
                 if parsed.view and parsed.all:
-                    action_level[parsed.action].error("cannot accept arguments --view and --all simultaenously")
+                    action_level[parsed.action].error("cannot accept arguments --view and --all simultaneously")
             else:
                 if not parsed.files:
                     action_level[parsed.action].error(_actions[parsed.action].args_error)     
            
-        if parsed.action == "remove":
-            pass
+        # if parsed.action == "remove":
+        #     pass
 
         if "files" in parsed:
         # Resolve all paths

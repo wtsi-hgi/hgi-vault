@@ -115,7 +115,7 @@ def remove(files:T.List[T.Path]) -> None:
                 # This wouldn't make sense, so we just skip it sans log
                 pass
 
-def recover(files: T.Optional[T.List[T.Path]]) -> None:
+def recover(files: T.Optional[T.List[T.Path]] = None) -> None:
     """
     Recover the given files from Limbo branch or Recover all files from the Limbo branch
     
@@ -126,49 +126,30 @@ def recover(files: T.Optional[T.List[T.Path]]) -> None:
     vault = _create_vault(cwd)
     bpath = vault.location / Branch.Limbo
 
-    if files:
+    RECOVER_ALL = files is None
+
+    if not RECOVER_ALL:
         vault_root = vault.root
         files_to_recover = [vault_root / derelativise(path, cwd , vault_root) for path in files]
-        for dirname, _, files in os.walk(bpath):
-            for f in files:
-                limbo_relative_path = T.Path(dirname, f).relative_to(bpath)
+    for dirname, _, files in os.walk(bpath):
+        for f in files:
+            limbo_relative_path = T.Path(dirname, f).relative_to(bpath)
+            try:
+                vfk = VaultFileKey.Reconstruct(limbo_relative_path)
+            except Exception as e:
+                raise core.vault.exception.VaultCorruption(f"Failed to reconstruct VaultFileKey for {limbo_relative_path}")
+                
+            original_file = vault.root / vfk.source
+            vfkpath = bpath / vfk.path
+            if RECOVER_ALL or original_file in files_to_recover:
                 try:
-                    vfk = VaultFileKey.Reconstruct(limbo_relative_path)
-                except Exception as e:
-                    raise core.vault.exception.VaultCorruption(f"Failed to reconstruct VaultFileKey for {limbo_relative_path}")
-                else:
-                    original_file = vault.root / vfk.source
-                    vfkpath = bpath / vfk.path
-                    if original_file in files_to_recover:
-                        try:
-                            move_with_path_safety_checks(vfkpath, original_file)
-                        except RecoverExc.NoSourceFound as e:
-                            log.error(f"Source file {original_file} does not exist: {e}")
-                        except RecoverExc.NoParentForDestination as e:
-                            log.error(f"Source path exists {full_source_path} but destination parent {full_dest_path.parent} does not exist")
-                        except RecoverExc.DestinationAlreadyExists as e:
-                            log.error(f"Destination {full_dest_path} already has an existing file")
-
-
-    else:
-        for dirname, _, files in os.walk(bpath):
-            for f in files:
-                limbo_relative_path = T.Path(dirname, f).relative_to(bpath)
-                try:
-                    vfk = VaultFileKey.Reconstruct(limbo_relative_path)
-                except Exception as e:
-                    raise core.vault.exception.VaultCorruption(f"Failed to reconstruct VaultFileKey for {limbo_relative_path}")
-                else:
-                    original_file = vault.root / vfk.source
-                    vfkpath = bpath / vfk.path
-                    try:
-                        move_with_path_safety_checks(vfkpath, original_file)
-                    except RecoverExc.NoSourceFound as e:
-                        log.error(f"Source file {original_file} does not exist: {e}")
-                    except RecoverExc.NoParentForDestination as e:
-                        log.error(f"Source path exists {full_source_path} but destination parent {full_dest_path.parent} does not exist")
-                    except RecoverExc.DestinationAlreadyExists as e:
-                        log.error(f"Destination {full_dest_path} already has an existing file")
+                    move_with_path_safety_checks(vfkpath, original_file)
+                except RecoverExc.NoSourceFound as e:
+                        log.error(f"Recovery source {vfkpath} does not exist: {e}")
+                except RecoverExc.NoParentForDestination as e:
+                        log.error(f"Source path exists {vfkpath} but destination parent {original_file.parent} does not exist")
+                except RecoverExc.DestinationAlreadyExists as e:
+                        log.error(f"Destination {original_file} already has an existing file")
 
 
     
@@ -189,14 +170,13 @@ def main(argv:T.List[str] = sys.argv) -> None:
             view(branch)
         else:
             add(branch, args.files)
-    else:
-        remove(args.files)
-
+   
     if args.action == "recover":
         if args.view:
             view(branch)
-        elif args.all:
-            recover([])
+        if args.all:
+            recover()
         else:
             recover(args.files)
-
+    else:
+        remove(args.files)

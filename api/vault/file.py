@@ -76,6 +76,8 @@ class VaultFile(core.vault.base.VaultFile):
         # If a key already exists in the vault, then it must have:
         # * At least two hardlinks, when in the Keep or Archive branch
         # * Exactly one hardlink, when in the Staged branch
+        # * Exactly one hardlink, when in the Limbo branch
+
         if self.exists:
             staged = self.branch == Branch.Staged
             limboed = self.branch == Branch.Limbo
