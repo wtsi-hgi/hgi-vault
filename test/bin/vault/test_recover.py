@@ -19,7 +19,6 @@ with this program. If not, see https://www.gnu.org/licenses/
 
 import unittest
 import logging
-
 import os
 os.environ["VAULTRC"] = "eg/.vaultrc"
 
@@ -85,7 +84,7 @@ class TestWorkDirRelativeToVaultRelative(unittest.TestCase):
         self.assertEqual(expected, vault_relative_path)
 
 
-class TestHardLinkAndRemove(unittest.TestCase):
+class TestMovWithPathSafetyChecks(unittest.TestCase):
     _tmp:TemporaryDirectory
     _path:T.Path
 
@@ -233,7 +232,7 @@ class TestRecover(unittest.TestCase):
         cwd_mock.return_value = self.some
         vault_mock.return_value = self.vault
         
-        recover([])
+        recover()
 
         self.assertTrue(os.path.isfile(self.file_one))
         self.assertFalse(os.path.isfile(vault_file_path_one))
