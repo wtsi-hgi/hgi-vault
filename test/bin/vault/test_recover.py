@@ -18,7 +18,6 @@ with this program. If not, see https://www.gnu.org/licenses/
 """
 
 import unittest
-import logging
 import os
 os.environ["VAULTRC"] = "eg/.vaultrc"
 
@@ -253,7 +252,8 @@ class TestView(unittest.TestCase):
     def setUp(self) -> None:
         """
         The following tests will emulate the following directory structure
-        relative to the vault root    
+        relative to the vault root 
+        +- parent/   
             +- some/
                 +- path/
                 |  +- file1
@@ -271,15 +271,16 @@ class TestView(unittest.TestCase):
         self.file_two.touch()
         self.file_three.touch()
 
-        # Ensure permissions are right for the vault add api to work. 
+        # Ensure permissions are right for the vault "add" api to work. 
         # The default permissions do not fly. 
-        # For files, ensure they are readable, writable and u=g (66x) is sufficient.
+        # For files, ensure they are readable, writable and u=g (66x).
         # Parent directories should be executable and should have u=g(33x)
         self.file_one.chmod(0o660)
         self.file_two.chmod(0o660)
         self.file_three.chmod(0o660)
         self.parent.chmod(0o330)
         self.some.chmod(0o330)
+
         Vault._find_root = mock.MagicMock(return_value = self.parent)
         self.vault = Vault(relative_to = self.file_one, idm = idm)
 
@@ -289,8 +290,8 @@ class TestView(unittest.TestCase):
 
     @mock.patch('bin.vault.file.cwd')
     def test_basic_case(self, cwd_mock):
-        """This does not test anything (except possibly for syntax errors
-        , but is useful for understanding purpose"""
+        """This does not test anything, except possibly for syntax errors
+        , but is useful for the purpose of understanding"""
         self.vault.add(Branch.Limbo, self.file_one)
         self.vault.add(Branch.Limbo, self.file_two)
         self.vault.add(Branch.Limbo, self.file_three)
