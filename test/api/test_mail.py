@@ -35,7 +35,7 @@ class _DummyUser(IdM.base.User):
 
 
 _Dummy_Addressees = [_DummyUser("123", "recipient123@example.com"), _DummyUser("234", "recipient234@example.com")]
-
+_Dummy_Addresser = _DummyUser("012", "sender@example.com")
 
 
 class TestMail(unittest.TestCase):
@@ -54,6 +54,24 @@ class TestMail(unittest.TestCase):
         self.assertEqual(sent_email['subject'], _DUMMY_MESSAGE.subject )
         self.assertEqual(sent_email.get_content(), _DUMMY_MESSAGE.body )
         self.assertEqual(sent_email['from'], "vault@example.com" )
+
+        recipients = ", ".join([user.email for user in _Dummy_Addressees])
+        self.assertEqual(sent_email['to'], recipients )
+
+    @patch('api.mail.postman.smtplib.SMTP', autospec=True)
+    def test_postman_without_sender(self, mocked_smtp):
+
+        mocked_smtp_connection = MagicMock()
+        mocked_smtp.return_value.__enter__.return_value = mocked_smtp_connection 
+       
+        postman = Postman(_EXAMPLE_CONFIG)
+        postman.send(_DUMMY_MESSAGE, *_Dummy_Addressees, addresser=_Dummy_Addresser)
+        mocked_smtp_connection.send_message.assert_called_once()
+        sent_email = mocked_smtp_connection.send_message.call_args.args[0]
+
+        self.assertEqual(sent_email['subject'], _DUMMY_MESSAGE.subject )
+        self.assertEqual(sent_email.get_content(), _DUMMY_MESSAGE.body )
+        self.assertEqual(sent_email['from'], "sender@example.com" )
 
         recipients = ", ".join([user.email for user in _Dummy_Addressees])
         self.assertEqual(sent_email['to'], recipients )
