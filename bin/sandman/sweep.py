@@ -172,7 +172,7 @@ class Sweeper(Loggable):
 
         # We only need to check for corruptions (i.e., single hardlink)
         # of files that physically exist in the keep or archive branches
-        for branch in Branch.Keep, Branch.Archive:
+        for branch in Branch.Keep, Branch.Archive, Branch.Limbo:
             bpath = vault.location / branch
 
             try:
@@ -181,7 +181,16 @@ class Sweeper(Loggable):
                 # File is not in the current branch
                 continue
 
-            if hardlinks(file.path) == 1:
+            if branch == Branch.Limbo:
+                if _can_permanently_delete(file):
+                    log.info(f"Permanently Deleting: {file.path} has passed the hard-deletion threshold")
+                    if self.Yes_I_Really_Mean_It_This_Time:
+                        try:
+                            file.delete()  # DELETION WARNING
+                        except PermissionError:
+                            log.error(f"Could not delete {file.path}: Permission denied")
+
+            if branch != Branch.Limbo and hardlinks(file.path) == 1:
                 log.warning(f"Corruption detected: Physical vault file {file.path} does not link to any source")
                 if self.Yes_I_Really_Mean_It_This_Time:
                     try:
@@ -199,8 +208,8 @@ class Sweeper(Loggable):
 
         That is, tracked files that:
         1. Exist in the same/multiple branches simultaneously
-        2. Are staged, but have more than 1 hardlink each
-        3. Are not staged, but have only 1 hardlink each
+        2. Are staged or limboed, but have more than 1 hardlink each
+        3. Are in keep or archive, but have only 1 hardlink each
 
         1. and 2. should never happen during normal operation; while 3.
         can happen, it would be impossible to detect from this direction
@@ -247,16 +256,6 @@ class Sweeper(Loggable):
                     log.error(f"Could not hard-delete {file.path}: Permission denied")
 
                 log.info(f"{file.path} has been staged for archival")
-
-        if status == Branch.Limbo:
-            if _can_permanently_delete(file):
-                log.info(f"Permanently Deleting: {file.path} has passed the hard-deletion threshold")
-                if self.Yes_I_Really_Mean_It_This_Time:
-                    try:
-                        file.delete()  # DELETION WARNING
-                    except PermissionError:
-                        log.error(f"Could not delete {file.path}: Permission denied")
-
 
     ####################################################################
 

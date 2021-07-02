@@ -17,9 +17,10 @@ You should have received a copy of the GNU General Public License along
 with this program. If not, see https://www.gnu.org/licenses/
 """
 
-import unittest
 import os
 os.environ["VAULTRC"] = "eg/.vaultrc"
+import unittest
+from unittest import mock
 
 from core import typing as T
 from tempfile import TemporaryDirectory
@@ -28,7 +29,7 @@ from api.vault.key import VaultFileKey as VFK
 from bin.vault.recover import relativise, derelativise, move_with_path_safety_checks, exception
 from bin.vault import recover, view
 from bin.common import idm
-from unittest import mock
+
 
 
 
@@ -126,13 +127,14 @@ class TestRecover(unittest.TestCase):
 
     def setUp(self) -> None:
         """
-        The following tests will emulate the following directory structure
-        relative to the vault root    
-            +- some/
-                +- path/
-                |  +- file1
+        The following tests will emulate the following directory structure  
+            +- parent/
+                +-.vault/
+                +- file1
+                +- some/
                 |  +- file2
-            +- file3
+                |  +- file3
+                
         """
         self._tmp = TemporaryDirectory()
         self.parent = path = T.Path(self._tmp.name).resolve() / "parent"
@@ -154,34 +156,25 @@ class TestRecover(unittest.TestCase):
         self.parent.chmod(0o330)
         self.some.chmod(0o330)
         Vault._find_root = mock.MagicMock(return_value = self.parent)
+        # Make the desired vault.
         self.vault = Vault(relative_to = self.file_one, idm = idm)
 
     def tearDown(self) -> None:
         self._tmp.cleanup()
         del self.parent
 
+    # These mock objects patch calls to cwd and _create_vault in recover.
+    # These calls return our desired directory.
     @mock.patch('bin.vault.file.cwd')
     @mock.patch('bin.vault._create_vault')
     def test_basic_case(self, vault_mock, cwd_mock):
+        vault_file_one = self.vault.add(Branch.Limbo, self.file_one)
+        vault_file_two = self.vault.add(Branch.Limbo, self.file_two)
+        vault_file_three = self.vault.add(Branch.Limbo, self.file_three)
 
-        self.vault.add(Branch.Limbo, self.file_one)
-        self.vault.add(Branch.Limbo, self.file_two)
-        self.vault.add(Branch.Limbo, self.file_three)
-
-        limbo_root = self.parent/ ".vault"/ Branch.Limbo
-
-        inode_no = self.file_one.stat().st_ino
-        vault_relative_path = self.file_one.relative_to(self.parent)
-        vault_file_path_one = limbo_root / VFK(vault_relative_path, inode_no).path
-
-        inode_no = self.file_two.stat().st_ino
-        vault_relative_path = self.file_two.relative_to(self.parent)
-        vault_file_path_two = limbo_root / VFK(vault_relative_path, inode_no).path
-
-        inode_no = self.file_three.stat().st_ino
-        vault_relative_path = self.file_three.relative_to(self.parent)
-        vault_file_path_three = limbo_root / VFK(vault_relative_path, inode_no).path
-
+        vault_file_path_one = vault_file_one.path
+        vault_file_path_two = vault_file_two.path
+        vault_file_path_three = vault_file_three.path
 
         self.file_one.unlink()
         self.file_two.unlink()
@@ -194,35 +187,21 @@ class TestRecover(unittest.TestCase):
 
         self.assertTrue(os.path.isfile(self.file_one))
         self.assertFalse(os.path.isfile(vault_file_path_one))
-
-
         self.assertTrue(os.path.isfile(self.file_two))
         self.assertFalse(os.path.isfile(vault_file_path_two))
-
         self.assertTrue(os.path.isfile(vault_file_path_three))
         self.assertFalse(os.path.isfile(self.file_three))
 
     @mock.patch('bin.vault.file.cwd')
     @mock.patch('bin.vault._create_vault')
     def test_all_case(self, vault_mock, cwd_mock):
-        
-        self.vault.add(Branch.Limbo, self.file_one)
-        self.vault.add(Branch.Limbo, self.file_two)
-        self.vault.add(Branch.Limbo, self.file_three)
+        vault_file_one = self.vault.add(Branch.Limbo, self.file_one)
+        vault_file_two = self.vault.add(Branch.Limbo, self.file_two)
+        vault_file_three = self.vault.add(Branch.Limbo, self.file_three)
 
-        limbo_root = self.parent/ ".vault"/ Branch.Limbo
-
-        inode_no = self.file_one.stat().st_ino
-        vault_relative_path = self.file_one.relative_to(self.parent)
-        vault_file_path_one = limbo_root / VFK(vault_relative_path, inode_no).path
-
-        inode_no = self.file_two.stat().st_ino
-        vault_relative_path = self.file_two.relative_to(self.parent)
-        vault_file_path_two = limbo_root / VFK(vault_relative_path, inode_no).path
-
-        inode_no = self.file_three.stat().st_ino
-        vault_relative_path = self.file_three.relative_to(self.parent)
-        vault_file_path_three = limbo_root / VFK(vault_relative_path, inode_no).path
+        vault_file_path_one = vault_file_one.path
+        vault_file_path_two = vault_file_two.path
+        vault_file_path_three = vault_file_three.path
 
         self.file_one.unlink()
         self.file_two.unlink()
@@ -235,30 +214,27 @@ class TestRecover(unittest.TestCase):
 
         self.assertTrue(os.path.isfile(self.file_one))
         self.assertFalse(os.path.isfile(vault_file_path_one))
-
         self.assertTrue(os.path.isfile(self.file_two))
         self.assertFalse(os.path.isfile(vault_file_path_two))
         self.assertTrue(os.path.isfile(self.file_three))
         self.assertFalse(os.path.isfile(vault_file_path_three))
         
-
+        
 class TestView(unittest.TestCase):
 
-   
     _tmp:TemporaryDirectory
     parent:T.Path
 
-
     def setUp(self) -> None:
         """
-        The following tests will emulate the following directory structure
-        relative to the vault root 
-        +- parent/   
-            +- some/
-                +- path/
-                |  +- file1
+        The following tests will emulate the following directory structure  
+            +- parent/
+                +-.vault/
+                +- file1
+                +- some/
                 |  +- file2
-            +- file3
+                |  +- file3
+                
         """
         self._tmp = TemporaryDirectory()
         self.parent = path = T.Path(self._tmp.name).resolve() / "parent"
@@ -298,7 +274,3 @@ class TestView(unittest.TestCase):
 
         cwd_mock.return_value = self.parent / "some"
         view(Branch.Limbo)
-
-
-
-
