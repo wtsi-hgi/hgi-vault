@@ -16,10 +16,10 @@ Public License for more details.
 You should have received a copy of the GNU General Public License along
 with this program. If not, see https://www.gnu.org/licenses/
 """
+
 import os
 os.environ["VAULTRC"] = "eg/.vaultrc"
 from tempfile import TemporaryDirectory
-
 import unittest
 from unittest import mock
 from unittest.mock import MagicMock
@@ -156,6 +156,21 @@ class TestSweeper(unittest.TestCase):
         self.assertTrue(os.path.isfile(vault_file_one.path))
         self.assertTrue(os.path.isfile(vault_file_two.path))
         self.assertTrue(os.path.isfile(vault_file_three.path))
+
+    # Behavior:  Sweeper does not delete staged files
+    @mock.patch('bin.sandman.walk.idm', new = dummy_idm)
+    @mock.patch('bin.vault._create_vault')
+    def test_basic_case(self, vault_mock):
+        vault_file_one = self.vault.add(Branch.Staged, self.file_one)
+        self.file_one.unlink()
+
+        walk = [(self.vault, File.FromFS(vault_file_one.path), VaultExc.PhysicalVaultFile())]
+        dummy_walker = _DummyWalker(walk)
+        dummy_persistence = MagicMock()
+        sweeper = Sweeper(dummy_walker, dummy_persistence, False)
+
+        self.assertFalse(os.path.isfile(self.file_one))
+        self.assertTrue(os.path.isfile(vault_file_one.path))
 
     # Behavior: When the source file of a vault file in Keep is deleted, Sweeper does not delete the vault file in Keep if its a dry run
     @mock.patch('bin.sandman.walk.idm', new = dummy_idm)
