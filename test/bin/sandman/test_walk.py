@@ -25,7 +25,9 @@ from unittest import mock
 from unittest.mock import MagicMock
 from api.vault import Branch, Vault
 from core import typing as T, idm as IdM
+from core.vault import exception as VaultExc
 from bin.sandman.walk import FilesystemWalker
+
 
 class _DummyUser(IdM.base.User):
     def __init__(self, uid):
@@ -103,6 +105,7 @@ class TestFileSystemWalker(unittest.TestCase):
         # The default permissions do not fly. 
         # For files, ensure they are readable, writable and u=g (66x) is sufficient.
         # Parent directories should be executable and should have u=g(33x)
+        # Parent directories should also be readable, for list_dir() to work in the walk
         self.file_one.chmod(0o660)
         self.file_two.chmod(0o660)
         self.file_three.chmod(0o660)
@@ -123,8 +126,68 @@ class TestFileSystemWalker(unittest.TestCase):
         vault_file_one = self.vault.add(Branch.Keep, self.file_one)
         vault_file_two = self.vault.add(Branch.Archive, self.file_two)
         vault_file_three = self.vault.add(Branch.Limbo, self.file_three)
+        self.file_three.unlink()
 
         walker = FilesystemWalker(self.parent)
 
-        for file in walker.files():
-            print(file)
+        files = {}
+        for vault, file, status in walker.files():
+            key = file.path
+            value = status
+            files[key] = value
+       
+        self.assertTrue(isinstance(files[vault_file_one.path], VaultExc.PhysicalVaultFile))
+        self.assertTrue(isinstance(files[vault_file_two.path], VaultExc.PhysicalVaultFile))
+        self.assertTrue(isinstance(files[vault_file_three.path], VaultExc.PhysicalVaultFile))
+
+
+        self.assertEqual(files[self.file_one], Branch.Keep)
+        self.assertEqual(files[self.file_two], Branch.Archive)
+        self.assertFalse(self.file_three in files)
+
+    # Behavior: A walk yields the correct exceptions for corruped files
+    @mock.patch('bin.sandman.walk.idm', new = dummy_idm)
+    def test_corruption_case(self):
+        # vault_mock =  MagicMock(return_value = self.parent)
+        vault_file_one = self.vault.add(Branch.Keep, self.file_one)
+        vault_file_two = self.vault.add(Branch.Archive, self.file_two)
+        vault_file_three = self.vault.add(Branch.Limbo, self.file_three)
+        self.file_one.unlink()
+        self.file_two.unlink()
+
+        walker = FilesystemWalker(self.parent)
+
+        files = {}
+        for vault, file, status in walker.files():
+            key = file.path
+            value = status
+            files[key] = value
+       
+        self.assertTrue(isinstance(files[vault_file_one.path], VaultExc.PhysicalVaultFile))
+        self.assertTrue(isinstance(files[vault_file_two.path], VaultExc.PhysicalVaultFile))
+        self.assertTrue(isinstance(files[vault_file_three.path], VaultExc.PhysicalVaultFile))
+
+        self.assertFalse(self.file_one in files)
+        self.assertFalse(self.file_two in files)
+        self.assertTrue(isinstance(files[self.file_three], VaultExc.VaultCorruption))
+     
+    # Behavior: A walk yields the correct exceptions for Staged files
+    @mock.patch('bin.sandman.walk.idm', new = dummy_idm)
+    def test_staged_case(self):
+        # vault_mock =  MagicMock(return_value = self.parent)
+        vault_file_one = self.vault.add(Branch.Staged, self.file_one)
+        vault_file_two = self.vault.add(Branch.Staged, self.file_two)
+        self.file_one.unlink()
+
+        walker = FilesystemWalker(self.parent)
+
+        files = {}
+        for vault, file, status in walker.files():
+            key = file.path
+            value = status
+            files[key] = value
+       
+        self.assertTrue(isinstance(files[vault_file_one.path], VaultExc.PhysicalVaultFile))
+        self.assertTrue(isinstance(files[vault_file_two.path], VaultExc.PhysicalVaultFile))
+        self.assertFalse(self.file_one in files)
+        self.assertTrue(isinstance(files[self.file_two], VaultExc.VaultCorruption))
