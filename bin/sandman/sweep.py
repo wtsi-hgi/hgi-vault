@@ -182,6 +182,8 @@ class Sweeper(Loggable):
                 continue
 
             if branch == Branch.Limbo:
+                if hardlinks(file.path) > 1:
+                    log.warning(f"Corruption detected: Physical vault file {file.path} in Limbo has more than one hardlinks")
                 if _can_permanently_delete(file):
                     log.info(f"Permanently Deleting: {file.path} has passed the hard-deletion threshold")
                     if self.Yes_I_Really_Mean_It_This_Time:
@@ -190,14 +192,15 @@ class Sweeper(Loggable):
                         except PermissionError:
                             log.error(f"Could not delete {file.path}: Permission denied")
 
-            if branch != Branch.Limbo and hardlinks(file.path) == 1:
-                log.warning(f"Corruption detected: Physical vault file {file.path} does not link to any source")
-                if self.Yes_I_Really_Mean_It_This_Time:
-                    try:
-                        file.delete()  # DELETION WARNING
-                        log.info(f"Corruption corrected: {file.path} deleted")
-                    except PermissionError:
-                        log.error(f"Could not delete {file.path}: Permission denied")
+            else:
+                if hardlinks(file.path) == 1:
+                    log.warning(f"Corruption detected: Physical vault file {file.path} does not link to any source")
+                    if self.Yes_I_Really_Mean_It_This_Time:
+                        try:
+                            file.delete()  # DELETION WARNING
+                            log.info(f"Corruption corrected: {file.path} deleted")
+                        except PermissionError:
+                            log.error(f"Could not delete {file.path}: Permission denied")
 
     ####################################################################
 

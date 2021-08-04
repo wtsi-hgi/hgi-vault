@@ -130,7 +130,7 @@ def recover(files: T.Optional[T.List[T.Path]] = None) -> None:
 
     if not RECOVER_ALL:
         vault_root = vault.root
-        files_to_recover = [vault_root / derelativise(path, cwd , vault_root) for path in files]
+        files_to_recover = {vault_root / derelativise(path, cwd , vault_root):path for path in files}
     for dirname, _, files in os.walk(bpath):
         for f in files:
             limbo_relative_path = T.Path(dirname, f).relative_to(bpath)
@@ -174,9 +174,7 @@ def main(argv:T.List[str] = sys.argv) -> None:
     if args.action == "recover":
         if args.view:
             view(branch)
-        if args.all:
-            recover()
         else:
-            recover(args.files)
+            recover(None if args.all else args.files)
     else:
         remove(args.files)
