@@ -164,17 +164,14 @@ _action_to_branch = {
 def main(argv:T.List[str] = sys.argv) -> None:
     args = usage.parse_args(argv[1:])
 
-    if args.action in ["keep", "archive"]:
+    if args.action in ["keep", "archive", "recover"]:
         branch = _action_to_branch[args.action]
         if args.view:
             view(branch)
         else:
-            add(branch, args.files)
-   
-    if args.action == "recover":
-        if args.view:
-            view(branch)
-        else:
-            recover(None if args.all else args.files)
+            if args.action == "recover":
+                recover(None if args.all else args.files)
+            else:
+                add(branch, args.files)    
     else:
         remove(args.files)
