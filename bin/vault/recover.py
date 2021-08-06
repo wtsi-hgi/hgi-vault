@@ -37,13 +37,13 @@ class exception(T.SimpleNamespace):
 
 def relativise(path: T.Path, working_directory: T.Path) -> T.Path:
     """
-    Canonicalises a path relative to the Vault root, such that it is 
+    Canonicalises a path relative to the Vault root, such that it is
     also relative to the working directory under the Vault root
 
     @param  path  location relative to vault
     @param  working_directory  working directory relative to vault
 
-    Example: 
+    Example:
     path: this/is/project/this/is/file
     working_directory: this/is/project/this/is/working/directory)
 
@@ -54,16 +54,16 @@ def relativise(path: T.Path, working_directory: T.Path) -> T.Path:
 
 def derelativise(path: T.Path, working_directory: T.Path, vault_root: T.Path) -> T.Path:
     """
-    Takes a canonicalises Vault path, relative to some directory under 
+    Takes a canonicalises Vault path, relative to some directory under
     the Vault root, and converts it back to a "full" Vault path
-    
+
     Both the inputs need to be relativised to the same Vault root.
 
     @param  path  location relative to some directory under vault root
     @param  working_directory  working directory relative to vault
     @param  vault_root full path to the root of the vault
 
-    Example: 
+    Example:
     path: ../../relative/path
     working_diretory: this/is/working/directory)
     vault_root: /this/is/vault/root
@@ -71,16 +71,16 @@ def derelativise(path: T.Path, working_directory: T.Path, vault_root: T.Path) ->
     output: this/is/relative/path
     """
 
-    full_path = (vault_root/ working_directory / path).resolve() 
+    full_path = (vault_root/ working_directory / path).resolve()
     return T.Path(relpath(full_path, vault_root))
 
 def move_with_path_safety_checks(full_source_path: T.Path, full_dest_path: T.Path) -> None:
     """
-    Method that creates a hardlink at destination, with the latest mtime,
-    and the hardlink from source, with checks that the source and 
-    desination are well-behaved
+    Method that creates a hardlink at destination, with the latest
+    mtime, and the hardlink from source, with checks that the source and
+    destination are well-behaved
 
-    @param full_source_path full path to the source file 
+    @param full_source_path full path to the source file
     @param full_dest_path location full path to the destination
 
     """

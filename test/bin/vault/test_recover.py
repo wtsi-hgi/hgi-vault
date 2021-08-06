@@ -36,7 +36,7 @@ from bin.common import idm
 class TestVaultRelativeToWorkDirRelative(unittest.TestCase):
     """
     The following tests will emulate the following directory structure
-    relative to the vault root    
+    relative to the vault root
     +- some/
         +- path/
         |  +- file1
@@ -45,7 +45,7 @@ class TestVaultRelativeToWorkDirRelative(unittest.TestCase):
     """
 
     def test_child_to_work_dir(self):
-   
+
         work_dir = T.Path("some/path")
         vault_relative_path = T.Path("some/path/file1")
         expected = T.Path("file1")
@@ -54,7 +54,7 @@ class TestVaultRelativeToWorkDirRelative(unittest.TestCase):
 
 
     def test_sibling_to_work_dir(self):
-   
+
         work_dir = T.Path("this/is/my/path")
         vault_relative_path = T.Path("this/is/my/file3")
         expected = T.Path("../file3")
@@ -65,7 +65,7 @@ class TestVaultRelativeToWorkDirRelative(unittest.TestCase):
 class TestWorkDirRelativeToVaultRelative(unittest.TestCase):
 
     def test_child_to_work_dir(self):
-        
+
         work_dir = T.Path("some/path")
         work_dir_rel = T.Path("file1")
         vault_path = T.Path("/this/is/vault/root")
@@ -75,7 +75,7 @@ class TestWorkDirRelativeToVaultRelative(unittest.TestCase):
 
 
     def test_sibling_to_work_dir(self):
-        
+
         work_dir = T.Path("this/is/my/path")
         work_dir_rel = T.Path("../file3")
         vault_path = T.Path("/this/is/vault/root")
@@ -95,13 +95,13 @@ class TestMovWithPathSafetyChecks(unittest.TestCase):
         tmp_file = path / "foo"
         tmp_file.touch()
 
-    
+
     def tearDown(self) -> None:
         self._tmp.cleanup()
         del self._path
 
     def test_basic_case(self):
-  
+
         full_source_path = self._path / "foo"
         full_dest_path = self._path / "quux"
         move_with_path_safety_checks(full_source_path, full_dest_path)
@@ -112,7 +112,7 @@ class TestMovWithPathSafetyChecks(unittest.TestCase):
         full_source_path = self._path / "new"
         full_dest_path = self._path / "quux"
         self.assertRaises(exception.NoSourceFound, move_with_path_safety_checks, full_source_path, full_dest_path)
-    
+
     def test_destination_does_not_exist(self):
         full_source_path = self._path / "foo"
         full_dest_path = self._path / "new" / "quux"
@@ -127,14 +127,14 @@ class TestRecover(unittest.TestCase):
 
     def setUp(self) -> None:
         """
-        The following tests will emulate the following directory structure  
+        The following tests will emulate the following directory structure
             +- parent/
                 +-.vault/
                 +- file1
                 +- some/
                 |  +- file2
                 |  +- file3
-                
+
         """
         self._tmp = TemporaryDirectory()
         self.parent = path = T.Path(self._tmp.name).resolve() / "parent"
@@ -146,8 +146,8 @@ class TestRecover(unittest.TestCase):
         self.file_one.touch()
         self.file_two.touch()
         self.file_three.touch()
-        # Ensure permissions are right for the vault add api to work. 
-        # The default permissions do not fly. 
+        # Ensure permissions are right for the vault add api to work.
+        # The default permissions do not fly.
         # For files, ensure they are readable, writable and u=g (66x) is sufficient.
         # Parent directories should be executable and should have u=g(33x)
         self.file_one.chmod(0o660)
@@ -209,7 +209,7 @@ class TestRecover(unittest.TestCase):
 
         cwd_mock.return_value = self.some
         vault_mock.return_value = self.vault
-        
+
         recover()
 
         self.assertTrue(os.path.isfile(self.file_one))
@@ -218,8 +218,8 @@ class TestRecover(unittest.TestCase):
         self.assertFalse(os.path.isfile(vault_file_path_two))
         self.assertTrue(os.path.isfile(self.file_three))
         self.assertFalse(os.path.isfile(vault_file_path_three))
-        
-        
+
+
 class TestView(unittest.TestCase):
 
     _tmp:TemporaryDirectory
@@ -227,14 +227,14 @@ class TestView(unittest.TestCase):
 
     def setUp(self) -> None:
         """
-        The following tests will emulate the following directory structure  
+        The following tests will emulate the following directory structure
             +- parent/
                 +-.vault/
                 +- file1
                 +- some/
                 |  +- file2
                 |  +- file3
-                
+
         """
         self._tmp = TemporaryDirectory()
         self.parent = path = T.Path(self._tmp.name).resolve() / "parent"
@@ -247,8 +247,8 @@ class TestView(unittest.TestCase):
         self.file_two.touch()
         self.file_three.touch()
 
-        # Ensure permissions are right for the vault "add" api to work. 
-        # The default permissions do not fly. 
+        # Ensure permissions are right for the vault "add" api to work.
+        # The default permissions do not fly.
         # For files, ensure they are readable, writable and u=g (66x).
         # Parent directories should be executable and should have u=g(33x)
         self.file_one.chmod(0o660)

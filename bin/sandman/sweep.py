@@ -1,9 +1,9 @@
 """
 Copyright (c) 2020, 2021 Genome Research Limited
 
-Author: 
-Christopher Harrison <ch12@sanger.ac.uk>
-Piyush Ahuja <pa11@sanger.ac.uk>
+Authors:
+* Christopher Harrison <ch12@sanger.ac.uk>
+* Piyush Ahuja <pa11@sanger.ac.uk>
 
 This program is free software: you can redistribute it and/or modify it
 under the terms of the GNU General Public License as published by the
@@ -183,7 +183,8 @@ class Sweeper(Loggable):
 
             if branch == Branch.Limbo:
                 if hardlinks(file.path) > 1:
-                    log.warning(f"Corruption detected: Physical vault file {file.path} in Limbo has more than one hardlinks")
+                    log.warning(f"Corruption detected: Physical vault file {file.path} in limbo has more than one hardlink")
+
                 if _can_permanently_delete(file):
                     log.info(f"Permanently Deleting: {file.path} has passed the hard-deletion threshold")
                     if self.Yes_I_Really_Mean_It_This_Time:
@@ -230,8 +231,8 @@ class Sweeper(Loggable):
         Handle files that are tracked by the vault
 
         We only care about files that exist in the Archive branch;
-        everything else can be skipped over. Once the file is added to staging, 
-        the original source file is hard-deleted
+        everything else can be skipped over. Once the file is added to
+        staging, the original source file is hard-deleted
         """
         log = self.log
         log.debug(f"{file.path} is in the {status} branch of the vault in {vault.root}")
@@ -290,7 +291,7 @@ class Sweeper(Loggable):
                 current_time = time.now()
                 update_mtime(limboed.path, current_time)
                 assert hardlinks(file.path) > 1
-                try:    
+                try:
                     file.delete()  # DELETION WARNING
                     log.info(f"Soft-deleted {file.path}")
 

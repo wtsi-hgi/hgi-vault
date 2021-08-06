@@ -1,7 +1,7 @@
 """
 Copyright (c) 2020, 2021 Genome Research Limited
 
-Author: 
+Authors:
 * Christopher Harrison <ch12@sanger.ac.uk>
 * Piyush Ahuja <pa11@sanger.ac.uk>
 
@@ -83,7 +83,6 @@ class TestFile(unittest.TestCase):
         file.update_mtime(tmp_file, time_dummy)
         self.assertEqual(tmp_file.stat().st_mtime, time.timestamp(time_dummy))
 
-   
 
 if __name__ == "__main__":
     unittest.main()

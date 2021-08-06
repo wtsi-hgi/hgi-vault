@@ -1,5 +1,5 @@
 """
-Copyright (c) 2020, 2021 Genome Research Limited
+Copyright (c) 2021 Genome Research Limited
 
 Author: Piyush Ahuja <pa11@sanger.ac.uk>
 
@@ -83,7 +83,7 @@ class TestFileSystemWalker(unittest.TestCase):
 
     def setUp(self):
         """
-        The following tests will emulate the following directory structure   
+        The following tests will emulate the following directory structure
             +- parent/
                 +- .vault
                 +- some/
@@ -101,8 +101,8 @@ class TestFileSystemWalker(unittest.TestCase):
         self.file_one.touch()
         self.file_two.touch()
         self.file_three.touch()
-        # Ensure permissions are right for the vault add api to work. 
-        # The default permissions do not fly. 
+        # Ensure permissions are right for the vault add api to work.
+        # The default permissions do not fly.
         # For files, ensure they are readable, writable and u=g (66x) is sufficient.
         # Parent directories should be executable and should have u=g(33x)
         # Parent directories should also be readable, for list_dir() to work in the walk
@@ -135,7 +135,7 @@ class TestFileSystemWalker(unittest.TestCase):
             key = file.path
             value = status
             files[key] = value
-       
+
         self.assertTrue(isinstance(files[vault_file_one.path], VaultExc.PhysicalVaultFile))
         self.assertTrue(isinstance(files[vault_file_two.path], VaultExc.PhysicalVaultFile))
         self.assertTrue(isinstance(files[vault_file_three.path], VaultExc.PhysicalVaultFile))
@@ -162,7 +162,7 @@ class TestFileSystemWalker(unittest.TestCase):
             key = file.path
             value = status
             files[key] = value
-       
+
         self.assertTrue(isinstance(files[vault_file_one.path], VaultExc.PhysicalVaultFile))
         self.assertTrue(isinstance(files[vault_file_two.path], VaultExc.PhysicalVaultFile))
         self.assertTrue(isinstance(files[vault_file_three.path], VaultExc.PhysicalVaultFile))
@@ -170,7 +170,7 @@ class TestFileSystemWalker(unittest.TestCase):
         self.assertFalse(self.file_one in files)
         self.assertFalse(self.file_two in files)
         self.assertTrue(isinstance(files[self.file_three], VaultExc.VaultCorruption))
-     
+
     # Behavior: A walk yields the correct exceptions for Staged files
     @mock.patch('bin.sandman.walk.idm', new = dummy_idm)
     def test_staged_case(self):
@@ -186,7 +186,7 @@ class TestFileSystemWalker(unittest.TestCase):
             key = file.path
             value = status
             files[key] = value
-       
+
         self.assertTrue(isinstance(files[vault_file_one.path], VaultExc.PhysicalVaultFile))
         self.assertTrue(isinstance(files[vault_file_two.path], VaultExc.PhysicalVaultFile))
         self.assertFalse(self.file_one in files)

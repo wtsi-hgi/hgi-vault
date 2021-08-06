@@ -174,11 +174,11 @@ class TestVault(unittest.TestCase):
         self.tmp_file_c = self.child_dir_two / "c"
         self.child_dir_one.mkdir(parents=True, exist_ok=True)
         self.child_dir_two.mkdir(parents=True, exist_ok=True)
-       
+
         self.tmp_file_a.touch()
         self.tmp_file_b.touch()
         self.tmp_file_c.touch()
- 
+
         # The following conditions should be checked upfront for each file and, if not satisfied, that action should fail for that file, logged appropriately:
         #     Check that the permissions of the file are at least ug+rw; 660+
         #     Check that the user and group permissions of the file are equal;66* or 77*
@@ -191,7 +191,7 @@ class TestVault(unittest.TestCase):
 
         # Default parent dir permissions can be unsuitable for archiving, like 755 -  write permissions are missing.
         self.child_dir_one.chmod(0o330) # wx, wx, _
-        self.parent_dir.chmod(0o777) # rwx, rwx, rwx 
+        self.parent_dir.chmod(0o777) # rwx, rwx, rwx
 
         Vault._find_root = MagicMock(return_value = self._path / T.Path("parent_dir/child_dir_one"))
         self.vault = Vault(relative_to = self._path / T.Path("parent_dir/child_dir_one/a"), idm = self.idm_user_one)
@@ -231,7 +231,7 @@ class TestVault(unittest.TestCase):
         self.assertRaises(exception.PermissionDenied, self.vault.add, Branch.Keep, self.tmp_file_a)
         self.child_dir_one.chmod(0o755)
         self.assertRaises(exception.PermissionDenied, self.vault.add, Branch.Keep, self.tmp_file_a)
-  
+
     def test_add_already_existing(self):
         self.vault.add(Branch.Keep, self.tmp_file_a)
 
@@ -260,7 +260,7 @@ class TestVault(unittest.TestCase):
         vault_file_key_path_old= VFK( T.Path("a"), inode_no_old).path
         vault_file_path_old = self._path / T.Path("parent_dir/child_dir_one/.vault/keep") / vault_file_key_path_old
         self.assertTrue(os.path.isfile(vault_file_path_old))
-       
+
         shutil.move(self.tmp_file_a, self.new_location_tmp_file_a)
         self.vault.add(Branch.Keep, self.new_location_tmp_file_a)
 

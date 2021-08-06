@@ -1,5 +1,6 @@
 """
 Copyright (c) 2020 Genome Research Limited
+
 Author: Guillaume Noell <gn5@sanger.ac.uk>
 
 This program is free software: you can redistribute it and/or modify it
@@ -19,10 +20,9 @@ with this program. If not, see https://www.gnu.org/licenses/
 from core import typing as T
 from core.file import BaseFile
 
+
 def can_delete(file:BaseFile, threshold:T.TimeDelta) -> bool:
     """ This function should return truthfully
           if the file's age meets or exceeds the threshold.
         It should return false otherwise. """
-    return (file.age >= threshold)  
-
-
+    return (file.age >= threshold)

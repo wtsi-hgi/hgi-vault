@@ -39,7 +39,7 @@ with this program. If not, see https://www.gnu.org/licenses/
 from core import file
 from core import typing as T
 
-def can_delete(file: file.BaseFile , threshold: T.TimeDelta): 
+def can_delete(file: file.BaseFile , threshold: T.TimeDelta):
 	"""The function should return truthfully if the file's age meets or exceeds
 the threshold. It should return false, otherwise. """
 	if file.age >= threshold:
