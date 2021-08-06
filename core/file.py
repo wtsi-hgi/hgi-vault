@@ -1,7 +1,7 @@
 """
 Copyright (c) 2020, 2021 Genome Research Limited
 
-Author: 
+Authors:
 * Christopher Harrison <ch12@sanger.ac.uk>
 * Piyush Ahuja <pa11@sanger.ac.uk>
 
@@ -22,7 +22,7 @@ with this program. If not, see https://www.gnu.org/licenses/
 from abc import ABCMeta, abstractmethod
 import os
 
-from . import typing as T, time
+from . import time, typing as T
 
 
 class BaseFile(metaclass=ABCMeta):
@@ -84,21 +84,27 @@ def hardlinks(path:T.Path) -> int:
     """
     return path.stat().st_nlink
 
-def update_mtime(path: T.Path, mtime: T.DateTime) -> None:
+
+def touch(path:T.Path, atime:T.Optional[T.DateTime] = None, mtime:T.Optional[T.DateTime] = None) -> None:
     """
-    Update the modification time of the file to the given time.
+    Update the access and/or modification time of a given file
 
-    @param path Path to file
-    @path dt DateTime
+    NOTE Only the file owner can change atime and mtime arbitrarily; the
+    default behaviour (set both to the current time) is permitted by
+    anyone who can write to the file
 
+    NOTE This isn't quite the same as pathlib.Path.touch
+
+    @param  path   Path
+    @param  atime  New access time (None for don't change)
+    @param  mtime  New modification time (None for don't change)
     """
-    # Naive dt instances are assumed to represent local time and 
-    # timestamp()  method relies on the platform C mktime() function 
-    # to perform the conversion. For "aware" dt instances, the mtime 
-    #  is to be computed as: 
-    # (dt - datetime(1970, 1, 1, tzinfo=timezone.utc)).total_seconds(). 
-    # To simply and not have to make this calculation, we convert every dt to UTC.
+    if mtime is None and atime is None:
+        new_utime = None
+    else:
+        file_stat = path.stat()
+        new_atime = file_stat.st_atime if atime is None else time.timestamp(atime)
+        new_mtime = file_stat.st_mtime if mtime is None else time.timestamp(mtime)
+        new_utime = (new_atime, new_mtime)
 
-    mtime_epoch = time.timestamp(mtime)
-    atime = path.stat().st_atime
-    os.utime(path, (atime, mtime_epoch))
+    os.utime(path, times=new_utime)

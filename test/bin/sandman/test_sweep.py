@@ -36,13 +36,12 @@ from bin.common import idm, config
 
 
 class _DummyWalker(BaseWalker):
-
     def __init__(self, walk):
         self._walk = walk
 
-
     def files(self):
         yield from self._walk
+
 
 class _DummyUser(IdM.base.User):
     def __init__(self, uid):
@@ -338,7 +337,7 @@ class TestSweeper(unittest.TestCase):
     @mock.patch('bin.vault._create_vault')
     def test_deletion_threshold_passed(self, vault_mock):
         new_mtime = time.now() - config.deletion.threshold - time.delta(seconds = 1)
-        file.update_mtime(self.file_one, new_mtime)
+        file.touch(self.file_one, mtime=new_mtime)
 
         walk = [(self.vault, File.FromFS(self.file_one), None)]
         dummy_walker = _DummyWalker(walk)
@@ -361,7 +360,7 @@ class TestSweeper(unittest.TestCase):
     def test_limbo_deletion_threshold_passed(self, vault_mock):
         vault_file_one = self.vault.add(Branch.Limbo, self.file_one)
         new_mtime = time.now() - config.deletion.limbo - time.delta(seconds = 1)
-        file.update_mtime(vault_file_one.path, new_mtime)
+        file.touch(vault_file_one.path, mtime=new_mtime)
         self.file_one.unlink()
 
         walk = [(self.vault, File.FromFS(vault_file_one.path), VaultExc.PhysicalVaultFile("File is in Limbo"))]
@@ -378,7 +377,7 @@ class TestSweeper(unittest.TestCase):
     def test_limbo_deletion_threshold_not_passed(self, vault_mock):
         vault_file_one = self.vault.add(Branch.Limbo, self.file_one)
         new_mtime = time.now() - config.deletion.limbo + time.delta(seconds = 1)
-        file.update_mtime(vault_file_one.path, new_mtime)
+        file.touch(vault_file_one.path, mtime=new_mtime)
         self.file_one.unlink()
 
         walk = [(self.vault, File.FromFS(vault_file_one.path), VaultExc.PhysicalVaultFile("File is in Limbo"))]

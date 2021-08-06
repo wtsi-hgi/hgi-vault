@@ -67,21 +67,34 @@ class TestFile(unittest.TestCase):
         tmp_file = self._path / "foo"
         self.assertTrue(file.hardlinks(tmp_file), 2)
 
-    def test_update_mtime(self) -> None:
+    def test_touch_simple(self) -> None:
         tmp_file = self._path / "foo"
-        dt_now = time.now()
 
-        file.update_mtime(tmp_file, dt_now)
+        before = int(time.timestamp(time.now()))
+        file.touch(tmp_file)
+        after = int(time.timestamp(time.now()))
 
-        unix_time = time.timestamp(dt_now)
-        self.assertEqual(tmp_file.stat().st_mtime, unix_time)
+        _stat = tmp_file.stat()
+        atime = int(_stat.st_atime)
+        mtime = int(_stat.st_mtime)
 
-    def test_update_mtime_with_diff_tz(self) -> None:
+        if before == after:
+            self.assertEqual(atime, before)
+            self.assertEqual(mtime, before)
+        else:
+            self.assertTrue(before <= atime <= after)
+            self.assertTrue(before <= mtime <= after)
+
+    def test_touch_arbitrary(self) -> None:
         tmp_file = self._path / "foo"
-        tz_dummy = time.timezone(time.timedelta(seconds=14400))
-        time_dummy = time.datetime(2007, 12, 6, 15, 29, 43, 79060, tzinfo = tz_dummy)
-        file.update_mtime(tmp_file, time_dummy)
-        self.assertEqual(tmp_file.stat().st_mtime, time.timestamp(time_dummy))
+
+        new_atime = time.epoch(123)
+        new_mtime = time.epoch(456)
+        file.touch(tmp_file, atime=new_atime, mtime=new_mtime)
+
+        _stat = tmp_file.stat()
+        self.assertEqual(_stat.st_atime, 123)
+        self.assertEqual(_stat.st_mtime, 456)
 
 
 if __name__ == "__main__":

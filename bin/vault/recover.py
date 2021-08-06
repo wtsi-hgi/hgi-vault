@@ -19,7 +19,7 @@ with this program. If not, see https://www.gnu.org/licenses/
 
 from os.path import relpath
 
-from core import time,file,typing as T
+from core import file, typing as T
 from api.logging import log
 
 
@@ -94,6 +94,5 @@ def move_with_path_safety_checks(full_source_path: T.Path, full_dest_path: T.Pat
 
     full_source_path.replace(full_dest_path)
     log.debug(f"{full_source_path} moved to {full_dest_path} ")
-    current_time = time.now()
-    file.update_mtime(full_dest_path, current_time)
+    file.touch(full_dest_path)
     log.info(f"File has been restored at {full_dest_path}")

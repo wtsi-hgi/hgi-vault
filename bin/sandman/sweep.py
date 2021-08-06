@@ -37,7 +37,7 @@ from api.persistence.models import FileCollection, State
 from api.vault import Vault, Branch
 from bin.common import config
 from core import time, typing as T
-from core.file import hardlinks, update_mtime
+from core.file import hardlinks, touch
 from core.vault import exception as VaultExc
 from hot import ch12, an12, gn5, pa11
 from hot.combinator import agreed
@@ -288,8 +288,7 @@ class Sweeper(Loggable):
 
                 # 1. Move file to Limbo and delete source
                 limboed = vault.add(Branch.Limbo, file.path)
-                current_time = time.now()
-                update_mtime(limboed.path, current_time)
+                touch(limboed.path)
                 assert hardlinks(file.path) > 1
                 try:
                     file.delete()  # DELETION WARNING
