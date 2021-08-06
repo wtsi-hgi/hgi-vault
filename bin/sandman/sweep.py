@@ -268,9 +268,9 @@ class Sweeper(Loggable):
         """
         Handle files that are not tracked by the vault
 
-        Untracked files that exceed the deletion threshold are soft-deleted;
-        otherwise warning notifications are raised if their ages exceed
-        warning thresholds
+        Untracked files that exceed the deletion threshold are
+        soft-deleted; otherwise warning notifications are raised if
+        their ages exceed warning thresholds
         """
         log = self.log
         log.debug(f"{file.path} is untracked")

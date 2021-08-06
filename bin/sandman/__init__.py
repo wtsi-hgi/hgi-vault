@@ -33,7 +33,12 @@ def main(argv:T.List[str] = sys.argv) -> None:
     args = usage.parse_args(argv[1:])
 
     log.info("Enter Sandman")
-    if not args.weaponise:
+
+    # Cheery thoughts
+    if args.weaponise:
+        log.warning("Weaponised: Now I am become Death, "
+                    "the destroyer of worlds")
+    else:
         log.info("Dry Run: The filesystem will not be affected "
                  "and the drain phase will not run")
 
