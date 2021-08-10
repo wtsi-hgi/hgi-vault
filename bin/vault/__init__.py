@@ -19,10 +19,11 @@ You should have received a copy of the GNU General Public License along
 with this program. If not, see https://www.gnu.org/licenses/
 """
 
-import sys
 import os
+import sys
+
 import core.vault
-from core.vault import exception as VaultExc
+
 from api.logging import log
 from api.vault import Branch, Vault
 from api.vault.key import VaultFileKey
@@ -83,12 +84,12 @@ def add(branch:Branch, files:T.List[T.Path]) -> None:
             log.error(f"Cannot add: {e}")
 
 
-def remove(files:T.List[T.Path]) -> None:
-    """ Remove the given files """
+def untrack(files:T.List[T.Path]) -> None:
+    """ Untrack the given files """
     for f in files:
         if not file.is_regular(f):
             # Skip non-regular files
-            log.warning(f"Cannot remove {f}: Doesn't exist or is not regular")
+            log.warning(f"Cannot untrack {f}: Doesn't exist or is not regular")
             log.info("Contact HGI if a file exists in the vault, but has been deleted outside")
             continue
 
@@ -114,6 +115,7 @@ def remove(files:T.List[T.Path]) -> None:
             except core.vault.exception.PhysicalVaultFile:
                 # This wouldn't make sense, so we just skip it sans log
                 pass
+
 
 def recover(files: T.Optional[T.List[T.Path]] = None) -> None:
     """
@@ -146,11 +148,11 @@ def recover(files: T.Optional[T.List[T.Path]] = None) -> None:
                 try:
                     move_with_path_safety_checks(vfkpath, original_file)
                 except RecoverExc.NoSourceFound as e:
-                        log.error(f"Recovery source {vfkpath} does not exist: {e}")
-                except RecoverExc.NoParentForDestination as e:
-                        log.error(f"Source path exists {vfkpath} but destination parent {original_file.parent} does not exist")
-                except RecoverExc.DestinationAlreadyExists as e:
-                        log.error(f"Destination {original_file} already has an existing file")
+                    log.error(f"Recovery source {vfkpath} does not exist: {e}")
+                except RecoverExc.NoParentForDestination:
+                    log.error(f"Source path exists {vfkpath} but destination parent {original_file.parent} does not exist")
+                except RecoverExc.DestinationAlreadyExists:
+                    log.error(f"Destination {original_file} already has an existing file")
 
 
 # Mapping of actions to branch enumeration
@@ -173,4 +175,4 @@ def main(argv:T.List[str] = sys.argv) -> None:
             else:
                 add(branch, args.files)
     else:
-        remove(args.files)
+        untrack(args.files)

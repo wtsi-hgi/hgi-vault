@@ -27,8 +27,8 @@ from api.logging import log
 
 # Executable versioning
 class version(T.SimpleNamespace):
-    vault   = "0.0.3"
-    sandman = "0.0.6"
+    vault   = "0.0.5"
+    sandman = "0.0.7"
 
 
 # Common configuration

@@ -44,15 +44,13 @@ _actions = {
                            "%(prog)s [-h] (--view | FILE [FILE...])",
                            "one of the arguments --view or FILE is required"),
 
-    "remove":  _ActionText("remove files from their vault"),
+    "untrack": _ActionText("untrack files annotated for retention or archival"),
 
     "recover": _ActionText("file recovery operations",
                             "view recoverable files",
                             "%(prog)s [-h] (--view | --all | FILE [FILE...])",
                             "one of the arguments --view or --all or FILE is required")
 }
-
-
 
 
 def _parser_factory():
@@ -98,13 +96,13 @@ def _parser_factory():
             metavar="FILE")
 
 
-    action = "remove"
+    action = "untrack"
     sub_parser = sub_level.add_parser(action, help= _actions[action].help)
     sub_parser.add_argument(
             "files",
             nargs="+",
             type=T.Path,
-            help=f"file to remove",
+            help=f"file to untrack",
             metavar="FILE")
 
 
@@ -127,7 +125,6 @@ def _parser_factory():
             type=T.Path,
             help=f"file to recover",
             metavar="FILE")
-
 
 
     def parser(args:T.List[str]) -> argparse.Namespace:
@@ -164,7 +161,7 @@ def _parser_factory():
                 if not parsed.files:
                     action_level[parsed.action].error(_actions[parsed.action].args_error)
 
-        # NOTE There is no special case for the "remove" action
+        # NOTE There is no special case for the "untrack" action
 
         if "files" in parsed:
         # Resolve all paths
