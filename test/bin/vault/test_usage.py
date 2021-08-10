@@ -164,24 +164,16 @@ class TestUsage(unittest.TestCase):
 
         self.assertEqual(args.files, expected)
 
-    def test_remove(self):
-        args = parse_args(["remove" ,"/file1", "/file2"])
+    def test_untrack(self):
+        args = parse_args(["untrack", "/file1", "/file2"])
         expected = [T.Path("/file1"), T.Path("/file2")]
         self.assertEqual(args.files, expected)
 
-    def test_remove_view(self):
-        args = ["remove" ,"--view"]
+    def test_untrack_view(self):
+        args = ["untrack", "--view"]
         success = False
         try:
             parse_args(args)
         except:
             success = True
         self.assertTrue(success)
-
-
-
-
-
-
-
-

@@ -28,50 +28,49 @@ import argparse
 
 class TestMain(unittest.TestCase):
 
-    @mock.patch('bin.vault.remove')
+    @mock.patch('bin.vault.untrack')
     @mock.patch('bin.vault.view')
     def test_keep_view(self, mock_view, mock_remove):
         main(["__init__","keep" ,"--view"])
         mock_view.assert_called_with(Branch.Keep)
         mock_remove.assert_not_called()
 
-    @mock.patch('bin.vault.remove')
+    @mock.patch('bin.vault.untrack')
     @mock.patch('bin.vault.add')
     def test_keep_files(self, mock_add, mock_remove):
         main(["__init__","keep" ,"/file1", "/file2"])
         mock_add.assert_called_with(Branch.Keep, [T.Path("/file1"), T.Path("/file2")])
         mock_remove.assert_not_called()
 
-    @mock.patch('bin.vault.remove')
+    @mock.patch('bin.vault.untrack')
     @mock.patch('bin.vault.view')
     def test_archive_view(self, mock_view, mock_remove):
         main(["__init__","archive" ,"--view"])
         mock_view.assert_called_with(Branch.Archive)
         mock_remove.assert_not_called()
 
-    @mock.patch('bin.vault.remove')
+    @mock.patch('bin.vault.untrack')
     @mock.patch('bin.vault.add')
     def test_archive_files(self, mock_add, mock_remove):
         main(["__init__","archive" ,"/file1", "/file2"])
         mock_add.assert_called_with(Branch.Archive, [T.Path("/file1"), T.Path("/file2")])
         mock_remove.assert_not_called()
 
-    @mock.patch('bin.vault.remove')
+    @mock.patch('bin.vault.untrack')
     @mock.patch('bin.vault.recover')
     def test_recover_files(self, mock_recover, mock_remove):
         main(["__init__","recover" ,"/file1", "/file2"])
         mock_recover.assert_called_with([T.Path("/file1"), T.Path("/file2")])
         mock_remove.assert_not_called()
 
-    @mock.patch('bin.vault.remove')
+    @mock.patch('bin.vault.untrack')
     @mock.patch('bin.vault.recover')
     def test_recover_all(self, mock_recover, mock_remove):
         main(["__init__","recover" ,"--all"])
         mock_recover.assert_called_with(None)
         mock_remove.assert_not_called()
 
-    @mock.patch('bin.vault.remove')
+    @mock.patch('bin.vault.untrack')
     def test_remove(self, mock_remove):
-        main(["__init__","remove" ,"/file1", "/file2"])
+        main(["__init__","untrack" ,"/file1", "/file2"])
         mock_remove.assert_called_with([T.Path("/file1"), T.Path("/file2")])
-    
