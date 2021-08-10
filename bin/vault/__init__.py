@@ -1,9 +1,9 @@
-""" 
+"""
 Copyright (c) 2020, 2021 Genome Research Limited
 
-Author: 
-Christopher Harrison <ch12@sanger.ac.uk>
-Piyush Ahuja <pa11@sanger.ac.uk>
+Authors:
+* Christopher Harrison <ch12@sanger.ac.uk>
+* Piyush Ahuja <pa11@sanger.ac.uk>
 
 This program is free software: you can redistribute it and/or modify it
 under the terms of the GNU General Public License as published by the
@@ -48,7 +48,7 @@ def view(branch:Branch) -> None:
     """ List the contents of the given branch """
     cwd = file.cwd()
     vault = _create_vault(cwd)
-    count = 0  
+    count = 0
     for path in vault.list(branch):
         if branch == Branch.Limbo:
             path = relativise(path, cwd)
@@ -117,8 +117,9 @@ def remove(files:T.List[T.Path]) -> None:
 
 def recover(files: T.Optional[T.List[T.Path]] = None) -> None:
     """
-    Recover the given files from Limbo branch or Recover all files from the Limbo branch
-    
+    Recover the given files from Limbo branch or Recover all files from
+    the Limbo branch
+
     @ param list of file paths relative to the working directory
     example: ["../file1" "file1"]
     """
@@ -138,7 +139,7 @@ def recover(files: T.Optional[T.List[T.Path]] = None) -> None:
                 vfk = VaultFileKey.Reconstruct(limbo_relative_path)
             except Exception as e:
                 raise core.vault.exception.VaultCorruption(f"Failed to reconstruct VaultFileKey for {limbo_relative_path}")
-                
+
             original_file = vault.root / vfk.source
             vfkpath = bpath / vfk.path
             if RECOVER_ALL or original_file in files_to_recover:
@@ -151,8 +152,6 @@ def recover(files: T.Optional[T.List[T.Path]] = None) -> None:
                 except RecoverExc.DestinationAlreadyExists as e:
                         log.error(f"Destination {original_file} already has an existing file")
 
-
-    
 
 # Mapping of actions to branch enumeration
 _action_to_branch = {
@@ -172,6 +171,6 @@ def main(argv:T.List[str] = sys.argv) -> None:
             if args.action == "recover":
                 recover(None if args.all else args.files)
             else:
-                add(branch, args.files)    
+                add(branch, args.files)
     else:
         remove(args.files)

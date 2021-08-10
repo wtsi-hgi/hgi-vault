@@ -148,9 +148,5 @@ class TestConfig(unittest.TestCase):
         self.temp_config.write_text(_MISSING_DELETION_LIMBO)
 
 
-    
-
-  
-
 if __name__ == "__main__":
     unittest.main()

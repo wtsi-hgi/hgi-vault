@@ -1,5 +1,5 @@
 """
-Copyright (c) 2020, 2021 Genome Research Limited
+Copyright (c) 2021 Genome Research Limited
 
 Author: Piyush Ahuja <pa11@sanger.ac.uk>
 
@@ -28,7 +28,7 @@ from api.mail import Postman
 
 _EXAMPLE_CONFIG = Config(T.Path("eg/.vaultrc")).email
 
-# New line is appended automatically by EmailMessage if the body does not contain one. 
+# New line is appended automatically by EmailMessage if the body does not contain one.
 # To make tests pass, we add it to our dummy
 _DUMMY_MESSAGE = mail.base.Message("Test Subject", "Test body\n")
 
@@ -51,11 +51,10 @@ _Dummy_Addressees = [_DummyUser("123", "recipient123@example.com"), _DummyUser("
 
 
 class TestMail(unittest.TestCase):
-     
     @patch('api.mail.postman.smtplib.SMTP', autospec=True)
     def test_postman_without_sender(self, mocked_smtp):
         mocked_smtp_connection = MagicMock()
-        mocked_smtp.return_value.__enter__.return_value = mocked_smtp_connection 
+        mocked_smtp.return_value.__enter__.return_value = mocked_smtp_connection
         postman = Postman(_EXAMPLE_CONFIG)
         postman.send(_DUMMY_MESSAGE, *_Dummy_Addressees)
         mocked_smtp_connection.send_message.assert_called_once()
@@ -71,8 +70,8 @@ class TestMail(unittest.TestCase):
     @patch('api.mail.postman.smtplib.SMTP', autospec=True)
     def test_postman_with_sender(self, mocked_smtp):
         mocked_smtp_connection = MagicMock()
-        mocked_smtp.return_value.__enter__.return_value = mocked_smtp_connection 
-       
+        mocked_smtp.return_value.__enter__.return_value = mocked_smtp_connection
+
         postman = Postman(_EXAMPLE_CONFIG)
         _Dummy_Addresser = _DummyUser("012", "sender@example.com")
         postman.send(_DUMMY_MESSAGE, *_Dummy_Addressees, addresser=_Dummy_Addresser)
@@ -85,7 +84,7 @@ class TestMail(unittest.TestCase):
 
         recipients = ", ".join([user.email for user in _Dummy_Addressees])
         self.assertEqual(sent_email['to'], recipients )
-       
+
 
 if __name__ == "__main__":
     unittest.main()

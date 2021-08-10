@@ -1,9 +1,9 @@
 """
 Copyright (c) 2020, 2021 Genome Research Limited
 
-Author: 
-Christopher Harrison <ch12@sanger.ac.uk>
-Piyush Ahuja <pa11@sanger.ac.uk>
+Authors:
+* Christopher Harrison <ch12@sanger.ac.uk>
+* Piyush Ahuja <pa11@sanger.ac.uk>
 
 This program is free software: you can redistribute it and/or modify it
 under the terms of the GNU General Public License as published by the
@@ -46,7 +46,7 @@ _actions = {
 
     "remove":  _ActionText("remove files from their vault"),
 
-    "recover": _ActionText("file recovery operations", 
+    "recover": _ActionText("file recovery operations",
                             "view recoverable files",
                             "%(prog)s [-h] (--view | --all | FILE [FILE...])",
                             "one of the arguments --view or --all or FILE is required")
@@ -76,7 +76,7 @@ def _parser_factory():
                 action="store_true",
                 help=_actions[action].view_help)
     sub_parser.add_argument(
-            "files",    
+            "files",
             nargs="*",
             type=T.Path,
             help=f"file to keep (at most 10)",
@@ -91,7 +91,7 @@ def _parser_factory():
                 action="store_true",
                 help=_actions[action].view_help)
     sub_parser.add_argument(
-            "files",    
+            "files",
             nargs="*",
             type=T.Path,
             help=f"file to archive (at most 10)",
@@ -101,7 +101,7 @@ def _parser_factory():
     action = "remove"
     sub_parser = sub_level.add_parser(action, help= _actions[action].help)
     sub_parser.add_argument(
-            "files",    
+            "files",
             nargs="+",
             type=T.Path,
             help=f"file to remove",
@@ -122,7 +122,7 @@ def _parser_factory():
                 help="recover all recoverable files")
 
     sub_parser.add_argument(
-            "files",    
+            "files",
             nargs="*",
             type=T.Path,
             help=f"file to recover",
@@ -134,7 +134,7 @@ def _parser_factory():
         # Parse the given arguments and ensure mutual exclusivity
         parsed = top_level.parse_args(args)
         text = _actions[parsed.action]
-        
+
         if parsed.action == "keep":
             if parsed.view:
                 del parsed.files
@@ -157,15 +157,14 @@ def _parser_factory():
 
         if parsed.action == "recover":
             if parsed.view or parsed.all:
-                del parsed.files 
+                del parsed.files
                 if parsed.view and parsed.all:
                     action_level[parsed.action].error("cannot accept arguments --view and --all simultaneously")
             else:
                 if not parsed.files:
-                    action_level[parsed.action].error(_actions[parsed.action].args_error)     
-           
-        # if parsed.action == "remove":
-        #     pass
+                    action_level[parsed.action].error(_actions[parsed.action].args_error)
+
+        # NOTE There is no special case for the "remove" action
 
         if "files" in parsed:
         # Resolve all paths
