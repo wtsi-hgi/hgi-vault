@@ -275,4 +275,4 @@ class TestView(unittest.TestCase):
         self.vault.add(Branch.Limbo, self.file_three)
 
         cwd_mock.return_value = self.parent / "some"
-        view(Branch.Limbo, False)
+        view(Branch.Limbo, "all", False)

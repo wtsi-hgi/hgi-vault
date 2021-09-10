@@ -35,23 +35,28 @@ class _ActionText:
     args_error: T.Optional[str] = None
 
 _absolute_help: str = "use absolute file paths"
+_view_mode_help: str = """
+all: show every file in the branch (default),
+here: show every file in the branch from the current working directory,
+mine: show every file in the branch owned by the current user
+"""
 
 _actions = {
     "keep":    _ActionText("file retention operations",
-                           "view files annotated for retention",
-                           "%(prog)s [-h] (--view [--absolute] | FILE [FILE...])",
+                           f"view files annotated for retention | {_view_mode_help}",
+                           "%(prog)s [-h] (--view [{all | here | mine}] [--absolute] | FILE [FILE...])",
                            "one of the arguments --view or FILE is required"),
 
     "archive": _ActionText("file archival operations",
-                           "view files annotated for archival",
-                           "%(prog)s [-h] (--view [--absolute] | FILE [FILE...])",
+                           f"view files annotated for archival | {_view_mode_help}",
+                           "%(prog)s [-h] (--view [{all | here | mine}] [--absolute] | FILE [FILE...])",
                            "one of the arguments --view or FILE is required"),
 
     "untrack": _ActionText("untrack files annotated for retention or archival"),
 
     "recover": _ActionText("file recovery operations",
-                            "view recoverable files",
-                            "%(prog)s [-h] (--view [--absolute] | --all | FILE [FILE...])",
+                            f"view recoverable files | {_view_mode_help}",
+                            "%(prog)s [-h] (--view [{all | here | mine}] [--absolute] | --all | FILE [FILE...])",
                             "one of the arguments --view or --all or FILE is required")
 }
 
@@ -74,7 +79,9 @@ def _parser_factory():
     sub_parser.usage = _actions[action].usage
     sub_parser.add_argument(
                 "--view",
-                action="store_true",
+                choices=["all", "here", "mine"],
+                nargs="?",
+                const="all",
                 help=_actions[action].view_help)
     sub_parser.add_argument(
                 "--absolute",
@@ -94,7 +101,9 @@ def _parser_factory():
     sub_parser.usage = _actions[action].usage
     sub_parser.add_argument(
                 "--view",
-                action="store_true",
+                nargs="?",
+                const="all",
+                choices=["", "all", "here", "mine"],
                 help=_actions[action].view_help)
     sub_parser.add_argument(
                 "--absolute",
@@ -124,7 +133,9 @@ def _parser_factory():
     sub_parser.usage = _actions[action].usage
     sub_parser.add_argument(
                 "--view",
-                action="store_true",
+                nargs="?",
+                const="all",
+                choices=["", "all", "here", "mine"],
                 help=_actions[action].view_help)
 
     sub_parser.add_argument(
