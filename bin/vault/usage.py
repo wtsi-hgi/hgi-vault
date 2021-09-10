@@ -33,22 +33,24 @@ class _ActionText:
     usage: T.Optional[str] = None
     args_error: T.Optional[str] = None
 
+_absolute_help: str = "use absolute file paths"
+
 _actions = {
     "keep":    _ActionText("file retention operations",
                            "view files annotated for retention",
-                           "%(prog)s [-h] (--view | FILE [FILE...])",
+                           "%(prog)s [-h] (--view [--absolute] | FILE [FILE...])",
                            "one of the arguments --view or FILE is required"),
 
     "archive": _ActionText("file archival operations",
                            "view files annotated for archival",
-                           "%(prog)s [-h] (--view | FILE [FILE...])",
+                           "%(prog)s [-h] (--view [--absolute] | FILE [FILE...])",
                            "one of the arguments --view or FILE is required"),
 
     "untrack": _ActionText("untrack files annotated for retention or archival"),
 
     "recover": _ActionText("file recovery operations",
                             "view recoverable files",
-                            "%(prog)s [-h] (--view | --all | FILE [FILE...])",
+                            "%(prog)s [-h] (--view [--absolute] | --all | FILE [FILE...])",
                             "one of the arguments --view or --all or FILE is required")
 }
 
@@ -74,6 +76,11 @@ def _parser_factory():
                 action="store_true",
                 help=_actions[action].view_help)
     sub_parser.add_argument(
+                "--absolute",
+                action="store_true",
+                help=_absolute_help
+    )
+    sub_parser.add_argument(
             "files",
             nargs="*",
             type=T.Path,
@@ -88,6 +95,11 @@ def _parser_factory():
                 "--view",
                 action="store_true",
                 help=_actions[action].view_help)
+    sub_parser.add_argument(
+                "--absolute",
+                action="store_true",
+                help=_absolute_help
+    )
     sub_parser.add_argument(
             "files",
             nargs="*",
@@ -115,6 +127,12 @@ def _parser_factory():
                 help=_actions[action].view_help)
 
     sub_parser.add_argument(
+                "--absolute",
+                action="store_true",
+                help=_absolute_help
+    )
+
+    sub_parser.add_argument(
                 "--all",
                 action="store_true",
                 help="recover all recoverable files")
@@ -136,6 +154,8 @@ def _parser_factory():
             if parsed.view:
                 del parsed.files
             else:
+                if parsed.absolute:
+                    action_level[parsed.action].error("you must use --view flag to use --absolute flag")
                 if not parsed.files:
                     action_level[parsed.action].error(_actions[parsed.action].args_error)
                 elif len(parsed.files) > 10:
@@ -146,6 +166,8 @@ def _parser_factory():
             if parsed.view:
                 del parsed.files
             else:
+                if parsed.absolute:
+                    action_level[parsed.action].error("you must use --view flag to use --absolute flag")
                 if not parsed.files:
                     action_level[parsed.action].error(_actions[parsed.action].args_error)
                 elif len(parsed.files) > 10:
@@ -153,11 +175,13 @@ def _parser_factory():
                     action_level[parsed.action].error("too many FILEs; you may specify no more than 10")
 
         if parsed.action == "recover":
-            if parsed.view or parsed.all:
+            if parsed.view or (parsed.all and not parsed.absolute):
                 del parsed.files
                 if parsed.view and parsed.all:
                     action_level[parsed.action].error("cannot accept arguments --view and --all simultaneously")
             else:
+                if parsed.absolute:
+                    action_level[parsed.action].error("you must use --view flag to use --absolute flag")
                 if not parsed.files:
                     action_level[parsed.action].error(_actions[parsed.action].args_error)
 

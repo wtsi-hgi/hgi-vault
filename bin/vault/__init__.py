@@ -45,13 +45,13 @@ def _create_vault(relative_to:T.Path) -> Vault:
         sys.exit(1)
 
 
-def view(branch:Branch) -> None:
+def view(branch:Branch, absolute: bool) -> None:
     """ List the contents of the given branch """
     cwd = file.cwd()
     vault = _create_vault(cwd)
     count = 0
     for path in vault.list(branch):
-        if branch == Branch.Limbo:
+        if branch == Branch.Limbo or not absolute:
             path = relativise(path, cwd)
         print(path)
         count += 1
@@ -168,7 +168,7 @@ def main(argv:T.List[str] = sys.argv) -> None:
     if args.action in ["keep", "archive", "recover"]:
         branch = _action_to_branch[args.action]
         if args.view:
-            view(branch)
+            view(branch, args.absolute)
         else:
             if args.action == "recover":
                 recover(None if args.all else args.files)
