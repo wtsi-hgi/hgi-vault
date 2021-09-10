@@ -1,7 +1,9 @@
 """
 Copyright (c) 2021 Genome Research Limited
 
-Author: Piyush Ahuja <pa11@sanger.ac.uk>
+Authors: 
+* Piyush Ahuja <pa11@sanger.ac.uk>
+* Michael Grace <mg38@sanger.ac.uk>
 
 This program is free software: you can redistribute it and/or modify it
 under the terms of the GNU General Public License as published by the
@@ -30,9 +32,16 @@ class TestMain(unittest.TestCase):
 
     @mock.patch('bin.vault.untrack')
     @mock.patch('bin.vault.view')
-    def test_keep_view(self, mock_view, mock_remove):
+    def test_keep_view_relative(self, mock_view, mock_remove):
         main(["__init__","keep" ,"--view"])
-        mock_view.assert_called_with(Branch.Keep)
+        mock_view.assert_called_with(Branch.Keep, False)
+        mock_remove.assert_not_called()
+
+    @mock.patch('bin.vault.untrack')
+    @mock.patch('bin.vault.view')
+    def test_keep_view_absolute(self, mock_view, mock_remove):
+        main(["__init__","keep" ,"--view", "--absolute"])
+        mock_view.assert_called_with(Branch.Keep, True)
         mock_remove.assert_not_called()
 
     @mock.patch('bin.vault.untrack')
@@ -44,9 +53,16 @@ class TestMain(unittest.TestCase):
 
     @mock.patch('bin.vault.untrack')
     @mock.patch('bin.vault.view')
-    def test_archive_view(self, mock_view, mock_remove):
+    def test_archive_view_relative(self, mock_view, mock_remove):
         main(["__init__","archive" ,"--view"])
-        mock_view.assert_called_with(Branch.Archive)
+        mock_view.assert_called_with(Branch.Archive, False)
+        mock_remove.assert_not_called()
+
+    @mock.patch('bin.vault.untrack')
+    @mock.patch('bin.vault.view')
+    def test_archive_view_absolute(self, mock_view, mock_remove):
+        main(["__init__","archive" ,"--view", "--absolute"])
+        mock_view.assert_called_with(Branch.Archive, True)
         mock_remove.assert_not_called()
 
     @mock.patch('bin.vault.untrack')

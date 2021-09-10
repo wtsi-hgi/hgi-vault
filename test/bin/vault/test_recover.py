@@ -1,7 +1,9 @@
 """
 Copyright (c) 2021 Genome Research Limited
 
-Author: Piyush Ahuja <pa11@sanger.ac.uk>
+Authors: 
+* Piyush Ahuja <pa11@sanger.ac.uk>
+* Michael Grace <mg38@sanger.ac.uk>
 
 This program is free software: you can redistribute it and/or modify it
 under the terms of the GNU General Public License as published by the
@@ -273,4 +275,4 @@ class TestView(unittest.TestCase):
         self.vault.add(Branch.Limbo, self.file_three)
 
         cwd_mock.return_value = self.parent / "some"
-        view(Branch.Limbo)
+        view(Branch.Limbo, False)
