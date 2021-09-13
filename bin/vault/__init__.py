@@ -47,13 +47,23 @@ def _create_vault(relative_to:T.Path) -> Vault:
 
 
 def view(branch:Branch, view_mode: str, absolute: bool) -> None:
-    """ List the contents of the given branch """
+    """ List the contents of the given branch 
+    
+    :param branch: Which Vault branch we're going to look at
+    :param view_mode: 
+        all: list all files, 
+        here: list files in current directory, 
+        mine: files owned by current user
+    :param absolute: - Whether to view absolute paths or not
+    """
     cwd = file.cwd()
     vault = _create_vault(cwd)
     count = 0
     for path in vault.list(branch):
         relative_path = relativise(path, cwd)
         if view_mode == "here" and "/" in str(relative_path):
+            continue
+        elif view_mode == "mine" and os.stat(path).st_uid != os.getuid():
             continue
         print(relative_path if branch == Branch.Limbo or not absolute else path)
         count += 1
