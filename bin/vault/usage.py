@@ -40,6 +40,7 @@ all: show every file in the branch (default),
 here: show every file in the branch from the current working directory,
 mine: show every file in the branch owned by the current user
 """
+_archive_staged_help: str = "view files staged for archival. these will be archived soon"
 
 _actions = {
     "keep":    _ActionText("file retention operations",
@@ -49,7 +50,7 @@ _actions = {
 
     "archive": _ActionText("file archival operations",
                            f"view files annotated for archival | {_view_mode_help}",
-                           "%(prog)s [-h] (--view [{all | here | mine}] [--absolute] | FILE [FILE...])",
+                           "%(prog)s [-h] ((--view [{all | here | mine}] | --view-staged [{all | here | mine}]) [--absolute] | FILE [FILE...])",
                            "one of the arguments --view or FILE is required"),
 
     "untrack": _ActionText("untrack files annotated for retention or archival"),
@@ -99,12 +100,20 @@ def _parser_factory():
     action = "archive"
     sub_parser = sub_level.add_parser(action, help= _actions[action].help)
     sub_parser.usage = _actions[action].usage
-    sub_parser.add_argument(
+    archive_view_group = sub_parser.add_mutually_exclusive_group()
+    archive_view_group.add_argument(
                 "--view",
                 nargs="?",
                 const="all",
-                choices=["", "all", "here", "mine"],
+                choices=["all", "here", "mine"],
                 help=_actions[action].view_help)
+    archive_view_group.add_argument(
+        "--view-staged",
+        nargs="?",
+        const="all",
+        choices=["all", "here", "mine"],
+        help=_archive_staged_help
+    )
     sub_parser.add_argument(
                 "--absolute",
                 action="store_true",
@@ -135,7 +144,7 @@ def _parser_factory():
                 "--view",
                 nargs="?",
                 const="all",
-                choices=["", "all", "here", "mine"],
+                choices=["all", "here", "mine"],
                 help=_actions[action].view_help)
 
     sub_parser.add_argument(
@@ -175,11 +184,11 @@ def _parser_factory():
                     action_level[parsed.action].error("too many FILEs; you may specify no more than 10")
 
         if parsed.action == "archive":
-            if parsed.view:
+            if parsed.view or parsed.view_staged:
                 del parsed.files
             else:
                 if parsed.absolute:
-                    action_level[parsed.action].error("you must use --view flag to use --absolute flag")
+                    action_level[parsed.action].error("you must use --view flag or --view-staged flag to use --absolute flag")
                 if not parsed.files:
                     action_level[parsed.action].error(_actions[parsed.action].args_error)
                 elif len(parsed.files) > 10:
