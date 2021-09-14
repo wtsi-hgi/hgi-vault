@@ -28,14 +28,14 @@ import core.vault
 from api.logging import log
 from api.vault import Branch, Vault
 from api.vault.key import VaultFileKey
-from bin.common import idm
-from core import file, typing as T
+from bin.common import idm, config
+from core import file, time, typing as T
 
 from . import usage
 from .recover import move_with_path_safety_checks, relativise, derelativise, exception as RecoverExc
 
 
-def _create_vault(relative_to:T.Path) -> Vault:
+def _create_vault(relative_to: T.Path) -> Vault:
     # Defensively create a vault with the common IdM
     try:
         return Vault(relative_to, idm=idm)
@@ -46,9 +46,9 @@ def _create_vault(relative_to:T.Path) -> Vault:
         sys.exit(1)
 
 
-def view(branch:Branch, view_mode: str, absolute: bool) -> None:
+def view(branch: Branch, view_mode: str, absolute: bool) -> None:
     """ List the contents of the given branch 
-    
+
     :param branch: Which Vault branch we're going to look at
     :param view_mode: 
         all: list all files, 
@@ -59,18 +59,29 @@ def view(branch:Branch, view_mode: str, absolute: bool) -> None:
     cwd = file.cwd()
     vault = _create_vault(cwd)
     count = 0
-    for path in vault.list(branch):
+    for path, _limbo_file in vault.list(branch):
         relative_path = relativise(path, cwd)
         if view_mode == "here" and "/" in str(relative_path):
             continue
         elif view_mode == "mine" and os.stat(path).st_uid != os.getuid():
             continue
-        print(relative_path if branch == Branch.Limbo or not absolute else path)
+
+        if branch == Branch.Limbo:
+            if absolute:
+                log.warning(
+                    "recover always displays relative paths, irrespective of --absolute flag")
+            time_to_live = config.deletion.limbo - \
+                (time.now() - time.epoch(os.stat(_limbo_file).st_mtime))
+            print(
+                relative_path, f"{round(time_to_live/time.delta(hours=1), 1)} hours", sep="\t")
+        else:
+            print(path if absolute else relative_path)
+
         count += 1
-    print(f"{branch} branch of the vault in {vault.root} contains {count} files {'in the current directory' if view_mode == 'here' else ''}")
+    print(f"{branch} branch of the vault in {vault.root} contains {count} files {'in the current directory' if view_mode == 'here' else 'owned by the current user' if view_mode == 'mine' else ''}")
 
 
-def add(branch:Branch, files:T.List[T.Path]) -> None:
+def add(branch: Branch, files: T.List[T.Path]) -> None:
     """ Add the given files to the appropriate branch """
     for f in files:
         if not file.is_regular(f):
@@ -96,13 +107,14 @@ def add(branch:Branch, files:T.List[T.Path]) -> None:
             log.error(f"Cannot add: {e}")
 
 
-def untrack(files:T.List[T.Path]) -> None:
+def untrack(files: T.List[T.Path]) -> None:
     """ Untrack the given files """
     for f in files:
         if not file.is_regular(f):
             # Skip non-regular files
             log.warning(f"Cannot untrack {f}: Doesn't exist or is not regular")
-            log.info("Contact HGI if a file exists in the vault, but has been deleted outside")
+            log.info(
+                "Contact HGI if a file exists in the vault, but has been deleted outside")
             continue
 
         vault = _create_vault(f)
@@ -145,14 +157,16 @@ def recover(files: T.Optional[T.List[T.Path]] = None) -> None:
 
     if not RECOVER_ALL:
         vault_root = vault.root
-        files_to_recover = {vault_root / derelativise(path, cwd , vault_root):path for path in files}
+        files_to_recover = {
+            vault_root / derelativise(path, cwd, vault_root): path for path in files}
     for dirname, _, files in os.walk(bpath):
         for f in files:
             limbo_relative_path = T.Path(dirname, f).relative_to(bpath)
             try:
                 vfk = VaultFileKey.Reconstruct(limbo_relative_path)
             except Exception as e:
-                raise core.vault.exception.VaultCorruption(f"Failed to reconstruct VaultFileKey for {limbo_relative_path}")
+                raise core.vault.exception.VaultCorruption(
+                    f"Failed to reconstruct VaultFileKey for {limbo_relative_path}")
 
             original_file = vault.root / vfk.source
             vfkpath = bpath / vfk.path
@@ -162,9 +176,11 @@ def recover(files: T.Optional[T.List[T.Path]] = None) -> None:
                 except RecoverExc.NoSourceFound as e:
                     log.error(f"Recovery source {vfkpath} does not exist: {e}")
                 except RecoverExc.NoParentForDestination:
-                    log.error(f"Source path exists {vfkpath} but destination parent {original_file.parent} does not exist")
+                    log.error(
+                        f"Source path exists {vfkpath} but destination parent {original_file.parent} does not exist")
                 except RecoverExc.DestinationAlreadyExists:
-                    log.error(f"Destination {original_file} already has an existing file")
+                    log.error(
+                        f"Destination {original_file} already has an existing file")
 
 
 # Mapping of actions to branch enumeration
@@ -174,7 +190,8 @@ _action_to_branch = {
     "recover": Branch.Limbo
 }
 
-def main(argv:T.List[str] = sys.argv) -> None:
+
+def main(argv: T.List[str] = sys.argv) -> None:
     args = usage.parse_args(argv[1:])
 
     if args.action in ["keep", "archive", "recover"]:
