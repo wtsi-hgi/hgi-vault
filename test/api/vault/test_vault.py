@@ -296,7 +296,7 @@ class TestVault(unittest.TestCase):
         self.vault.add(Branch.Keep, self.tmp_file_a)
         inode_no = self.tmp_file_a.stat().st_ino
         vault_file_path = self._path / T.Path("parent_dir/child_dir_one/.vault/keep") / VFK(T.Path("a"), inode_no).path
-        self.assertEqual(next(self.vault.list(Branch.Keep))[0], self.tmp_file_a)
+        self.assertEqual(next(self.vault.list(Branch.Keep)), (self.tmp_file_a, vault_file_path))
 
     def test_remove_existing_file(self):
         self.vault.add(Branch.Keep, self.tmp_file_a)
