@@ -280,9 +280,9 @@ do, may be suspect).
 
   * The big-endian hexadecimal representation of their inode ID will be
     broken out into 8-bit words (padded, if necessary). All but the
-    least significant word will be used to make a heirarchy of
+    least significant word will be used to make a hierarchy of
     directories, if they don't already exist. (If the inode ID is less
-    than 256, then no heirarchy need be created.)
+    than 256, then no hierarchy need be created.)
 
   * In the lowest child directory, the file will be hardlinked, having a
     filename equal to the least significant word, concatenated
