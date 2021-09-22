@@ -240,7 +240,7 @@ class TestVault(unittest.TestCase):
 
     def test_add(self):
         # Add child_dir_one/tmp_file_b to vault and check whether hard link exists at desired location.
-        self.vault.add(Branch.Keep, self.tmp_file_d)
+        self.vault.add(Branch.Keep, self.tmp_file_a)
         inode_no = self.tmp_file_a.stat().st_ino
         vault_file_key_path = VFK(T.Path("a"),inode_no).path
         vault_file_path = self._path / T.Path("parent_dir/child_dir_one/.vault/keep") / vault_file_key_path
