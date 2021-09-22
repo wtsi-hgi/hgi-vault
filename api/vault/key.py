@@ -1,7 +1,9 @@
 """
-Copyright (c) 2020 Genome Research Limited
+Copyright (c) 2020, 2021 Genome Research Limited
 
-Author: Christopher Harrison <ch12@sanger.ac.uk>
+Authors: 
+    * Christopher Harrison <ch12@sanger.ac.uk>
+    * Michael Grace <mg38@sanger.ac.uk>
 
 This program is free software: you can redistribute it and/or modify it
 under the terms of the GNU General Public License as published by the
@@ -27,6 +29,7 @@ from core.utils import base64
 
 
 _PrefixSuffixT = T.Tuple[T.Optional[T.Path], str]
+_default_max_name_length: int = os.pathconf(".", "PC_NAME_MAX")
 
 class VaultFileKey(os.PathLike):
     """ HGI vault file key properties """
@@ -37,13 +40,16 @@ class VaultFileKey(os.PathLike):
     _prefix:T.Optional[T.Path]  # inode prefix path, without the LSB
     _suffix:str                 # LSB and encoded basename suffix name
 
-    def __init__(self, path:T.Path, inode:T.Optional[int] = None) -> None:
+    def __init__(self, path:T.Path, inode:T.Optional[int] = None, max_file_name_length: int = _default_max_name_length) -> None:
         """
         Construct the key from a path and (optional) inode
 
-        @param   path      Path to construct from
-        @param   inode     inode ID to construct from (defaults to inode
-                           of path)
+        @param   path           Path to construct from
+        @param   inode          inode ID to construct from (defaults to inode
+                                    of path)
+        @param   max_file_name  The maximum length of a filename. Defaults to
+                                    current directory, however can be passed
+                                    in for each path being added to the Vault
         """
         # Use the path's inode, if one is not explicitly provided
         if inode is None:
@@ -61,8 +67,15 @@ class VaultFileKey(os.PathLike):
         if len(chunks) > 1:
             self._prefix = T.Path(*chunks[:-1])
 
-        # inode ID LSB, delimiter, and the base64 encoding of the path
-        self._suffix = chunks[-1] + self._delimiter + base64.encode(path)
+        # inode ID LSB, delimiter, and the base64 encoding of the path.
+        # If the relative file path is too long, we split it by max file name length
+        # and save each part as a directory until we get to a final file
+        encoded_path = base64.encode(path)
+        max_file_name_length -= 3
+        self._suffix = chunks[-1] + self._delimiter + str(
+            T.Path(*[encoded_path[i:i+max_file_name_length] 
+            for i in range(0, len(encoded_path), max_file_name_length)])
+        )
 
     @classmethod
     def Reconstruct(cls, key_path:T.Path) -> VaultFileKey:

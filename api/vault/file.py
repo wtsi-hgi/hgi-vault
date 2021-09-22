@@ -4,6 +4,7 @@ Copyright (c) 2020, 2021 Genome Research Limited
 Authors:
 * Christopher Harrison <ch12@sanger.ac.uk>
 * Piyush Ahuja <pa11@sanger.ac.uk>
+* Michael Grace <mg38@sanger.ac.uk>
 
 This program is free software: you can redistribute it and/or modify it
 under the terms of the GNU General Public License as published by the
@@ -19,6 +20,7 @@ You should have received a copy of the GNU General Public License along
 with this program. If not, see https://www.gnu.org/licenses/
 """
 
+import fnmatch
 import os
 import stat
 
@@ -46,9 +48,11 @@ class VaultFile(core.vault.base.VaultFile):
         if not file.is_regular(path):
             raise VaultExc.NotRegularFile(f"{path} is not a regular file")
 
+        max_file_name_length: int = os.pathconf(path, "PC_NAME_MAX")
+
         inode = file.inode_id(path)
         path = self._relative_path(path)
-        self._key = expected_key = VaultFileKey(path, inode)
+        self._key = expected_key = VaultFileKey(path, inode, max_file_name_length)
 
         # Check for corresponding keys in the vault, automatically
         # update if the branch or path differ in that alternate and log
@@ -134,7 +138,10 @@ class VaultFile(core.vault.base.VaultFile):
             search_base = search_base / key_base
 
         try:
-            alt_suffix, *others = search_base.glob(key_glob)
+            alt_suffix, *others = (
+                T.Path(dirname, f) for dirname, _, subfiles in os.walk(search_base)
+                for f in subfiles if fnmatch.fnmatch(f, key_glob)
+            )
         except ValueError:
             # Alternate not found
             return None
