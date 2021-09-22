@@ -29,7 +29,6 @@ from api.vault import Vault, Branch
 from api.vault.file import VaultFile
 from .utils import VFK
 
-
 class _DummyUser(IdM.base.User):
     def __init__(self, uid):
         self._id = uid
@@ -82,10 +81,24 @@ class _DummyIdM(IdM.base.IdentityManager):
 # * Vault and branch creation
 # * Vault owners
 
-class TestVaultFile(unittest.TestCase):
-    idm_user_one = _DummyIdM(1)
+# class TestVaultFile(unittest.TestCase):
+#     idm_user_one = _DummyIdM(1)
 
     def setUp(self) -> None:
+        """
+        The following tests will emulate the following directory structure
+            +- tmp
+                +- parent/
+                    +- child_dir_one
+                        +- a
+                        +- b
+                        +-.vault/
+                            +- keep
+                            +- archive
+                            ...
+                    +- child_dir_two
+                        +- c
+        """
         self._tmp = TemporaryDirectory()
         self._path = path = T.Path(self._tmp.name).resolve()
         # Form a directory hierarchy
@@ -162,6 +175,20 @@ class TestVault(unittest.TestCase):
     idm_user_one = _DummyIdM(1)
 
     def setUp(self) -> None:
+        """
+        The following tests will emulate the following directory structure
+            +- tmp
+                +- parent/
+                    +- child_dir_one
+                        +- a
+                        +- b
+                        +-.vault/
+                            +- keep
+                            +- archive
+                            ...
+                    +- child_dir_two
+                        +- c
+        """
         self._tmp = TemporaryDirectory()
         self._path = path = T.Path(self._tmp.name).resolve()
 
@@ -190,7 +217,7 @@ class TestVault(unittest.TestCase):
         self.tmp_file_c.chmod(0o777) # rwx, rwx, rwx
 
         # Default parent dir permissions can be unsuitable for archiving, like 755 -  write permissions are missing.
-        self.child_dir_one.chmod(0o330) # wx, wx, _
+        self.child_dir_one.chmod(0o730) # wx, wx, _
         self.parent_dir.chmod(0o777) # rwx, rwx, rwx
 
         Vault._find_root = MagicMock(return_value = self._path / T.Path("parent_dir/child_dir_one"))
@@ -213,11 +240,48 @@ class TestVault(unittest.TestCase):
 
     def test_add(self):
         # Add child_dir_one/tmp_file_b to vault and check whether hard link exists at desired location.
-        self.vault.add(Branch.Keep, self.tmp_file_a)
+        self.vault.add(Branch.Keep, self.tmp_file_d)
         inode_no = self.tmp_file_a.stat().st_ino
         vault_file_key_path = VFK(T.Path("a"),inode_no).path
         vault_file_path = self._path / T.Path("parent_dir/child_dir_one/.vault/keep") / vault_file_key_path
         self.assertTrue(os.path.isfile(vault_file_path))
+
+    def test_add_long(self):
+        """
+        A new directory tree (this/path/is/going/..) is added here, to test the case of long relative paths.
+            +- tmp
+                +- parent/
+                    +- child_dir_one
+                        +- a
+                        +- b
+                        + this/
+                            + path/
+                                + ....
+                        +-.vault/
+                            +- keep/
+                            +- archive/
+                            ...
+                    +- child_dir_two
+                        +- c
+        """
+        # File with really long relative path
+        dummy_long = T.Path("this/path/is/going/to/be/much/much/much/much/much/much/much/much/much/much/much/much/much/much/much/much/much/much/much/much/much/much/much/much/much/much/much/much/much/much/much/much/much/much/much/much/much/much/much/much/much/much/much/much/longer/than/two/hundred/and/fifty/five/characters")
+        # child_dir_one is the root of our vault
+        self.long_subdirectory = self.child_dir_one / dummy_long
+        self.long_subdirectory.mkdir(parents=True, exist_ok=True)
+        self.tmp_file_d = self.long_subdirectory / "d"
+        self.tmp_file_d.touch()
+
+        # Subdirectories are made rwx for user so that os.walk is able to read into it.
+
+        for dirpath, dirname, filenames in os.walk(self.parent_dir):
+            for momo in dirname:
+                dname = T.Path(os.path.join(dirpath,momo))
+                dname.chmod(0o730)
+            for filename in filenames:
+                fname = T.Path(os.path.join(dirpath, filename))
+                fname.chmod(0o777)
+        self.vault.add(Branch.Limbo, self.tmp_file_d)
 
     def test_add_incorrect_parent_perms(self):
         # Add child_dir_one/tmp_file_b to vault and check whether hard link exists at desired location.
