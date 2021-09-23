@@ -22,7 +22,7 @@ import unittest
 from unittest import mock
 import os
 os.environ["VAULTRC"] = "eg/.vaultrc"
-from bin.vault import main
+from bin.vault import main, ViewContext
 from api.vault import Branch
 from core import typing as T
 import argparse
@@ -34,56 +34,56 @@ class TestMain(unittest.TestCase):
     @mock.patch('bin.vault.view')
     def test_keep_view_relative_default(self, mock_view, mock_remove):
         main(["__init__","keep" ,"--view"])
-        mock_view.assert_called_with(Branch.Keep, "all", False)
+        mock_view.assert_called_with(Branch.Keep, ViewContext.All, False)
         mock_remove.assert_not_called()
 
     @mock.patch('bin.vault.untrack')
     @mock.patch('bin.vault.view')
     def test_keep_view_absolute_default(self, mock_view, mock_remove):
         main(["__init__","keep" ,"--view", "--absolute"])
-        mock_view.assert_called_with(Branch.Keep, "all", True)
+        mock_view.assert_called_with(Branch.Keep, ViewContext.All, True)
         mock_remove.assert_not_called()
 
     @mock.patch('bin.vault.untrack')
     @mock.patch('bin.vault.view')
     def test_keep_view_relative_all(self, mock_view, mock_remove):
         main(["__init__","keep" ,"--view", "all"])
-        mock_view.assert_called_with(Branch.Keep, "all", False)
+        mock_view.assert_called_with(Branch.Keep, ViewContext.All, False)
         mock_remove.assert_not_called()
 
     @mock.patch('bin.vault.untrack')
     @mock.patch('bin.vault.view')
     def test_keep_view_absolute_all(self, mock_view, mock_remove):
         main(["__init__","keep" ,"--view", "all", "--absolute"])
-        mock_view.assert_called_with(Branch.Keep, "all", True)
+        mock_view.assert_called_with(Branch.Keep, ViewContext.All, True)
         mock_remove.assert_not_called()
 
     @mock.patch('bin.vault.untrack')
     @mock.patch('bin.vault.view')
     def test_keep_view_relative_here(self, mock_view, mock_remove):
         main(["__init__","keep" ,"--view", "here"])
-        mock_view.assert_called_with(Branch.Keep, "here", False)
+        mock_view.assert_called_with(Branch.Keep, ViewContext.Here, False)
         mock_remove.assert_not_called()
 
     @mock.patch('bin.vault.untrack')
     @mock.patch('bin.vault.view')
     def test_keep_view_absolute_here(self, mock_view, mock_remove):
         main(["__init__","keep" ,"--view", "here", "--absolute"])
-        mock_view.assert_called_with(Branch.Keep, "here", True)
+        mock_view.assert_called_with(Branch.Keep, ViewContext.Here, True)
         mock_remove.assert_not_called()
 
     @mock.patch('bin.vault.untrack')
     @mock.patch('bin.vault.view')
     def test_keep_view_relative_mine(self, mock_view, mock_remove):
         main(["__init__","keep" ,"--view", "mine"])
-        mock_view.assert_called_with(Branch.Keep, "mine", False)
+        mock_view.assert_called_with(Branch.Keep, ViewContext.Mine, False)
         mock_remove.assert_not_called()
 
     @mock.patch('bin.vault.untrack')
     @mock.patch('bin.vault.view')
     def test_keep_view_absolute_mine(self, mock_view, mock_remove):
         main(["__init__","keep" ,"--view", "mine", "--absolute"])
-        mock_view.assert_called_with(Branch.Keep, "mine", True)
+        mock_view.assert_called_with(Branch.Keep, ViewContext.Mine, True)
         mock_remove.assert_not_called()
 
     @mock.patch('bin.vault.untrack')
@@ -97,56 +97,56 @@ class TestMain(unittest.TestCase):
     @mock.patch('bin.vault.view')
     def test_archive_view_relative_default(self, mock_view, mock_remove):
         main(["__init__","archive" ,"--view"])
-        mock_view.assert_called_with(Branch.Archive, "all", False)
+        mock_view.assert_called_with(Branch.Archive, ViewContext.All, False)
         mock_remove.assert_not_called()
 
     @mock.patch('bin.vault.untrack')
     @mock.patch('bin.vault.view')
     def test_archive_view_absolute_default(self, mock_view, mock_remove):
         main(["__init__","archive" ,"--view", "--absolute"])
-        mock_view.assert_called_with(Branch.Archive, "all", True)
+        mock_view.assert_called_with(Branch.Archive, ViewContext.All, True)
         mock_remove.assert_not_called()
 
     @mock.patch('bin.vault.untrack')
     @mock.patch('bin.vault.view')
     def test_archive_view_relative_all(self, mock_view, mock_remove):
         main(["__init__","archive" ,"--view", "all"])
-        mock_view.assert_called_with(Branch.Archive, "all", False)
+        mock_view.assert_called_with(Branch.Archive, ViewContext.All, False)
         mock_remove.assert_not_called()
 
     @mock.patch('bin.vault.untrack')
     @mock.patch('bin.vault.view')
     def test_archive_view_absolute_all(self, mock_view, mock_remove):
         main(["__init__","archive" ,"--view", "all", "--absolute"])
-        mock_view.assert_called_with(Branch.Archive, "all", True)
+        mock_view.assert_called_with(Branch.Archive, ViewContext.All, True)
         mock_remove.assert_not_called()
 
     @mock.patch('bin.vault.untrack')
     @mock.patch('bin.vault.view')
     def test_archive_view_relative_here(self, mock_view, mock_remove):
         main(["__init__","archive" ,"--view", "here"])
-        mock_view.assert_called_with(Branch.Archive, "here", False)
+        mock_view.assert_called_with(Branch.Archive, ViewContext.Here, False)
         mock_remove.assert_not_called()
 
     @mock.patch('bin.vault.untrack')
     @mock.patch('bin.vault.view')
     def test_archive_view_absolute_here(self, mock_view, mock_remove):
         main(["__init__","archive" ,"--view", "here", "--absolute"])
-        mock_view.assert_called_with(Branch.Archive, "here", True)
+        mock_view.assert_called_with(Branch.Archive, ViewContext.Here, True)
         mock_remove.assert_not_called()
 
     @mock.patch('bin.vault.untrack')
     @mock.patch('bin.vault.view')
     def test_archive_view_relative_mine(self, mock_view, mock_remove):
         main(["__init__","archive" ,"--view", "mine"])
-        mock_view.assert_called_with(Branch.Archive, "mine", False)
+        mock_view.assert_called_with(Branch.Archive, ViewContext.Mine, False)
         mock_remove.assert_not_called()
 
     @mock.patch('bin.vault.untrack')
     @mock.patch('bin.vault.view')
     def test_archive_view_absolute_mine(self, mock_view, mock_remove):
         main(["__init__","archive" ,"--view", "mine", "--absolute"])
-        mock_view.assert_called_with(Branch.Archive, "mine", True)
+        mock_view.assert_called_with(Branch.Archive, ViewContext.Mine, True)
         mock_remove.assert_not_called()
 
     @mock.patch('bin.vault.untrack')

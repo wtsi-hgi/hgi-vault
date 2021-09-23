@@ -20,6 +20,7 @@ You should have received a copy of the GNU General Public License along
 with this program. If not, see https://www.gnu.org/licenses/
 """
 
+from enum import Enum
 import os
 import sys
 
@@ -45,15 +46,19 @@ def _create_vault(relative_to: T.Path) -> Vault:
         log.critical(e)
         sys.exit(1)
 
+class ViewContext(Enum):
+    All = "all"
+    Here = "here"
+    Mine = "mine"
 
-def view(branch: Branch, view_mode: str, absolute: bool) -> None:
+def view(branch: Branch, view_mode: ViewContext, absolute: bool) -> None:
     """ List the contents of the given branch 
 
     :param branch: Which Vault branch we're going to look at
     :param view_mode: 
-        all: list all files, 
-        here: list files in current directory, 
-        mine: files owned by current user
+        ViewContext.All: list all files, 
+        ViewContext.Here: list files in current directory, 
+        ViewContext.Mine: files owned by current user
     :param absolute: - Whether to view absolute paths or not
     """
     cwd = file.cwd()
@@ -61,9 +66,9 @@ def view(branch: Branch, view_mode: str, absolute: bool) -> None:
     count = 0
     for path, _limbo_file in vault.list(branch):
         relative_path = relativise(path, cwd)
-        if view_mode == "here" and "/" in str(relative_path):
+        if view_mode == ViewContext.Here and "/" in str(relative_path):
             continue
-        elif view_mode == "mine" and os.stat(path).st_uid != os.getuid():
+        elif view_mode == ViewContext.Mine and os.stat(path).st_uid != os.getuid():
             continue
 
         if branch == Branch.Limbo:
@@ -78,7 +83,10 @@ def view(branch: Branch, view_mode: str, absolute: bool) -> None:
             print(path if absolute else relative_path)
 
         count += 1
-    print(f"{branch} branch of the vault in {vault.root} contains {count} files {'in the current directory' if view_mode == 'here' else 'owned by the current user' if view_mode == 'mine' else ''}")
+    print(f"""{branch} branch of the vault in {vault.root} contains {count} files 
+        {'in the current directory' if view_mode == ViewContext.Here
+        else 'owned by the current user' if view_mode == ViewContext.Mine 
+        else ''}""")
 
 
 def add(branch: Branch, files: T.List[T.Path]) -> None:
@@ -190,6 +198,13 @@ _action_to_branch = {
     "recover": Branch.Limbo
 }
 
+# Mapping of view contexts to enumeration
+_view_contexts = {
+    "all": ViewContext.All,
+    "here": ViewContext.Here,
+    "mine": ViewContext.Mine
+}
+
 
 def main(argv: T.List[str] = sys.argv) -> None:
     args = usage.parse_args(argv[1:])
@@ -199,7 +214,7 @@ def main(argv: T.List[str] = sys.argv) -> None:
         if branch == Branch.Archive and args.view_staged:
             view(branch.Staged, args.view, args.absolute)
         elif args.view:
-            view(branch, args.view, args.absolute)
+            view(branch, _view_contexts[args.view], args.absolute)
         else:
             if args.action == "recover":
                 recover(None if args.all else args.files)
