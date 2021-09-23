@@ -211,7 +211,7 @@ def main(argv: T.List[str] = sys.argv) -> None:
     if args.action in ["keep", "archive", "recover"]:
         branch = _action_to_branch[args.action]
         if branch == Branch.Archive and args.view_staged:
-            view(branch.Staged, args.view, args.absolute)
+            view(branch.Staged, _view_contexts[args.view_staged], args.absolute)
         elif args.view:
             view(branch, _view_contexts[args.view], args.absolute)
         else:

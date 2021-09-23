@@ -150,6 +150,62 @@ class TestMain(unittest.TestCase):
         mock_remove.assert_not_called()
 
     @mock.patch('bin.vault.untrack')
+    @mock.patch('bin.vault.view')
+    def test_archive_view_staged_relative_default(self, mock_view, mock_remove):
+        main(["__init__","archive" ,"--view-staged"])
+        mock_view.assert_called_with(Branch.Staged, ViewContext.All, False)
+        mock_remove.assert_not_called()
+
+    @mock.patch('bin.vault.untrack')
+    @mock.patch('bin.vault.view')
+    def test_archive_view_staged_absolute_default(self, mock_view, mock_remove):
+        main(["__init__","archive" ,"--view-staged", "--absolute"])
+        mock_view.assert_called_with(Branch.Staged, ViewContext.All, True)
+        mock_remove.assert_not_called()
+
+    @mock.patch('bin.vault.untrack')
+    @mock.patch('bin.vault.view')
+    def test_archive_view_staged_relative_all(self, mock_view, mock_remove):
+        main(["__init__","archive" ,"--view-staged", "all"])
+        mock_view.assert_called_with(Branch.Staged, ViewContext.All, False)
+        mock_remove.assert_not_called()
+
+    @mock.patch('bin.vault.untrack')
+    @mock.patch('bin.vault.view')
+    def test_archive_view_staged_absolute_all(self, mock_view, mock_remove):
+        main(["__init__","archive" ,"--view-staged", "all", "--absolute"])
+        mock_view.assert_called_with(Branch.Staged, ViewContext.All, True)
+        mock_remove.assert_not_called()
+
+    @mock.patch('bin.vault.untrack')
+    @mock.patch('bin.vault.view')
+    def test_archive_view_staged_relative_here(self, mock_view, mock_remove):
+        main(["__init__","archive" ,"--view-staged", "here"])
+        mock_view.assert_called_with(Branch.Staged, ViewContext.Here, False)
+        mock_remove.assert_not_called()
+
+    @mock.patch('bin.vault.untrack')
+    @mock.patch('bin.vault.view')
+    def test_archive_view_staged_absolute_here(self, mock_view, mock_remove):
+        main(["__init__","archive" ,"--view-staged", "here", "--absolute"])
+        mock_view.assert_called_with(Branch.Staged, ViewContext.Here, True)
+        mock_remove.assert_not_called()
+
+    @mock.patch('bin.vault.untrack')
+    @mock.patch('bin.vault.view')
+    def test_archive_view_staged_relative_mine(self, mock_view, mock_remove):
+        main(["__init__","archive" ,"--view-staged", "mine"])
+        mock_view.assert_called_with(Branch.Staged, ViewContext.Mine, False)
+        mock_remove.assert_not_called()
+
+    @mock.patch('bin.vault.untrack')
+    @mock.patch('bin.vault.view')
+    def test_archive_view_staged_absolute_mine(self, mock_view, mock_remove):
+        main(["__init__","archive" ,"--view-staged", "mine", "--absolute"])
+        mock_view.assert_called_with(Branch.Staged, ViewContext.Mine, True)
+        mock_remove.assert_not_called()
+
+    @mock.patch('bin.vault.untrack')
     @mock.patch('bin.vault.add')
     def test_archive_files(self, mock_add, mock_remove):
         main(["__init__","archive" ,"/file1", "/file2"])
