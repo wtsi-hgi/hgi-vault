@@ -68,22 +68,21 @@ def view(branch: Branch, view_mode: ViewContext, absolute: bool) -> None:
         relative_path = relativise(path, cwd)
         if view_mode == ViewContext.Here and "/" in str(relative_path):
             continue
-        elif view_mode == ViewContext.Mine and os.stat(path).st_uid != os.getuid():
+        elif view_mode == ViewContext.Mine and path.stat().st_uid != os.getuid():
             continue
 
         if branch == Branch.Limbo:
-            if absolute:
-                log.warning(
-                    "recover always displays relative paths, irrespective of --absolute flag")
             time_to_live = config.deletion.limbo - \
-                (time.now() - time.epoch(os.stat(_limbo_file).st_mtime))
+                (time.now() - time.epoch(_limbo_file.stat().st_mtime))
             print(
-                relative_path, f"{round(time_to_live/time.delta(hours=1), 1)} hours", sep="\t")
+                relative_path if absolute else relative_path, 
+                f"{round(time_to_live/time.delta(hours=1), 1)} hours", sep="\t"
+            )
         else:
             print(path if absolute else relative_path)
 
         count += 1
-    print(f"""{branch} branch of the vault in {vault.root} contains {count} files 
+    log.info(f"""{branch} branch of the vault in {vault.root} contains {count} files 
         {'in the current directory' if view_mode == ViewContext.Here
         else 'owned by the current user' if view_mode == ViewContext.Mine 
         else ''}""")
