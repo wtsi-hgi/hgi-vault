@@ -119,4 +119,4 @@ class VaultFileKey(os.PathLike):
     def search_criteria(self) -> _PrefixSuffixT:
         """ Return the prefix and suffix glob pattern """
         lsb, _ = self._suffix.split(self._delimiter)
-        return self._prefix, f"{lsb}{self._delimiter}*"
+        return self._prefix, f"*{lsb}{self._delimiter}*"

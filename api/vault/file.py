@@ -140,7 +140,7 @@ class VaultFile(core.vault.base.VaultFile):
         try:
             alt_suffix, *others = (
                 T.Path(dirname, f) for dirname, _, subfiles in os.walk(search_base)
-                for f in subfiles if fnmatch.fnmatch(f, key_glob)
+                for f in subfiles if fnmatch.fnmatch(T.Path(dirname, f), key_glob)
             )
         except ValueError:
             # Alternate not found
