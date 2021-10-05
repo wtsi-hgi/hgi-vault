@@ -4,6 +4,7 @@ Copyright (c) 2020, 2021 Genome Research Limited
 Authors:
 * Christopher Harrison <ch12@sanger.ac.uk>
 * Piyush Ahuja <pa11@sanger.ac.uk>
+* Michael Grace <mg38@sanger.ac.uk>
 
 This program is free software: you can redistribute it and/or modify it
 under the terms of the GNU General Public License as published by the
@@ -19,6 +20,7 @@ You should have received a copy of the GNU General Public License along
 with this program. If not, see https://www.gnu.org/licenses/
 """
 
+from enum import Enum
 import os
 import sys
 
@@ -27,14 +29,14 @@ import core.vault
 from api.logging import log
 from api.vault import Branch, Vault
 from api.vault.key import VaultFileKey
-from bin.common import idm
-from core import file, typing as T
+from bin.common import idm, config
+from core import file, time, typing as T
 
 from . import usage
 from .recover import move_with_path_safety_checks, relativise, derelativise, exception as RecoverExc
 
 
-def _create_vault(relative_to:T.Path) -> Vault:
+def _create_vault(relative_to: T.Path) -> Vault:
     # Defensively create a vault with the common IdM
     try:
         return Vault(relative_to, idm=idm)
@@ -44,21 +46,49 @@ def _create_vault(relative_to:T.Path) -> Vault:
         log.critical(e)
         sys.exit(1)
 
+class ViewContext(Enum):
+    All = "all"
+    Here = "here"
+    Mine = "mine"
 
-def view(branch:Branch) -> None:
-    """ List the contents of the given branch """
+def view(branch: Branch, view_mode: ViewContext, absolute: bool) -> None:
+    """ List the contents of the given branch 
+
+    :param branch: Which Vault branch we're going to look at
+    :param view_mode: 
+        ViewContext.All: list all files, 
+        ViewContext.Here: list files in current directory, 
+        ViewContext.Mine: files owned by current user
+    :param absolute: - Whether to view absolute paths or not
+    """
     cwd = file.cwd()
     vault = _create_vault(cwd)
     count = 0
-    for path in vault.list(branch):
+    for path, _limbo_file in vault.list(branch):
+        relative_path = relativise(path, cwd)
+        if view_mode == ViewContext.Here and "/" in str(relative_path):
+            continue
+        elif view_mode == ViewContext.Mine and path.stat().st_uid != os.getuid():
+            continue
+
         if branch == Branch.Limbo:
-            path = relativise(path, cwd)
-        print(path)
+            time_to_live = config.deletion.limbo - \
+                (time.now() - time.epoch(_limbo_file.stat().st_mtime))
+            print(
+                relative_path if absolute else relative_path, 
+                f"{round(time_to_live/time.delta(hours=1), 1)} hours", sep="\t"
+            )
+        else:
+            print(path if absolute else relative_path)
+
         count += 1
-    log.info(f"{branch} branch of the vault in {vault.root} contains {count} files")
+    log.info(f"""{branch} branch of the vault in {vault.root} contains {count} files 
+        {'in the current directory' if view_mode == ViewContext.Here
+        else 'owned by the current user' if view_mode == ViewContext.Mine 
+        else ''}""")
 
 
-def add(branch:Branch, files:T.List[T.Path]) -> None:
+def add(branch: Branch, files: T.List[T.Path]) -> None:
     """ Add the given files to the appropriate branch """
     for f in files:
         if not file.is_regular(f):
@@ -84,13 +114,14 @@ def add(branch:Branch, files:T.List[T.Path]) -> None:
             log.error(f"Cannot add: {e}")
 
 
-def untrack(files:T.List[T.Path]) -> None:
+def untrack(files: T.List[T.Path]) -> None:
     """ Untrack the given files """
     for f in files:
         if not file.is_regular(f):
             # Skip non-regular files
             log.warning(f"Cannot untrack {f}: Doesn't exist or is not regular")
-            log.info("Contact HGI if a file exists in the vault, but has been deleted outside")
+            log.info(
+                "Contact HGI if a file exists in the vault, but has been deleted outside")
             continue
 
         vault = _create_vault(f)
@@ -133,14 +164,16 @@ def recover(files: T.Optional[T.List[T.Path]] = None) -> None:
 
     if not RECOVER_ALL:
         vault_root = vault.root
-        files_to_recover = {vault_root / derelativise(path, cwd , vault_root):path for path in files}
+        files_to_recover = {
+            vault_root / derelativise(path, cwd, vault_root): path for path in files}
     for dirname, _, files in os.walk(bpath):
         for f in files:
             limbo_relative_path = T.Path(dirname, f).relative_to(bpath)
             try:
                 vfk = VaultFileKey.Reconstruct(limbo_relative_path)
             except Exception as e:
-                raise core.vault.exception.VaultCorruption(f"Failed to reconstruct VaultFileKey for {limbo_relative_path}")
+                raise core.vault.exception.VaultCorruption(
+                    f"Failed to reconstruct VaultFileKey for {limbo_relative_path}")
 
             original_file = vault.root / vfk.source
             vfkpath = bpath / vfk.path
@@ -150,9 +183,11 @@ def recover(files: T.Optional[T.List[T.Path]] = None) -> None:
                 except RecoverExc.NoSourceFound as e:
                     log.error(f"Recovery source {vfkpath} does not exist: {e}")
                 except RecoverExc.NoParentForDestination:
-                    log.error(f"Source path exists {vfkpath} but destination parent {original_file.parent} does not exist")
+                    log.error(
+                        f"Source path exists {vfkpath} but destination parent {original_file.parent} does not exist")
                 except RecoverExc.DestinationAlreadyExists:
-                    log.error(f"Destination {original_file} already has an existing file")
+                    log.error(
+                        f"Destination {original_file} already has an existing file")
 
 
 # Mapping of actions to branch enumeration
@@ -162,13 +197,23 @@ _action_to_branch = {
     "recover": Branch.Limbo
 }
 
-def main(argv:T.List[str] = sys.argv) -> None:
+# Mapping of view contexts to enumeration
+_view_contexts = {
+    "all": ViewContext.All,
+    "here": ViewContext.Here,
+    "mine": ViewContext.Mine
+}
+
+
+def main(argv: T.List[str] = sys.argv) -> None:
     args = usage.parse_args(argv[1:])
 
     if args.action in ["keep", "archive", "recover"]:
         branch = _action_to_branch[args.action]
-        if args.view:
-            view(branch)
+        if branch == Branch.Archive and args.view_staged:
+            view(branch.Staged, _view_contexts[args.view_staged], args.absolute)
+        elif args.view:
+            view(branch, _view_contexts[args.view], args.absolute)
         else:
             if args.action == "recover":
                 recover(None if args.all else args.files)

@@ -1,7 +1,9 @@
 """
-Copyright (c) 2020 Genome Research Limited
+Copyright (c) 2020, 2021 Genome Research Limited
 
-Author: Christopher Harrison <ch12@sanger.ac.uk>
+Authors: 
+    * Christopher Harrison <ch12@sanger.ac.uk>
+    * Michael Grace <mg38@sanger.ac.uk>
 
 This program is free software: you can redistribute it and/or modify it
 under the terms of the GNU General Public License as published by the
@@ -163,14 +165,15 @@ class Vault(BaseHGIVault):
         else:
             log.info(f"{to_remove.source} is not in the vault in {self.root}")
 
-    def list(self, branch:Branch) -> T.Iterator[T.Path]:
+    def list(self, branch:Branch) -> T.Iterator[T.Tuple[T.Path, T.Path]]:
         # NOTE The order in which the listing is generated is
         # unspecified (I suspect it will be by inode ID); it is up to
         # downstream to modify this, as required
         bpath = self.location / branch
 
         return (
-            self.root / VaultFileKey.Reconstruct(T.Path(dirname, file).relative_to(bpath)).source
+            (self.root / VaultFileKey.Reconstruct(T.Path(dirname, file).relative_to(bpath)).source,
+            T.Path(dirname, file))
             for dirname, _, files in os.walk(bpath)
             for file in files
         )

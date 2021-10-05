@@ -4,6 +4,7 @@ Copyright (c) 2020, 2021 Genome Research Limited
 Authors:
 * Christopher Harrison <ch12@sanger.ac.uk>
 * Piyush Ahuja <pa11@sanger.ac.uk>
+* Michael Grace <mg38@sanger.ac.uk>
 
 This program is free software: you can redistribute it and/or modify it
 under the terms of the GNU General Public License as published by the
@@ -33,22 +34,30 @@ class _ActionText:
     usage: T.Optional[str] = None
     args_error: T.Optional[str] = None
 
+_absolute_help: str = "use absolute file paths"
+_view_mode_help: str = """
+all: show every file in the branch (default),
+here: show every file in the branch from the current working directory,
+mine: show every file in the branch owned by the current user
+"""
+_archive_staged_help: str = "view files staged for archival. these will be archived soon"
+
 _actions = {
     "keep":    _ActionText("file retention operations",
-                           "view files annotated for retention",
-                           "%(prog)s [-h] (--view | FILE [FILE...])",
+                           f"view files annotated for retention | {_view_mode_help}",
+                           "%(prog)s [-h] (--view [{all | here | mine}] [--absolute] | FILE [FILE...])",
                            "one of the arguments --view or FILE is required"),
 
     "archive": _ActionText("file archival operations",
-                           "view files annotated for archival",
-                           "%(prog)s [-h] (--view | FILE [FILE...])",
+                           f"view files annotated for archival | {_view_mode_help}",
+                           "%(prog)s [-h] ((--view [{all | here | mine}] | --view-staged [{all | here | mine}]) [--absolute] | FILE [FILE...])",
                            "one of the arguments --view or FILE is required"),
 
     "untrack": _ActionText("untrack files annotated for retention or archival"),
 
     "recover": _ActionText("file recovery operations",
-                            "view recoverable files",
-                            "%(prog)s [-h] (--view | --all | FILE [FILE...])",
+                            f"view recoverable files | {_view_mode_help}",
+                            "%(prog)s [-h] (--view [{all | here | mine}] [--absolute] | --all | FILE [FILE...])",
                             "one of the arguments --view or --all or FILE is required")
 }
 
@@ -71,8 +80,15 @@ def _parser_factory():
     sub_parser.usage = _actions[action].usage
     sub_parser.add_argument(
                 "--view",
-                action="store_true",
+                choices=["all", "here", "mine"],
+                nargs="?",
+                const="all",
                 help=_actions[action].view_help)
+    sub_parser.add_argument(
+                "--absolute",
+                action="store_true",
+                help=_absolute_help
+    )
     sub_parser.add_argument(
             "files",
             nargs="*",
@@ -84,10 +100,25 @@ def _parser_factory():
     action = "archive"
     sub_parser = sub_level.add_parser(action, help= _actions[action].help)
     sub_parser.usage = _actions[action].usage
-    sub_parser.add_argument(
+    archive_view_group = sub_parser.add_mutually_exclusive_group()
+    archive_view_group.add_argument(
                 "--view",
-                action="store_true",
+                nargs="?",
+                const="all",
+                choices=["all", "here", "mine"],
                 help=_actions[action].view_help)
+    archive_view_group.add_argument(
+        "--view-staged",
+        nargs="?",
+        const="all",
+        choices=["all", "here", "mine"],
+        help=_archive_staged_help
+    )
+    sub_parser.add_argument(
+                "--absolute",
+                action="store_true",
+                help=_absolute_help
+    )
     sub_parser.add_argument(
             "files",
             nargs="*",
@@ -111,8 +142,16 @@ def _parser_factory():
     sub_parser.usage = _actions[action].usage
     sub_parser.add_argument(
                 "--view",
-                action="store_true",
+                nargs="?",
+                const="all",
+                choices=["all", "here", "mine"],
                 help=_actions[action].view_help)
+
+    sub_parser.add_argument(
+                "--absolute",
+                action="store_true",
+                help=_absolute_help
+    )
 
     sub_parser.add_argument(
                 "--all",
@@ -136,6 +175,8 @@ def _parser_factory():
             if parsed.view:
                 del parsed.files
             else:
+                if parsed.absolute:
+                    action_level[parsed.action].error("you must use --view flag to use --absolute flag")
                 if not parsed.files:
                     action_level[parsed.action].error(_actions[parsed.action].args_error)
                 elif len(parsed.files) > 10:
@@ -143,9 +184,11 @@ def _parser_factory():
                     action_level[parsed.action].error("too many FILEs; you may specify no more than 10")
 
         if parsed.action == "archive":
-            if parsed.view:
+            if parsed.view or parsed.view_staged:
                 del parsed.files
             else:
+                if parsed.absolute:
+                    action_level[parsed.action].error("you must use --view flag or --view-staged flag to use --absolute flag")
                 if not parsed.files:
                     action_level[parsed.action].error(_actions[parsed.action].args_error)
                 elif len(parsed.files) > 10:
@@ -153,11 +196,13 @@ def _parser_factory():
                     action_level[parsed.action].error("too many FILEs; you may specify no more than 10")
 
         if parsed.action == "recover":
-            if parsed.view or parsed.all:
+            if parsed.view or (parsed.all and not parsed.absolute):
                 del parsed.files
                 if parsed.view and parsed.all:
                     action_level[parsed.action].error("cannot accept arguments --view and --all simultaneously")
             else:
+                if parsed.absolute:
+                    action_level[parsed.action].error("you must use --view flag to use --absolute flag")
                 if not parsed.files:
                     action_level[parsed.action].error(_actions[parsed.action].args_error)
 

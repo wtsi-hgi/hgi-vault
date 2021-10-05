@@ -1,7 +1,9 @@
 """
 Copyright (c) 2021 Genome Research Limited
 
-Author: Piyush Ahuja <pa11@sanger.ac.uk>
+Authors:
+* Piyush Ahuja <pa11@sanger.ac.uk>
+* Michael Grace <mg38@sanger.ac.uk>
 
 This program is free software: you can redistribute it and/or modify it
 under the terms of the GNU General Public License as published by the
@@ -145,13 +147,10 @@ class TestUsage(unittest.TestCase):
         self.assertTrue(success)
 
     def test_recover_view_file(self):
-        args = parse_args(["recover" , "--view", "/file1"])
-        self.assertTrue(args.view)
-
         success = False
         try:
-            args.files
-        except AttributeError:
+            parse_args(["recover" , "--view", "/file1"])
+        except (argparse.ArgumentError, SystemExit):
             success = True
         self.assertTrue(success)
 
