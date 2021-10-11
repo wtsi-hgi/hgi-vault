@@ -288,7 +288,8 @@ class TestSweeper(unittest.TestCase):
         self.assertTrue(os.path.isfile(self.file_two))
         self.assertTrue(os.path.isfile(vault_file_two.path))
 
-   # Behavior: Regular, tracked, non-vault file. If the file is marked for Keep: nothing is done. If the file has a corresponding hardlink in Staged or Limbo, its a case of VaultCorruption and nothing is done.
+   # Behavior: Regular, tracked, non-vault file. 
+   # If the file is marked for Keep: nothing is done. If the file has a corresponding hardlink in Staged or Limbo, its a case of VaultCorruption and nothing is done.
     @mock.patch('bin.sandman.walk.idm', new = dummy_idm)
     @mock.patch('bin.vault._create_vault')
     def test_tracked_file_non_archive(self, vault_mock):
@@ -330,6 +331,30 @@ class TestSweeper(unittest.TestCase):
 
         self.assertFalse(os.path.isfile(self.file_one))
         self.assertFalse(os.path.isfile(vault_file_one_archive.path))
+        self.assertTrue(os.path.isfile(vault_file_one_staged))
+
+    # Behavior: Regular, tracked, non-vault file.
+    # If the file has a corresponding hardlink in Stash, then the source file is NOT deleted and the stashed file is moved to staged.
+    @mock.patch('bin.sandman.walk.idm', new = dummy_idm)
+    @mock.patch('bin.vault._create_vault')
+    def test_tracked_file_stashed(self, vault_mock):
+
+        vault_file_one_stash = self.vault.add(Branch.Stash, self.file_one)
+
+        walk = [(self.vault, File.FromFS(self.file_one), Branch.Stash)]
+
+        # Find the destination staged vault file for vault_file_three
+        inode_no = self.file_one.stat().st_ino
+        vault_relative_path = self.file_one.relative_to(self.parent)
+        staged_root = self.parent/ ".vault"/ Branch.Staged
+        vault_file_one_staged = staged_root / VFK(vault_relative_path, inode_no).path
+
+        dummy_walker = _DummyWalker(walk)
+        dummy_persistence = MagicMock()
+        sweeper = Sweeper(dummy_walker, dummy_persistence, True)
+
+        self.assertTrue(os.path.isfile(self.file_one))
+        self.assertFalse(os.path.isfile(vault_file_one_stash.path))
         self.assertTrue(os.path.isfile(vault_file_one_staged))
 
     # Behavior: When a regular, untracked, non-vault file has been there for more than the deletion threshold, the source is deleted and a hardlink created in Limbo
