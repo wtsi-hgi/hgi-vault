@@ -121,11 +121,19 @@ def _parser_factory():
                 help=_absolute_help
     )
     sub_parser.add_argument(
+        "--stash",
+         action="store_true",
+                help="stash files")
+        
+    sub_parser.add_argument(
             "files",
             nargs="*",
             type=T.Path,
             help=f"file to archive (at most 10)",
             metavar="FILE")
+    
+    
+    
 
 
     action = "untrack"

@@ -176,3 +176,9 @@ class TestUsage(unittest.TestCase):
         except:
             success = True
         self.assertTrue(success)
+
+    def test_stash(self):
+        args= parse_args(["archive", "--stash", "/file1", "/file2"])
+        expected = [T.Path("/file1"), T.Path("/file2")]
+        self.assertEqual(args.files, expected)
+
