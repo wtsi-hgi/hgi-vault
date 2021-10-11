@@ -98,13 +98,16 @@ class TestMain(unittest.TestCase):
     def test_archive_view_relative_default(self, mock_view, mock_remove):
         main(["__init__","archive" ,"--view"])
         mock_view.assert_called_with(Branch.Archive, ViewContext.All, False)
+        mock_view.assert_called_with(Branch.Stash, ViewContext.All, False)
         mock_remove.assert_not_called()
+
 
     @mock.patch('bin.vault.untrack')
     @mock.patch('bin.vault.view')
     def test_archive_view_absolute_default(self, mock_view, mock_remove):
         main(["__init__","archive" ,"--view", "--absolute"])
         mock_view.assert_called_with(Branch.Archive, ViewContext.All, True)
+        mock_view.assert_called_with(Branch.Stash, ViewContext.All, True)
         mock_remove.assert_not_called()
 
     @mock.patch('bin.vault.untrack')
@@ -112,6 +115,7 @@ class TestMain(unittest.TestCase):
     def test_archive_view_relative_all(self, mock_view, mock_remove):
         main(["__init__","archive" ,"--view", "all"])
         mock_view.assert_called_with(Branch.Archive, ViewContext.All, False)
+        mock_view.assert_called_with(Branch.Stash, ViewContext.All, False)
         mock_remove.assert_not_called()
 
     @mock.patch('bin.vault.untrack')
@@ -119,13 +123,16 @@ class TestMain(unittest.TestCase):
     def test_archive_view_absolute_all(self, mock_view, mock_remove):
         main(["__init__","archive" ,"--view", "all", "--absolute"])
         mock_view.assert_called_with(Branch.Archive, ViewContext.All, True)
+        mock_view.assert_called_with(Branch.Stash, ViewContext.All, True)
         mock_remove.assert_not_called()
+
 
     @mock.patch('bin.vault.untrack')
     @mock.patch('bin.vault.view')
     def test_archive_view_relative_here(self, mock_view, mock_remove):
         main(["__init__","archive" ,"--view", "here"])
         mock_view.assert_called_with(Branch.Archive, ViewContext.Here, False)
+        mock_view.assert_called_with(Branch.Stash, ViewContext.Here, False)
         mock_remove.assert_not_called()
 
     @mock.patch('bin.vault.untrack')
@@ -133,6 +140,7 @@ class TestMain(unittest.TestCase):
     def test_archive_view_absolute_here(self, mock_view, mock_remove):
         main(["__init__","archive" ,"--view", "here", "--absolute"])
         mock_view.assert_called_with(Branch.Archive, ViewContext.Here, True)
+        mock_view.assert_called_with(Branch.Stash, ViewContext.Here, True)
         mock_remove.assert_not_called()
 
     @mock.patch('bin.vault.untrack')
@@ -140,6 +148,7 @@ class TestMain(unittest.TestCase):
     def test_archive_view_relative_mine(self, mock_view, mock_remove):
         main(["__init__","archive" ,"--view", "mine"])
         mock_view.assert_called_with(Branch.Archive, ViewContext.Mine, False)
+        mock_view.assert_called_with(Branch.Stash, ViewContext.Mine, False)
         mock_remove.assert_not_called()
 
     @mock.patch('bin.vault.untrack')
@@ -147,6 +156,7 @@ class TestMain(unittest.TestCase):
     def test_archive_view_absolute_mine(self, mock_view, mock_remove):
         main(["__init__","archive" ,"--view", "mine", "--absolute"])
         mock_view.assert_called_with(Branch.Archive, ViewContext.Mine, True)
+        mock_view.assert_called_with(Branch.Stash, ViewContext.Mine, True)
         mock_remove.assert_not_called()
 
     @mock.patch('bin.vault.untrack')
@@ -212,6 +222,16 @@ class TestMain(unittest.TestCase):
         mock_add.assert_called_with(Branch.Archive, [T.Path("/file1"), T.Path("/file2")])
         mock_remove.assert_not_called()
 
+
+    @mock.patch('bin.vault.untrack')
+    @mock.patch('bin.vault.add')
+    def test_stash_files(self, mock_add, mock_remove):
+        main(["__init__","archive" ,"--stash", "/file1", "/file2"])
+        mock_add.assert_called_with(Branch.Stash, [T.Path("/file1"), T.Path("/file2")])
+        mock_remove.assert_not_called()
+
+
+
     @mock.patch('bin.vault.untrack')
     @mock.patch('bin.vault.recover')
     def test_recover_files(self, mock_recover, mock_remove):
@@ -221,12 +241,12 @@ class TestMain(unittest.TestCase):
 
     @mock.patch('bin.vault.untrack')
     @mock.patch('bin.vault.recover')
-    def test_recover_all(self, mock_recover, mock_remove):
+    def test_recover_all(self, mock_recover, mock_untrack):
         main(["__init__","recover" ,"--all"])
         mock_recover.assert_called_with(None)
-        mock_remove.assert_not_called()
+        mock_untrack.assert_not_called()
 
     @mock.patch('bin.vault.untrack')
-    def test_remove(self, mock_remove):
+    def test_untrack(self, mock_untrack):
         main(["__init__","untrack" ,"/file1", "/file2"])
-        mock_remove.assert_called_with([T.Path("/file1"), T.Path("/file2")])
+        mock_untrack.assert_called_with([T.Path("/file1"), T.Path("/file2")])
