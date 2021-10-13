@@ -194,7 +194,8 @@ def recover(files: T.Optional[T.List[T.Path]] = None) -> None:
 _action_to_branch = {
     "keep":    Branch.Keep,
     "archive": Branch.Archive,
-    "recover": Branch.Limbo
+    "recover": Branch.Limbo,
+    "stash": Branch.Stash 
 }
 
 # Mapping of view contexts to enumeration
@@ -210,8 +211,14 @@ def main(argv: T.List[str] = sys.argv) -> None:
 
     if args.action in ["keep", "archive", "recover"]:
         branch = _action_to_branch[args.action]
+        stash_branch = _action_to_branch["stash"]
         if branch == Branch.Archive and args.view_staged:
             view(branch.Staged, _view_contexts[args.view_staged], args.absolute)
+        elif branch == Branch.Archive and args.stash:
+            add(stash_branch, args.files)
+        elif branch == Branch.Archive and args.view:
+            view(branch, _view_contexts[args.view], args.absolute)
+            view(stash_branch, _view_contexts[args.view], args.absolute)
         elif args.view:
             view(branch, _view_contexts[args.view], args.absolute)
         else:

@@ -59,7 +59,11 @@ _actions = {
     "recover": _ActionText("file recovery operations",
                             f"view recoverable files | {_view_mode_help}",
                             "%(prog)s [-h] (--view [{all | here | mine}] [--absolute] | --all | FILE [FILE...])",
-                            "one of the arguments --view or --all or FILE is required")
+                            "one of the arguments --view or --all or FILE is required"),
+    "stash":_ActionText("file stash operations",
+    f"view files annotatted for stash| {_view_mode_help}",
+    "%(prog)s [-h] ((--view [{all | here | mine}] | --view-staged [{all | here | mine}]) [--absolute] | FILE [FILE...])",
+                           "one of the arguments --view or FILE is required")
 }
 
 
@@ -115,16 +119,16 @@ def _parser_factory():
         choices=["all", "here", "mine"],
         help=_archive_staged_help
     )
+    archive_view_group.add_argument(
+        "--stash",
+         action="store_true",
+         help=_actions["stash"].view_help
+    )
     sub_parser.add_argument(
                 "--absolute",
                 action="store_true",
                 help=_absolute_help
     )
-    sub_parser.add_argument(
-        "--stash",
-         action="store_true",
-                help="stash files")
-        
     sub_parser.add_argument(
             "files",
             nargs="*",
