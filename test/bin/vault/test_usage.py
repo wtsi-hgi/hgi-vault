@@ -182,3 +182,32 @@ class TestUsage(unittest.TestCase):
         expected = [T.Path("/file1"), T.Path("/file2")]
         self.assertEqual(args.files, expected)
 
+    def test_stash_exception_keep(self):
+        success = False
+        try:
+            args= parse_args(["keep", "--stash", "/file1", "/file2"])
+        except:
+            success = True
+        self.assertTrue(success)
+        
+    def test_stash_exception_view(self):
+        success = False
+        try:
+            args= parse_args(["archive", "--stash", "--view"])
+        except:
+            success = True
+        self.assertTrue(success)
+
+        success = False
+        try:
+            args= parse_args(["archive", "--view", "--stash"])
+        except:
+            success = True
+        self.assertTrue(success)
+
+        success = False
+        try:
+            args= parse_args(["archive", "--stash"])
+        except:
+            success = True
+        self.assertTrue(success)

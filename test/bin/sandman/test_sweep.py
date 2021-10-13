@@ -270,14 +270,17 @@ class TestSweeper(unittest.TestCase):
         self.assertTrue(os.path.isfile(self.file_three))
         self.assertTrue(os.path.isfile(vault_file_three.path))
 
-    # Behavior: The vault file is in Staged or Limbo, but has more than one hardlink: corruption is merely logged
+    # Behavior: 
+    # The vault file is in Stash, but has less than one hardlink: corruption islogged.
+    # The vault file is in Staged, but has more than one hardlink: there is no corruption.
+    # The vault file is in Limbo, but has more than one hardlink: corruption is merely logged.
     @mock.patch('bin.sandman.walk.idm', new = dummy_idm)
     @mock.patch('bin.vault._create_vault')
     def test_archive_corruption_case_actual(self, vault_mock):
 
         vault_file_one = self.vault.add(Branch.Staged, self.file_one)
         vault_file_two = self.vault.add(Branch.Limbo, self.file_two)
-        walk = [(self.vault, File.FromFS(vault_file_one.path), VaultExc.PhysicalVaultFile("File in Staged has two hardlinks")),
+        walk = [(self.vault, File.FromFS(vault_file_one.path), VaultExc.PhysicalVaultFile("File is in Staged and can have to hardlinks if the file was archived with the stash option")),
         (self.vault, File.FromFS(vault_file_two.path), VaultExc.PhysicalVaultFile("File is in Limbo and has two hardlinks"))]
         dummy_walker = _DummyWalker(walk)
         dummy_persistence = MagicMock()
@@ -289,7 +292,9 @@ class TestSweeper(unittest.TestCase):
         self.assertTrue(os.path.isfile(vault_file_two.path))
 
    # Behavior: Regular, tracked, non-vault file. 
-   # If the file is marked for Keep: nothing is done. If the file has a corresponding hardlink in Staged or Limbo, its a case of VaultCorruption and nothing is done.
+   # If the file is marked for Keep: nothing is done. 
+   # If the file has a corresponding hardlink in Staged, its NOT a case of VaultCorruption
+   # If the file has a corresponding hardlink in Limbo, its a case of VaultCorruption and yet nothing is done. 
     @mock.patch('bin.sandman.walk.idm', new = dummy_idm)
     @mock.patch('bin.vault._create_vault')
     def test_tracked_file_non_archive(self, vault_mock):
@@ -297,7 +302,7 @@ class TestSweeper(unittest.TestCase):
         vault_file_two = self.vault.add(Branch.Staged, self.file_two)
         vault_file_three = self.vault.add(Branch.Limbo, self.file_three)
 
-        walk = [(self.vault, File.FromFS(self.file_one), Branch.Keep), (self.vault, File.FromFS(self.file_two), VaultExc.VaultCorruption(f"{self.file_two} is staged in the vault in {self.vault.root}, but also exists outside the vault")), (self.vault, File.FromFS(self.file_three), VaultExc.VaultCorruption(f"{self.file_three} is limboed in the vault in {self.vault.root}, but also exists outside the vault"))]
+        walk = [(self.vault, File.FromFS(self.file_one), Branch.Keep), (self.vault, File.FromFS(self.file_two), Branch.Stash), (self.vault, File.FromFS(self.file_three), VaultExc.VaultCorruption(f"{self.file_three} is limboed in the vault in {self.vault.root}, but also exists outside the vault"))]
         dummy_walker = _DummyWalker(walk)
         dummy_persistence = MagicMock()
         sweeper = Sweeper(dummy_walker, dummy_persistence, True)
