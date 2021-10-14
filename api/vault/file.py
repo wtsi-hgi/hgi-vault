@@ -91,8 +91,8 @@ class VaultFile(core.vault.base.VaultFile):
                 # NOTE This is not physically possible
                 raise VaultExc.VaultCorruption(f"The vault in {vault.root} contains {self.source}, but this no longer exists outside the vault")
 
-            if staged and not single_hardlink:
-                raise VaultExc.VaultCorruption(f"{self.source} is staged in the vault in {vault.root}, but also exists outside the vault")
+           # if staged and not single_hardlink:
+           #     raise VaultExc.VaultCorruption(f"{self.source} is staged in the vault in {vault.root}, but also exists outside the vault")
 
             if limboed and not single_hardlink:
                 raise VaultExc.VaultCorruption(f"{self.source} is soft deleted in the vault in {vault.root}, but also exists outside the vault")
