@@ -5,6 +5,7 @@ Authors:
 * Christopher Harrison <ch12@sanger.ac.uk>
 * Piyush Ahuja <pa11@sanger.ac.uk>
 * Michael Grace <mg38@sanger.ac.uk>
+* Pavlos Antoniou <pa10@sanger.ac.uk>
 
 This program is free software: you can redistribute it and/or modify it
 under the terms of the GNU General Public License as published by the

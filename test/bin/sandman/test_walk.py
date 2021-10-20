@@ -178,6 +178,7 @@ class TestFileSystemWalker(unittest.TestCase):
         vault_file_one = self.vault.add(Branch.Staged, self.file_one)
         vault_file_two = self.vault.add(Branch.Staged, self.file_two)
         self.file_one.unlink()
+        
 
         walker = FilesystemWalker(self.parent)
 
@@ -190,4 +191,4 @@ class TestFileSystemWalker(unittest.TestCase):
         self.assertTrue(isinstance(files[vault_file_one.path], VaultExc.PhysicalVaultFile))
         self.assertTrue(isinstance(files[vault_file_two.path], VaultExc.PhysicalVaultFile))
         self.assertFalse(self.file_one in files)
-        self.assertTrue(isinstance(files[self.file_two], VaultExc.VaultCorruption))
+        self.assertFalse(isinstance(files[self.file_two], VaultExc.VaultCorruption))
