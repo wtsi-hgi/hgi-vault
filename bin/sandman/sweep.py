@@ -237,7 +237,8 @@ class Sweeper(Loggable):
         """
         log = self.log
         log.debug(f"{file.path} is in the {status} branch of the vault in {vault.root}")
-        if status == Branch.Stash:
+
+        if status in [Branch.Stash, Branch.Archive]:
             if file.locked:
                 log.info(f"Skipping: {file.path} is marked for archival, but is locked by another process")
                 return
@@ -254,29 +255,13 @@ class Sweeper(Loggable):
                 
                 log.info(f"{file.path} has been staged for archival")
 
-        if status == Branch.Archive:
-            if file.locked:
-                log.info(f"Skipping: {file.path} is marked for archival, but is locked by another process")
-                return
-
-            log.info(f"Staging {file.path} for archival")
-
-            if self.Yes_I_Really_Mean_It_This_Time:
-                # 1. Move the file to the staging branch
-                staged = vault.add(Branch.Staged, file.path)
-
-                # 2. Persist to database
-                to_persist = file.to_persistence(key=staged.path)
-                self._persistence.persist(to_persist, State.Staged(notified=False))
-
+            if status == Branch.Archive:
                 # 3. Delete source
                 assert hardlinks(file.path) > 1
                 try:
                     file.delete()  # DELETION WARNING
                 except PermissionError:
                     log.error(f"Could not hard-delete {file.path}: Permission denied")
-
-                log.info(f"{file.path} has been staged for archival")
 
     ####################################################################
 
