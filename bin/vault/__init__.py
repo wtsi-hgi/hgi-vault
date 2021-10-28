@@ -194,9 +194,15 @@ def recover(files: T.Optional[T.List[T.Path]] = None) -> None:
 # Mapping of actions to branch enumeration
 _action_to_branch = {
     "keep":    Branch.Keep,
-    "archive": Branch.Archive,
-    "recover": Branch.Limbo,
-    "stash": Branch.Stash 
+
+    "archive": {
+   #stash, view staged
+    ( False, False ) : Branch.Archive,
+    ( True, False  ) : Branch.Stash,
+    ( False, True  ) : Branch.Staged
+    }
+    ,
+    "recover": Branch.Limbo, 
 }
 
 # Mapping of view contexts to enumeration
@@ -209,19 +215,23 @@ _view_contexts = {
 
 def main(argv: T.List[str] = sys.argv) -> None:
     args = usage.parse_args(argv[1:])
-
-    if args.action in ["keep", "archive", "recover"]:
+    staged = False
+   
+    if args.action in _action_to_branch.keys():
+        #Map our action and behaviour to a branch
+      
         branch = _action_to_branch[args.action]
-        stash_branch = _action_to_branch["stash"]
-        if branch == Branch.Archive and args.view_staged:
-            view(branch.Staged, _view_contexts[args.view_staged], args.absolute)
-        elif branch == Branch.Archive and args.stash:
-            add(stash_branch, args.files)
-        elif branch == Branch.Archive and args.view:
-            view(branch, _view_contexts[args.view], args.absolute)
-            view(stash_branch, _view_contexts[args.view], args.absolute)
-        elif args.view:
-            view(branch, _view_contexts[args.view], args.absolute)
+        if args.action == "archive":
+            if args.view_staged:
+                staged=True
+            branch = branch[(args.stash, staged)]
+
+        # VIEW requests:
+        if context := (args.view or (args.action == "archive" and args.view_staged)):
+            view(branch, _view_contexts[context], args.absolute)
+            if args.action == "archive" and not args.view_staged:
+                view(Branch.Stash, _view_contexts[context], args.absolute)
+        # otherwise
         else:
             if args.action == "recover":
                 recover(None if args.all else args.files)
