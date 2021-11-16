@@ -5,6 +5,7 @@ Authors:
 * Christopher Harrison <ch12@sanger.ac.uk>
 * Piyush Ahuja <pa11@sanger.ac.uk>
 * Pavlos Antoniou <pa10@sanger.ac.uk>
+* Michael Grace <mg38@sanger.ac.uk>
 
 This program is free software: you can redistribute it and/or modify it
 under the terms of the GNU General Public License as published by the
@@ -31,11 +32,12 @@ with this program. If not, see https://www.gnu.org/licenses/
 from contextlib import ExitStack
 from functools import singledispatchmethod
 
+import core.file
 import core.persistence
 from api.logging import Loggable
 from api.mail import Postman, NotificationEMail, GZippedFOFN
 from api.persistence.models import FileCollection, State
-from api.vault import Vault, Branch
+from api.vault import Vault, Branch, VaultFile
 from bin.common import config
 from core import time, typing as T
 from core.file import hardlinks, touch
@@ -266,7 +268,7 @@ class Sweeper(Loggable):
     ####################################################################
 
     @_handler.register
-    def _(self, status:None, vault, file):
+    def _(self, status:None, vault: Vault, file: walk.File):
         """
         Handle files that are not tracked by the vault
 
@@ -276,6 +278,12 @@ class Sweeper(Loggable):
         """
         log = self.log
         log.debug(f"{file.path} is untracked")
+
+        if not VaultFile(vault, Branch.Limbo, file.path).can_add:
+            # Check we'll actually be able to soft-delete the file
+            # This only needs to be here, as this is the only time
+            # we interact with untracked files automatically
+            raise core.file.exception.UnactionableFile(f"{file.path} can't be actioned")
 
         if _can_soft_delete(file):
             if file.locked:

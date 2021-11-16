@@ -26,6 +26,7 @@ from unittest.mock import MagicMock
 
 from core import typing as T, idm as IdM, time, file
 from core.vault import exception as VaultExc
+import core.file
 from api.config import Config
 from api.vault import Branch, Vault
 from api.vault.file import VaultFile
@@ -33,7 +34,6 @@ from api.vault.key import VaultFileKey as VFK
 from bin.sandman.sweep import Sweeper
 from bin.sandman.walk import BaseWalker, File
 from bin.common import idm, config
-
 
 class _DummyWalker(BaseWalker):
     def __init__(self, walk):
@@ -114,9 +114,11 @@ class TestSweeper(unittest.TestCase):
         self.file_one = path /  "file1"
         self.file_two = path / self.some / "file2"
         self.file_three = path / self.some / "file3"
+        self.wrong_perms = path / "wrong_perms_file"
         self.file_one.touch()
         self.file_two.touch()
         self.file_three.touch()
+        self.wrong_perms.touch()
         # Ensure permissions are right for the vault add api to work.
         # The default permissions do not fly.
         # For files, ensure they are readable, writable and u=g (66x) is sufficient.
@@ -124,6 +126,7 @@ class TestSweeper(unittest.TestCase):
         self.file_one.chmod(0o660)
         self.file_two.chmod(0o660)
         self.file_three.chmod(0o660)
+        self.wrong_perms.chmod(0o640)
         self.parent.chmod(0o330)
         self.some.chmod(0o330)
         # Monkey patch Vault._find_root so that it returns the directory we want
@@ -456,3 +459,16 @@ class TestSweeper(unittest.TestCase):
 
         self.assertFalse(os.path.isfile(self.file_one))
         self.assertTrue(os.path.isfile(vault_file_one.path))
+
+    def test_unactionable_file_wont_be_actioned(self):
+        """Gets the Sweeper to try and action a file
+        with the wrong permissions. The file won't be actionable,
+        and it should throw the exception.
+
+        Anything in the file `can_add` criteria will throw this
+        exception.
+
+        """
+        dummy_walker = _DummyWalker([(self.vault, File.FromFS(self.wrong_perms), None)])
+        dummy_persistence = MagicMock()
+        self.assertRaises(core.file.exception.UnactionableFile, lambda: Sweeper(dummy_walker, dummy_persistence, True))
