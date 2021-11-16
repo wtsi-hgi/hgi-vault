@@ -170,6 +170,8 @@ class VaultFile(core.vault.base.VaultFile):
         # * Has at least ug+rw permissions
         # * Have equal user and group permissions
         # * Has a parent directory with at least ug+wx permissions
+        # * The file isn't owned by the root user
+        # * Current user is the owner or in the file's group
         log = self.vault.log
         source = self.source
 
@@ -193,6 +195,18 @@ class VaultFile(core.vault.base.VaultFile):
         ugwx = stat.S_IWUSR | stat.S_IXUSR | stat.S_IWGRP | stat.S_IXGRP
         if parent_mode & ugwx != ugwx:
             log.info(f"The parent directory of {source} is not writable or executable for both its owner and group")
+            return False
+
+        if source.stat().st_uid == 0:
+            # Theoretically, the only user with higher priority
+            # than any user using this (including the batch process
+            # user) will be the root user. We can't have this - the
+            # batch process user needs full control over all files
+            log.info(f"{source} is owned by the root user")
+            return False
+
+        if os.getuid() != source.stat().st_uid and source.stat().st_gid not in os.getgroups():
+            log.info(f"The user isn't the owner or in the group for {source}")
             return False
 
         return True

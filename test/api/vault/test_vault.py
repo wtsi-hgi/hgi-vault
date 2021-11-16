@@ -21,6 +21,7 @@ with this program. If not, see https://www.gnu.org/licenses/
 
 import os
 import shutil
+import stat
 import unittest
 from tempfile import TemporaryDirectory
 from unittest.mock import MagicMock
@@ -29,6 +30,7 @@ from core import typing as T, idm as IdM
 from core.vault import exception
 from api.vault import Vault, Branch
 from api.vault.file import VaultFile
+from .mock_file import MockOtherUserOwnedVaultFile, MockRootOwnedVaultFile
 from .utils import VFK
 
 class _DummyUser(IdM.base.User):
@@ -82,9 +84,8 @@ class _DummyIdM(IdM.base.IdentityManager):
 # * Vault root setting
 # * Vault and branch creation
 # * Vault owners
-
-# class TestVaultFile(unittest.TestCase):
-#     idm_user_one = _DummyIdM(1)
+class TestVaultFile(unittest.TestCase):
+    idm_user_one = _DummyIdM(1)
 
     def setUp(self) -> None:
         """
@@ -94,6 +95,9 @@ class _DummyIdM(IdM.base.IdentityManager):
                     +- child_dir_one
                         +- a
                         +- b
+                        +- perms_mod
+                        +- perms_mod_dir
+                            +- d
                         +-.vault/
                             +- keep
                             +- archive
@@ -110,11 +114,17 @@ class _DummyIdM(IdM.base.IdentityManager):
         self.tmp_file_a = self.child_dir_one / "a"
         self.tmp_file_b = self.child_dir_one / "b"
         self.tmp_file_c = self.child_dir_two / "c"
+        self.perms_mod = self.child_dir_one / "perms_mod"
+        self.perms_mod_dir = self.child_dir_one / "perms_mod_dir"
+        self.tmp_file_d = self.perms_mod_dir / "d"
         self.child_dir_one.mkdir(parents=True, exist_ok=True)
         self.child_dir_two.mkdir(parents=True, exist_ok=True)
+        self.perms_mod_dir.mkdir(parents=True, exist_ok=True)
         self.tmp_file_a.touch()
         self.tmp_file_b.touch()
         self.tmp_file_c.touch()
+        self.perms_mod.touch()
+        self.tmp_file_d.touch()
         # The permissions of the file ought to be least ug+rw; 660+
         # The user and group permissions of the file are equal;66* or 77*
         # Thefile's parent directory permissions are at least ug+wx. 330+
@@ -123,6 +133,8 @@ class _DummyIdM(IdM.base.IdentityManager):
         self.tmp_file_c.chmod(0o777)
         self.child_dir_one.chmod(0o330)
         self.parent_dir.chmod(0o777)
+        self.perms_mod_dir.chmod(0o777)
+        self.tmp_file_d.chmod(0o664)
         Vault._find_root = MagicMock(return_value = self._path / T.Path("parent_dir/child_dir_one"))
         self.vault = Vault(relative_to = self._path / T.Path("parent_dir/child_dir_one/a"), idm = self.idm_user_one)
 
@@ -138,18 +150,87 @@ class _DummyIdM(IdM.base.IdentityManager):
     def test_constructor_directory(self):
         self.assertRaises(exception.NotRegularFile, VaultFile, self.vault, Branch.Keep, self.child_dir_one)
 
-    def test_can_add_right_permission(self):
-        # A file needs to have at least ug+rw permissions. Here tmp_file_a has 644 (default)
-        self.assertEqual(VaultFile(vault= self.vault, branch = Branch.Keep, path = self.tmp_file_a).can_add, True)
-        # A file needs to have at least ug+rw permissions. Here tmp_file_b has 644 (default)
+    def test_can_add_not_regular_file(self):
+        """
+        We shouldn't be able to add a file that isn't regular.
+        It can be rejected in either the initialisation of the VaultFile
+        or during the can_add checks. We're happy with either.
+        """
+        res = False
+        try:
+            res = VaultFile(self.vault, Branch.Keep, self.child_dir_one).can_add
+        except exception.NotRegularFile:
+            res = True
+        return res
 
-    def test_can_add_incorrect_permission(self):
-        # A file needs to have at least ug+rw permissions. Here tmp_file_a has 644 (default)
-        self.assertEqual(VaultFile(vault= self.vault, branch = Branch.Keep, path = self.tmp_file_a).can_add, True)
+    def _perms_and_check(self, u: int, g: int, o: int) -> bool:
+        """
+        Change the permissions of self.perms_mod to `ugo` as passed,
+        and runs can_add against that file
+        """
+        self.perms_mod.chmod(int(f"{u}{g}{o}", 8))
+        return VaultFile(self.vault, Branch.Keep, self.perms_mod).can_add
 
-    def test_can_not_regular_file(self):
-        # A file needs to have at least ug+rw permissions. Here tmp_file_a has 644 (default)
-        self.assertRaises(exception.NotRegularFile, VaultFile, self.vault, Branch.Keep, self.child_dir_one)
+    def test_can_add_incorrect_permissions(self):
+        """
+        A file needs to be read writable by both user and group
+        """
+        self.assertTrue(all(
+            not self._perms_and_check(*perms)
+            for perms in (
+                *((u, g, o) for u in range(6) for g in range(8) for o in range(8)),
+                *((u, g, o) for u in [6, 7] for g in range(6) for o in range(8))
+            )
+        ))
+
+    def test_can_add_mismatching_permissions(self):
+        """
+            A files user and group permissions need to match
+        """
+        self.assertTrue(all(
+            not self._perms_and_check(*perms)
+            for perms in (
+                *((6, 7, o) for o in range(8)),
+                *((7, 6, o) for o in range(8))
+            )
+        ))
+    
+    def test_can_add_parent_directory_wrong_permissions(self):
+        """The parent directory of the file also needs to
+        have user and group write and execute permissions"""
+
+        def _parent_dir_perms_and_check(u: int, g: int, o: int) -> bool:
+            self.perms_mod_dir.chmod(int(f"{u}{g}{o}", 8))
+            return VaultFile(self.vault, Branch.Keep, self.tmp_file_d).can_add
+
+        self.assertTrue(all(
+            not _parent_dir_perms_and_check(u, g, o)
+            for u in range(8) for g in range(8) for o in range(8)
+            if u & stat.S_IXOTH # if user has x permission (we can't test otherwise)
+            and (not u & stat.S_IWOTH # if user doesn't have write permission we test it
+            or (u & stat.S_IWOTH and not (g & stat.S_IXOTH and g & stat.S_IWOTH))) # if user has write permission but group doesn't have w and x
+        ))
+
+
+    def test_can_add_owned_by_root(self):
+        """A file owned by the root user can't be added to the Vault
+        
+        To simulate this, we use a MockRootOwnedVaultFile (inherits from VaultFile)
+        """
+        self.assertFalse(MockRootOwnedVaultFile(self.vault, Branch.Keep, self.tmp_file_a).can_add)
+
+    def test_can_add_not_owner_or_in_group(self):
+        """A file can't be added to the Vault if we're not the owner
+        or in the group
+
+        To simulate this, we use a MockOtherUserOwnedVaultFile (inherits from VaultFile)
+        """
+        self.assertFalse(MockOtherUserOwnedVaultFile(self.vault, Branch.Keep, self.tmp_file_a).can_add)
+
+    def test_can_add_all_good_to_add_file(self):
+        """A file with all the right permissions should be able to be added"""
+        self.assertTrue(VaultFile(self.vault, Branch.Keep, self.tmp_file_a), True)
+
 
     def test_can_add_incorrect_vault(self):
         # A file needs to be in the homogroupic subtree of the vault group.
@@ -158,6 +239,14 @@ class _DummyIdM(IdM.base.IdentityManager):
     def test_can_remove_added(self):
         self.vault.add(Branch.Keep, self.tmp_file_a)
         self.assertEqual(VaultFile(vault= self.vault, branch = Branch.Keep, path = self.tmp_file_a).can_remove, True)
+
+    def test_can_remove_user_isnt_owner_or_vault_owner(self):
+        """We can't remove from the vault if we're not an owner or vault owner
+
+        We simulate this with MockOtherUserOwnedVaultFile (inherits from VaultFile)
+        """
+        self.vault.add(Branch.Keep, self.tmp_file_a)
+        self.assertFalse(MockOtherUserOwnedVaultFile(self.vault, Branch.Keep, self.tmp_file_a).can_remove)
 
     def test_can_remove_not_added(self):
         self.assertEqual(VaultFile(vault= self.vault, branch = Branch.Keep, path = self.tmp_file_a).can_remove, True)
