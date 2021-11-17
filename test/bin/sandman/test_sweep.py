@@ -1,7 +1,9 @@
 """
-Copyright (c) 2021 Genome Research Limited
+Copyright (c) 2021, 2022 Genome Research Limited
 
-Author: Piyush Ahuja <pa11@sanger.ac.uk>
+Authors: 
+    - Piyush Ahuja <pa11@sanger.ac.uk>
+    - Michael Grace <mg38@sanger.ac.uk>
 
 This program is free software: you can redistribute it and/or modify it
 under the terms of the GNU General Public License as published by the
@@ -17,6 +19,8 @@ You should have received a copy of the GNU General Public License along
 with this program. If not, see https://www.gnu.org/licenses/
 """
 
+from __future__ import annotations
+
 import os
 os.environ["VAULTRC"] = "eg/.vaultrc"
 from tempfile import TemporaryDirectory
@@ -27,6 +31,7 @@ from unittest.mock import MagicMock
 from core import typing as T, idm as IdM, time, file
 from core.vault import exception as VaultExc
 import core.file
+from core.persistence import base as PersistenceBase, Filter as PersistenceFilter, GroupSummary
 from api.config import Config
 from api.vault import Branch, Vault
 from api.vault.file import VaultFile
@@ -34,6 +39,7 @@ from api.vault.key import VaultFileKey as VFK
 from bin.sandman.sweep import Sweeper
 from bin.sandman.walk import BaseWalker, File
 from bin.common import idm, config
+from eg.mock_mailer import MockMailer
 
 class _DummyWalker(BaseWalker):
     def __init__(self, walk):
@@ -44,30 +50,36 @@ class _DummyWalker(BaseWalker):
 
 
 class _DummyUser(IdM.base.User):
-    def __init__(self, uid):
+    def __init__(self, uid: int, name: T.Optional[str] = None, email: T.Optional[str] = None):
         self._id = uid
+        self._name = name
+        self._email = email
 
     @property
     def name(self):
-        raise NotImplementedError
+        if self._name:
+            return self._name
+        raise NameError
 
     @property
     def email(self):
-        raise NotImplementedError
+        if self._email:
+            return self._email
+        raise NameError
 
 
 class _DummyGroup(IdM.base.Group):
-    _owner:_DummyUser
-    _member:_DummyUser
+    _owner: IdM.base.User
+    _member: IdM.base.User
 
-    def __init__(self, gid, owner, member=None):
+    def __init__(self, gid: int, owner: IdM.base.User, member: T.Optional[IdM.base.User] = None):
         self._id = gid
         self._owner = owner
         self._member = member or owner
 
     @property
     def name(self):
-        raise NotImplementedError
+        return f"group-{self._owner.name}"
 
     @property
     def owners(self):
@@ -76,6 +88,61 @@ class _DummyGroup(IdM.base.Group):
     @property
     def members(self):
         yield self._member
+
+
+_FileState = T.Tuple[PersistenceBase.File, PersistenceBase.State]
+
+
+class _DummyPersistence(PersistenceBase.Persistence):
+  
+    def __init__(self, *_) -> None:
+        self._files: T.List[_FileState] = []
+        self._user: IdM.base.User = _DummyUser(os.getuid(), name="Test User", email="testEmail@test.com")
+
+    def persist(self, file: PersistenceBase.File, state: PersistenceBase.State) -> None:
+        self._files.append((file, state))
+
+    @property
+    def stakeholders(self) -> T.Iterator[IdM.base.User]:
+        return iter((self._user,))
+
+    def files(self, criteria: PersistenceFilter) -> PersistenceBase.FileCollection:
+        user = self._user
+        
+        
+        class _DummyFileCollection(PersistenceBase.FileCollection):
+            
+            def __init__(self, files: T.List[_FileState]):
+                self._files = files
+            
+            def __enter__(self):
+                return self
+            
+            def __exit__(self, *_) -> bool:
+                return False
+            
+            @property
+            def accumulator(self) -> T.Dict[IdM.base.Group, GroupSummary]:
+                acc: T.Dict[IdM.base.Group, GroupSummary] = {}
+                key = _DummyGroup(os.getgid(), user)
+                for file, _ in self._files:
+                    acc[key] = acc.get(key, GroupSummary(path=file.path, count=0, size=0)) \
+                            +  GroupSummary(path=file.path, count=1, size=file.size)
+                return acc
+            
+            def _accumulate(self, *_) -> None:
+                ...
+
+            def __len__(self):
+                return len(self._files)
+            
+            def __iter__(self):
+                return iter(x[0] for x in self._files)
+
+        return _DummyFileCollection([x for x in self._files if x[1] == criteria.state])
+
+    def clean(self, *_) -> None:
+        ...
 
 
 class _DummyIdM(IdM.base.IdentityManager):
@@ -472,3 +539,37 @@ class TestSweeper(unittest.TestCase):
         dummy_walker = _DummyWalker([(self.vault, File.FromFS(self.wrong_perms), None)])
         dummy_persistence = MagicMock()
         self.assertRaises(core.file.exception.UnactionableFile, lambda: Sweeper(dummy_walker, dummy_persistence, True))
+
+    def test_emails_stakeholders(self):
+        """We're going to get a file close to the threshold,
+        and then check if the email that is generated mentions
+        the right information
+        """
+        new_mtime: T.DateTime = time.now() - config.deletion.threshold + max(config.deletion.warnings) - time.delta(seconds = 1)
+        file.touch(self.file_one, mtime=new_mtime, atime=new_mtime)
+
+        dummy_walker = _DummyWalker([(self.vault, File.FromFS(self.file_one), None)])
+        dummy_persistence = _DummyPersistence(config.persistence, idm)
+        MockMailer.file_path = T.Path(self._tmp.name).resolve() / "mail"
+        Sweeper(dummy_walker, dummy_persistence, True, MockMailer) # this will make the email
+
+        # Now we'll see what it says
+        # Nothing in all the thresholds except the largest
+        # Nothing staged for archival
+        def _search_file(file: T.Path, phrase: str) -> T.List[int]:
+            """returns first line number that the phrase was
+            found in the file"""
+            locations: T.List[int] = []
+            with open(file) as f:
+                for line_num, line in enumerate(f):
+                    if phrase in line:
+                        locations.append(line_num)
+            return locations
+
+        # The filepath should only be listed once in the whole email
+        filepath_line_nums = _search_file(MockMailer.file_path, str(self.file_one))
+        self.assertEquals(len(filepath_line_nums), 1)
+
+        # That should be at the bottom of all the warnings
+        for _line_num in _search_file(MockMailer.file_path, "Your files will be DELETED"):
+            self.assertLess(_line_num, filepath_line_nums[0])

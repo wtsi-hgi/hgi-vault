@@ -1,7 +1,9 @@
 """
-Copyright (c) 2020 Genome Research Limited
+Copyright (c) 2020, 2022 Genome Research Limited
 
-Author: Christopher Harrison <ch12@sanger.ac.uk>
+Authors: 
+    - Christopher Harrison <ch12@sanger.ac.uk>
+    - Michael Grace <mg38@sanger.ac.uk>
 
 This program is free software: you can redistribute it and/or modify it
 under the terms of the GNU General Public License as published by the
@@ -75,6 +77,8 @@ class _BaseState:
 @dataclass
 class _BaseFile:
     """ Base class for file metadata """
+    path: T.Path
+    size: int
 
 
 class _BaseFileCollection(T.Collection[_BaseFile], T.ContextManager, metaclass=ABCMeta):

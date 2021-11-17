@@ -1,5 +1,5 @@
 """
-Copyright (c) 2020, 2021 Genome Research Limited
+Copyright (c) 2020, 2021, 2022 Genome Research Limited
 
 Authors:
 * Christopher Harrison <ch12@sanger.ac.uk>
@@ -33,6 +33,7 @@ from contextlib import ExitStack
 from functools import singledispatchmethod
 
 import core.file
+import core.mail
 import core.persistence
 from api.logging import Loggable
 from api.mail import Postman, NotificationEMail, GZippedFOFN
@@ -65,10 +66,17 @@ class Sweeper(Loggable):
     _persistence:core.persistence.base.Persistence
     _weaponised:bool
 
-    def __init__(self, walker:walk.BaseWalker, persistence:core.persistence.base.Persistence, weaponised:bool) -> None:
+    def __init__(
+            self, 
+            walker: walk.BaseWalker, 
+            persistence: core.persistence.base.Persistence,
+            weaponised: bool,
+            postman: T.Type[core.mail.base.Postman] = Postman
+        ) -> None:
         self._walker      = walker
         self._persistence = persistence
         self._weaponised  = weaponised
+        self._postman = postman
 
         # Run the phase steps
         self.sweep()
@@ -88,7 +96,7 @@ class Sweeper(Loggable):
     def notify(self) -> None:
         """ E-mail stakeholders """
         log = self.log
-        postman = Postman(config.email)
+        postman = self._postman(config.email)
 
         # Create and send the e-mail for each stakeholder
         for stakeholder in self._persistence.stakeholders:

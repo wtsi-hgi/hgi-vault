@@ -1,7 +1,9 @@
 """
-Copyright (c) 2020 Genome Research Limited
+Copyright (c) 2020, 2022 Genome Research Limited
 
-Author: Christopher Harrison <ch12@sanger.ac.uk>
+Authors: 
+    - Christopher Harrison <ch12@sanger.ac.uk>
+    - Michael Grace <mg38@sanger.ac.uk>
 
 This program is free software: you can redistribute it and/or modify it
 under the terms of the GNU General Public License as published by the
@@ -48,6 +50,9 @@ class _BaseMessage:
 
 class _BasePostman(metaclass=ABCMeta):
     """ Abstract base class for sending mail """
+    def __init__(self, *args, **kwargs) -> None:
+        ...
+
     def send(self, message:_BaseMessage, *addressee:idm.base.User, addresser:T.Optional[idm.base.User] = None) -> None:
         """
         Send the supplied e-mail message to the appropriate recipients

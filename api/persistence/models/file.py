@@ -1,7 +1,9 @@
 """
-Copyright (c) 2020 Genome Research Limited
+Copyright (c) 2020, 2022 Genome Research Limited
 
-Author: Christopher Harrison <ch12@sanger.ac.uk>
+Author:
+    - Christopher Harrison <ch12@sanger.ac.uk>
+    - Michael Grace <mg38@sanger.ac.uk>
 
 This program is free software: you can redistribute it and/or modify it
 under the terms of the GNU General Public License as published by the
@@ -32,13 +34,11 @@ class File(persistence.base.File):
 
     device:int
     inode:int
-    path:T.Path
     key:T.Optional[T.Path]
     mtime:T.DateTime
     atime: T.DateTime
     owner:idm.base.User
     group:idm.base.Group
-    size:int
 
     ## Alternative Constructors ########################################
 
