@@ -39,38 +39,38 @@ _Originally defined in the [design document](/doc/dev/design.md)._
 >* If said file already exists in the vault (by virtue of matching inode
 >IDs):
 >
->* Check the directory structure/file name hasn't changed in the
+>   * Check the directory structure/file name hasn't changed in the
 >    meantime:
 >
->    * If it has:
->    * Correct the hardlinked name in the vault.
->    * Log the change to the user.
+>        * If it has:
+>           * Correct the hardlinked name in the vault.
+>           *  Log the change to the user.
 >
->* Check in which branch the hardlink exists in the vault:
+>   * Check in which branch the hardlink exists in the vault:
 >
->    * If it matches the action (`keep` or `archive`):
->    * Log to the user that no further change is necessary.
+>       * If it matches the action (`keep` or `archive`):
+>           * Log to the user that no further change is necessary.
 >
->    * If it differs:
->    * Move the hardlink to the opposite branch, maintaining the
+>       * If it differs:
+>           * Move the hardlink to the opposite branch, maintaining the
 >        necessary structure.
->    * Log to the user that the file's status has changed,
+>           * Log to the user that the file's status has changed,
 >        respectively. If the hardlink is moved to the archive branch,
 >        log that staging will happen later and will require the file to
 >        be unlocked for writing.
 >
 >* If it doesn't exist in the vault:
->* Hardlink the file into the appropriate branch:
->    * Create the hierarchy needed to address the inode ID; specifically
+>   * Hardlink the file into the appropriate branch:
+>       * Create the hierarchy needed to address the inode ID; specifically
 >    its big-endian hexadecimal representation, zero-padded to a
 >    multiple of 8 and broken into 8-bit words, taking all but the
 >    least signficiant word to enumerate the tree.
->    * Hardlink the file into the leaf of this tree, with its name given
+>       * Hardlink the file into the leaf of this tree, with its name given
 >    by the least significant word (from the previous step) and the
 >    base64 encoding of the file's path relative to the vault location,
 >    concatenated with a `-`.
 >
->* Log to the user that said file has been actioned. If the file was
+>   * Log to the user that said file has been actioned. If the file was
 >    added to the archive branch, log that staging will happen later and
 >    will require the file to be unlocked for writing.
 >
@@ -172,5 +172,15 @@ This method does introduce a new concept into Vault - the `tracking` file. This 
 
 Its weakness is people tampering with it. We can ensure the errors from this are reduced by:
 - Introducing error checking to the base64 encoding. Although this won't stop someone decoding it, changing it and re-encoding it (hopefully that's already not an issue by disguising it with the encoding), if someone changes some characters in the encoding, it can self-heal.
-- Having backups for if the file is deleted, so that simply missing the file won't allow damage to be caused. For example, in the implementations in this document, the "Keeping Directories" problem is solved as it will just assume every file was added individually, and if the file is missing when the batch process finds the Frozen branch, it can recreate it based on the files in the branch, simply resetting the date to the current date.
+- Having fallback options for if the file is deleted, so that simply missing the file won't allow damage to be caused. For example, in the implementations in this document, the "Keeping Directories" problem is solved as it will just assume every file was added individually, and if the file is missing when the batch process finds the Frozen branch, it can recreate it based on the files in the branch, simply resetting the date to the current date.
 
+Another potential issue is that when a user's freeze period ends, although they're files will still be given the right warning period, there may be a large number of files it is ready to delete, so the warning email may be very long and, depending on how much data is on the line, very important. Maybe it'd be a good idea to hightlight the email more to the user saying:
+```
+These files should have been deleted during the period your files were frozen. They will be deleted in XX hours.
+```
+We also need to check, (though I think it will be fine), that the time period for recovery isn't affected. I don't think it is - it is based on the `mtime` getting reset when the file is moved to the Limbo branch.
+
+As both these features allow marking many files to be kept at the same time, we need to reduce the likelihood of it being abused and having user's just mark everything as "Keep". For example:
+- limiting the `vault keep DIRECTORY` to one entry at a time
+- not allowing `vault keep DIRECTORY` in the same level as the `.vault`
+- logging the use of `vault keep --freeze`
