@@ -23,6 +23,7 @@ with this program. If not, see https://www.gnu.org/licenses/
 import argparse
 from dataclasses import dataclass
 
+from api.logging import log
 from core import typing as T
 from bin.common import version
 
@@ -209,8 +210,15 @@ def _parser_factory():
         # NOTE There is no special case for the "untrack" action
 
         if "files" in parsed:
-        # Resolve all paths
-            parsed.files = [path.resolve() for path in parsed.files]
+            def _resolve_path(path: T.Path) -> T.Path:
+                resolved_path = path.resolve()
+                if path.is_symlink():
+                    log.warning(f"{path} is a symlink. Acting on the original file: {resolved_path}")
+                return resolved_path
+
+            # Resolve all paths
+            parsed.files = [_resolve_path(path) for path in parsed.files]
+
         return parsed
 
     return parser
