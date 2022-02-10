@@ -191,7 +191,10 @@ def recover(files: T.Optional[T.List[T.Path]] = None) -> None:
                         f"Destination {original_file} already has an existing file")
 
 
-# Mapping of actions to branch enumeration
+# Mapping of actions to branch enumeration. 
+# Note: Actions do not map 1:1 to branches
+# e.g. "archive" action can map to Stash or Staged branches.
+
 _action_to_branch = {
     "keep":    Branch.Keep,
 
@@ -226,7 +229,7 @@ def main(argv: T.List[str] = sys.argv) -> None:
                 staged=True
             branch = branch[(args.stash, staged)]
 
-        # VIEW requests:
+        # VIEW requests: Are we viewing?
         if context := (args.view or (args.action == "archive" and args.view_staged)):
             view(branch, _view_contexts[context], args.absolute)
             if args.action == "archive" and not args.view_staged:

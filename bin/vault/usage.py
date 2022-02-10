@@ -44,6 +44,7 @@ mine: show every file in the branch owned by the current user
 """
 _archive_staged_help: str = "view files staged for archival. these will be archived soon"
 
+
 _actions = {
     "keep":    _ActionText("file retention operations",
                            f"view files annotated for retention | {_view_mode_help}",
@@ -52,7 +53,7 @@ _actions = {
 
     "archive": _ActionText("file archival operations",
                            f"view files annotated for archival | {_view_mode_help}",
-                           "%(prog)s [-h] ((--view [{all | here | mine}] | --view-staged [{all | here | mine}]) [--absolute] | FILE [FILE...])",
+                           "%(prog)s [-h] ((--view [{all | here | mine}] | --view-staged [{all | here | mine}]) [--absolute] | [--stash] FILE [FILE...])",
                            "one of the arguments --view or FILE is required"),
 
     "untrack": _ActionText("untrack files annotated for retention or archival"),
@@ -60,11 +61,7 @@ _actions = {
     "recover": _ActionText("file recovery operations",
                             f"view recoverable files | {_view_mode_help}",
                             "%(prog)s [-h] (--view [{all | here | mine}] [--absolute] | --all | FILE [FILE...])",
-                            "one of the arguments --view or --all or FILE is required"),
-    "stash":_ActionText("file stash operations",
-    f"view files annotatted for stash| {_view_mode_help}",
-    "%(prog)s [-h] ((--view [{all | here | mine}] | --view-staged [{all | here | mine}]) [--absolute] | FILE [FILE...])",
-                           "one of the arguments --view or FILE is required")
+                            "one of the arguments --view or --all or FILE is required")
 }
 
 
@@ -106,24 +103,25 @@ def _parser_factory():
     action = "archive"
     sub_parser = sub_level.add_parser(action, help= _actions[action].help)
     sub_parser.usage = _actions[action].usage
-    archive_view_group = sub_parser.add_mutually_exclusive_group()
-    archive_view_group.add_argument(
+    archive_mutually_exclusive_group = sub_parser.add_mutually_exclusive_group()
+    archive_mutually_exclusive_group.add_argument(
                 "--view",
                 nargs="?",
                 const="all",
                 choices=["all", "here", "mine"],
                 help=_actions[action].view_help)
-    archive_view_group.add_argument(
+    
+    archive_mutually_exclusive_group.add_argument(
         "--view-staged",
         nargs="?",
         const="all",
         choices=["all", "here", "mine"],
         help=_archive_staged_help
     )
-    archive_view_group.add_argument(
+    archive_mutually_exclusive_group.add_argument(
         "--stash",
          action="store_true",
-         help=_actions["stash"].view_help
+         help= "archive without deleting the source file"
     )
     sub_parser.add_argument(
                 "--absolute",
