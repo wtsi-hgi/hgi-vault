@@ -218,27 +218,30 @@ _view_contexts = {
 
 def main(argv: T.List[str] = sys.argv) -> None:
     args = usage.parse_args(argv[1:])
-    staged = False
-   
-    if args.action in _action_to_branch.keys():
-        #Map our action and behaviour to a branch
-      
-        branch = _action_to_branch[args.action]
-        if args.action == "archive":
-            if args.view_staged:
-                staged=True
-            branch = branch[(args.stash, staged)]
 
-        # VIEW requests: Are we viewing?
-        if context := (args.view or (args.action == "archive" and args.view_staged)):
-            view(branch, _view_contexts[context], args.absolute)
-            if args.action == "archive" and not args.view_staged:
-                view(Branch.Stash, _view_contexts[context], args.absolute)
-        # otherwise
+    if args.action == "keep":
+        if context := args.view:
+            view(Branch.Keep, _view_contexts[context], args.absolute)
         else:
-            if args.action == "recover":
-                recover(None if args.all else args.files)
+            add(Branch.Keep, args.files)
+
+    if args.action == "archive":
+        if context := args.view:
+            view(Branch.Archive, _view_contexts[context], args.absolute)
+            view(Branch.Stash, _view_contexts[context], args.absolute)
+        elif context := args.view_staged:
+            view(Branch.Staged, _view_contexts[context], args.absolute)
+        else: 
+            if args.stash:
+                add(Branch.Stash, args.files)
             else:
-                add(branch, args.files)
-    else:
+                add(Branch.Archive, args.files)
+
+    if args.action == "recover":
+        if context := args.view:
+            view(Branch.Limbo, _view_contexts[context], args.absolute)
+        else:
+            recover(None if args.all else args.files)
+
+    if args.action == "untrack":
         untrack(args.files)
