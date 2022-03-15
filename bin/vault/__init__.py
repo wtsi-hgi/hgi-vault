@@ -216,7 +216,7 @@ def main(argv: T.List[str] = sys.argv) -> None:
                         resolved_path = T.Path(filepath.rstrip()).resolve()
                         if resolved_path.is_symlink():
                             log.warning(f"{path} is a symlink. Acting on the original file: {resolved_path}")
-                        add(Branch.Keep, resolved_path)
+                        add(Branch.Keep, [resolved_path])
 
     if args.action == "archive":
         if context := args.view:
@@ -237,7 +237,7 @@ def main(argv: T.List[str] = sys.argv) -> None:
                         resolved_path = T.Path(filepath.rstrip()).resolve()
                         if resolved_path.is_symlink():
                             log.warning(f"{path} is a symlink. Acting on the original file: {resolved_path}")
-                        add(branch, resolved_path)
+                        add(branch, [resolved_path])
           
 
     if args.action == "recover":
@@ -250,7 +250,7 @@ def main(argv: T.List[str] = sys.argv) -> None:
                         resolved_path = T.Path(filepath.rstrip()).resolve()
                         if resolved_path.is_symlink():
                             log.warning(f"{path} is a symlink. Acting on the original file: {resolved_path}")
-                        recover(resolved_path)
+                        recover([resolved_path])
             else:
                  recover(None if args.all else args.files)
             
@@ -262,6 +262,6 @@ def main(argv: T.List[str] = sys.argv) -> None:
                         resolved_path = T.Path(filepath.rstrip()).resolve()
                         if resolved_path.is_symlink():
                             log.warning(f"{path} is a symlink. Acting on the original file: {resolved_path}")
-                        untrack(resolved_path)
+                        untrack([resolved_path])
         else:
             untrack(args.files)
