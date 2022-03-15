@@ -87,16 +87,26 @@ def _parser_factory():
                 nargs="?",
                 const="all",
                 help=_actions[action].view_help)
+
     sub_parser.add_argument(
                 "--absolute",
                 action="store_true",
                 help=_absolute_help
     )
+
+    
+    sub_parser.add_argument(
+            "--fofn",
+            nargs="?",
+            type=T.Path,
+            help=f"file of file names to archive",
+            metavar="FOFN")
+
     sub_parser.add_argument(
             "files",
             nargs="*",
             type=T.Path,
-            help=f"file to keep (at most 10)",
+            help=f"file to archive (at most 10)",
             metavar="FILE")
 
 
@@ -128,6 +138,15 @@ def _parser_factory():
                 action="store_true",
                 help=_absolute_help
     )
+
+   
+    sub_parser.add_argument(
+            "--fofn",
+            nargs="?",
+            type=T.Path,
+            help=f"file of file names to archive",
+            metavar="FOFN")
+
     sub_parser.add_argument(
             "files",
             nargs="*",
@@ -135,20 +154,7 @@ def _parser_factory():
             help=f"file to archive (at most 10)",
             metavar="FILE")
     
-    
-    
-
-
-    action = "untrack"
-    sub_parser = sub_level.add_parser(action, help= _actions[action].help)
-    sub_parser.add_argument(
-            "files",
-            nargs="+",
-            type=T.Path,
-            help=f"file to untrack",
-            metavar="FILE")
-
-
+   
     action = "recover"
     sub_parser = sub_level.add_parser(action, help= _actions[action].help)
     sub_parser.usage = _actions[action].usage
@@ -170,12 +176,42 @@ def _parser_factory():
                 action="store_true",
                 help="recover all recoverable files")
 
+   
+    sub_parser.add_argument(
+            "--fofn",
+            nargs="?",
+            type=T.Path,
+            help=f"file of file names to archive",
+            metavar="FOFN")
+
     sub_parser.add_argument(
             "files",
             nargs="*",
             type=T.Path,
-            help=f"file to recover",
+            help=f"file to archive (at most 10)",
             metavar="FILE")
+
+
+
+    action = "untrack"
+    sub_parser = sub_level.add_parser(action, help= _actions[action].help)
+
+    sub_parser.add_argument(
+            "--fofn",
+            nargs="?",
+            type=T.Path,
+            help=f"file of file names to archive",
+            metavar="FOFN")
+
+    sub_parser.add_argument(
+            "files",
+            nargs="*",
+            type=T.Path,
+            help=f"file to untrack",
+            metavar="FILE")
+
+
+
 
 
     def parser(args:T.List[str]) -> argparse.Namespace:
@@ -186,10 +222,11 @@ def _parser_factory():
         if parsed.action == "keep":
             if parsed.view:
                 del parsed.files
+                del parsed.fofn
             else:
                 if parsed.absolute:
                     action_level[parsed.action].error("you must use --view flag to use --absolute flag")
-                if not parsed.files:
+                if not parsed.files and not parsed.fofn:
                     action_level[parsed.action].error(_actions[parsed.action].args_error)
                 elif len(parsed.files) > 10:
                     # Limit number of files to at most 10
@@ -198,10 +235,11 @@ def _parser_factory():
         if parsed.action == "archive":
             if parsed.view or parsed.view_staged:
                 del parsed.files
+                del parsed.fofn
             else:
                 if parsed.absolute:
                     action_level[parsed.action].error("you must use --view flag or --view-staged flag to use --absolute flag")
-                if not parsed.files:
+                if not parsed.files and not parsed.fofn:
                     action_level[parsed.action].error(_actions[parsed.action].args_error)
                 elif len(parsed.files) > 10:
                     # Limit number of files to at most 10
@@ -215,7 +253,7 @@ def _parser_factory():
             else:
                 if parsed.absolute:
                     action_level[parsed.action].error("you must use --view flag to use --absolute flag")
-                if not parsed.files:
+                if not parsed.files and not parsed.fofn:
                     action_level[parsed.action].error(_actions[parsed.action].args_error)
 
         # NOTE There is no special case for the "untrack" action

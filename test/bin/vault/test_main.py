@@ -20,7 +20,7 @@ with this program. If not, see https://www.gnu.org/licenses/
 """
 import unittest
 from unittest import mock
-from unittest.mock import call
+from unittest.mock import call, mock_open
 
 import os
 os.environ["VAULTRC"] = "eg/.vaultrc"
@@ -94,6 +94,27 @@ class TestMain(unittest.TestCase):
         main(["__init__","keep" ,"/file1", "/file2"])
         mock_add.assert_called_with(Branch.Keep, [T.Path("/file1"), T.Path("/file2")])
         mock_remove.assert_not_called()
+
+    @mock.patch("builtins.open", new_callable=mock_open, read_data='/file1\n/file2')
+    @mock.patch('bin.vault.untrack')
+    @mock.patch('bin.vault.add')
+    def test_keep_fofn(self, mock_add, mock_remove, mock_file):
+        main(["__init__","keep" ,"--fofn", "mock_file"])
+        calls = [call(Branch.Keep, T.Path("/file1")), 
+                 call(Branch.Keep, T.Path("/file2"))]
+        mock_add.assert_has_calls(calls)
+        mock_remove.assert_not_called()
+
+    @mock.patch("builtins.open", new_callable=mock_open, read_data='/file1\n/file2')
+    @mock.patch('bin.vault.untrack')
+    @mock.patch('bin.vault.add')
+    def test_keep_fofn(self, mock_add, mock_remove, mock_file):
+        main(["__init__","keep" , "--fofn", "mock_file"])
+        calls = [call(Branch.Keep, T.Path("/file1")), 
+                 call(Branch.Keep, T.Path("/file2"))]
+        mock_add.assert_has_calls(calls)
+        mock_remove.assert_not_called()
+
 
     @mock.patch('bin.vault.untrack')
     @mock.patch('bin.vault.view')
@@ -231,6 +252,26 @@ class TestMain(unittest.TestCase):
         mock_add.assert_called_with(Branch.Archive, [T.Path("/file1"), T.Path("/file2")])
         mock_remove.assert_not_called()
 
+    @mock.patch("builtins.open", new_callable=mock_open, read_data='/file1\n/file2')
+    @mock.patch('bin.vault.untrack')
+    @mock.patch('bin.vault.add')
+    def test_archive_fofn(self, mock_add, mock_remove, mock_file):
+        main(["__init__","archive" ,"--fofn", "mock_file"])
+        calls = [call(Branch.Archive, T.Path("/file1")), 
+                 call(Branch.Archive, T.Path("/file2"))]
+        mock_add.assert_has_calls(calls)
+        mock_remove.assert_not_called()
+
+    @mock.patch("builtins.open", new_callable=mock_open, read_data='/file1\n/file2')
+    @mock.patch('bin.vault.untrack')
+    @mock.patch('bin.vault.add')
+    def test_archive_stash_fofn(self, mock_add, mock_remove, mock_file):
+        main(["__init__","archive" ,"--stash", "--fofn", "mock_file"])
+        calls = [call(Branch.Stash, T.Path("/file1")), 
+                 call(Branch.Stash, T.Path("/file2"))]
+        mock_add.assert_has_calls(calls)
+        mock_remove.assert_not_called()
+
 
     @mock.patch('bin.vault.untrack')
     @mock.patch('bin.vault.add')
@@ -255,7 +296,26 @@ class TestMain(unittest.TestCase):
         mock_recover.assert_called_with(None)
         mock_untrack.assert_not_called()
 
+    @mock.patch("builtins.open", new_callable=mock_open, read_data='/file1\n/file2\n')
+    @mock.patch('bin.vault.untrack')
+    @mock.patch('bin.vault.recover')
+    def test_recover_fofn(self, mock_recover, mock_remove, mock_file):
+        main(["__init__","recover", "--fofn", "mock_file"])
+        calls = [call(T.Path("/file1")), 
+                 call(T.Path("/file2"))]
+        mock_recover.assert_has_calls(calls)
+        mock_remove.assert_not_called()
+
+
     @mock.patch('bin.vault.untrack')
     def test_untrack(self, mock_untrack):
         main(["__init__","untrack" ,"/file1", "/file2"])
         mock_untrack.assert_called_with([T.Path("/file1"), T.Path("/file2")])
+
+    @mock.patch("builtins.open", new_callable=mock_open, read_data='/file1\n/file2\n')
+    @mock.patch('bin.vault.untrack')
+    def test_untrack(self, mock_untrack, mock_file):
+        main(["__init__","untrack" ,"--fofn", "mock_file"])
+        calls = [call(T.Path("/file1")), 
+                 call(T.Path("/file2"))]
+        mock_untrack.assert_has_calls(calls)

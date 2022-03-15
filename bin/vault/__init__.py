@@ -191,23 +191,6 @@ def recover(files: T.Optional[T.List[T.Path]] = None) -> None:
                         f"Destination {original_file} already has an existing file")
 
 
-# Mapping of actions to branch enumeration. 
-# Note: Actions do not map 1:1 to branches
-# e.g. "archive" action can map to Stash or Staged branches.
-
-_action_to_branch = {
-    "keep":    Branch.Keep,
-
-    "archive": {
-   #stash, view staged
-    ( False, False ) : Branch.Archive,
-    ( True, False  ) : Branch.Stash,
-    ( False, True  ) : Branch.Staged
-    }
-    ,
-    "recover": Branch.Limbo, 
-}
-
 # Mapping of view contexts to enumeration
 _view_contexts = {
     "all": ViewContext.All,
@@ -218,12 +201,22 @@ _view_contexts = {
 
 def main(argv: T.List[str] = sys.argv) -> None:
     args = usage.parse_args(argv[1:])
-
+    
+    # Note: Actions do not map 1:1 to branches
+    # e.g. "archive" action can map to Stash or Staged branches.
     if args.action == "keep":
         if context := args.view:
             view(Branch.Keep, _view_contexts[context], args.absolute)
         else:
-            add(Branch.Keep, args.files)
+            if args.files:
+                add(Branch.Keep, args.files)
+            elif fofn:= args.fofn:
+                with open(fofn) as file:
+                    while filepath := file.readline():
+                        resolved_path = T.Path(filepath.rstrip()).resolve()
+                        if resolved_path.is_symlink():
+                            log.warning(f"{path} is a symlink. Acting on the original file: {resolved_path}")
+                        add(Branch.Keep, resolved_path)
 
     if args.action == "archive":
         if context := args.view:
@@ -233,15 +226,42 @@ def main(argv: T.List[str] = sys.argv) -> None:
             view(Branch.Staged, _view_contexts[context], args.absolute)
         else: 
             if args.stash:
-                add(Branch.Stash, args.files)
+                branch = Branch.Stash
             else:
-                add(Branch.Archive, args.files)
+                branch = Branch.Archive
+            if args.files:
+                add(branch, args.files)
+            elif fofn:= args.fofn:
+                with open(fofn) as file:
+                    while filepath := file.readline():
+                        resolved_path = T.Path(filepath.rstrip()).resolve()
+                        if resolved_path.is_symlink():
+                            log.warning(f"{path} is a symlink. Acting on the original file: {resolved_path}")
+                        add(branch, resolved_path)
+          
 
     if args.action == "recover":
         if context := args.view:
             view(Branch.Limbo, _view_contexts[context], args.absolute)
-        else:
-            recover(None if args.all else args.files)
+        else: 
+            if fofn:= args.fofn:
+                with open(fofn) as file:
+                    while filepath := file.readline():
+                        resolved_path = T.Path(filepath.rstrip()).resolve()
+                        if resolved_path.is_symlink():
+                            log.warning(f"{path} is a symlink. Acting on the original file: {resolved_path}")
+                        recover(resolved_path)
+            else:
+                 recover(None if args.all else args.files)
+            
 
     if args.action == "untrack":
-        untrack(args.files)
+        if fofn:= args.fofn:
+                with open(fofn) as file:
+                    while filepath := file.readline():
+                        resolved_path = T.Path(filepath.rstrip()).resolve()
+                        if resolved_path.is_symlink():
+                            log.warning(f"{path} is a symlink. Acting on the original file: {resolved_path}")
+                        untrack(resolved_path)
+        else:
+            untrack(args.files)

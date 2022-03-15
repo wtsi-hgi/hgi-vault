@@ -33,30 +33,29 @@ Example:
 ```
 vault keep --help
                 | --view [CONTEXT] [--absolute]
-                | --view-staged [CONTEXT] [--absolute]
-                | [--stash] FILE [FILE...]
-                | --fofn FILE
+                | FILE [FILE(s)...] 
+                | --fofn FOFN          
 ```
 
 ```
 vault archive --help
                 | --view [CONTEXT] [--absolute]
                 | --view-staged [CONTEXT] [--absolute]
-                | [--stash] FILE [FILE...]
-                | --fofn FILE
+                | [--stash] FILE [FILE(s)...] 
+                | [--stash]  --fofn FOFN       
 ```
 
 ```
 vault recover --help
                 | --view  [CONTEXT] [--absolute] 
                 | --all 
-                | FILE(s)...  
-                | --fofn FILE
+                | FILE [FILE(s)...]    
+                | --fofn FOFN      
 ```
 
 ```
 vault untrack --help
                 | FILE(s)...  
-                | --fofn FILE
+                | --fofn FOFN
 ```
 
