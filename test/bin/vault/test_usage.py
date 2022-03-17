@@ -211,3 +211,41 @@ class TestUsage(unittest.TestCase):
         except:
             success = True
         self.assertTrue(success)
+
+    def test_file_exception_fofn(self):
+        success = False
+        try:
+            args= parse_args(["archive", "--stash", "/file1", "/file2", "--fofn" "/file3"])
+        except:
+            success = True
+        self.assertTrue(success)
+
+        success = False
+        try:
+            args= parse_args(["archive", "--fofn" "/file3", "/file1", "/file2"])
+        except:
+            success = True
+        self.assertTrue(success)
+
+        success = False
+        try:
+            args= parse_args(["keep", "--fofn" "/file3", "/file1", "/file2"])
+        except:
+            success = True
+        self.assertTrue(success)
+
+        success = False
+        try:
+            args= parse_args(["recover", "--fofn" "/file3", "/file1", "/file2"])
+        except:
+            success = True
+        self.assertTrue(success)
+
+        success = False
+        try:
+            args= parse_args(["untrack", "--fofn" "/file3", "/file1", "/file2"])
+        except:
+            success = True
+        self.assertTrue(success)
+
+

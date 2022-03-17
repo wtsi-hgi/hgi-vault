@@ -95,18 +95,21 @@ def _parser_factory():
     )
 
     
-    sub_parser.add_argument(
+    files_mutually_exclusive_group = sub_parser.add_mutually_exclusive_group()
+
+    files_mutually_exclusive_group.add_argument(
             "--fofn",
             nargs="?",
             type=T.Path,
-            help=f"file of file names to archive",
+            help=f"file of file names to keep",
             metavar="FOFN")
 
-    sub_parser.add_argument(
+    files_mutually_exclusive_group.add_argument(
             "files",
             nargs="*",
             type=T.Path,
-            help=f"file to archive (at most 10)",
+            default=[],
+            help=f"file to keep (at most 10)",
             metavar="FILE")
 
 
@@ -139,18 +142,21 @@ def _parser_factory():
                 help=_absolute_help
     )
 
-   
-    sub_parser.add_argument(
+
+    files_mutually_exclusive_group = sub_parser.add_mutually_exclusive_group()
+
+    files_mutually_exclusive_group.add_argument(
             "--fofn",
             nargs="?",
             type=T.Path,
             help=f"file of file names to archive",
             metavar="FOFN")
 
-    sub_parser.add_argument(
+    files_mutually_exclusive_group.add_argument(
             "files",
             nargs="*",
             type=T.Path,
+            default=[],
             help=f"file to archive (at most 10)",
             metavar="FILE")
     
@@ -177,48 +183,52 @@ def _parser_factory():
                 help="recover all recoverable files")
 
    
-    sub_parser.add_argument(
+    files_mutually_exclusive_group = sub_parser.add_mutually_exclusive_group()
+
+    files_mutually_exclusive_group.add_argument(
             "--fofn",
             nargs="?",
             type=T.Path,
-            help=f"file of file names to archive",
+            help=f"file of file names to recover",
             metavar="FOFN")
 
-    sub_parser.add_argument(
+    files_mutually_exclusive_group.add_argument(
             "files",
             nargs="*",
+            default=[],
             type=T.Path,
-            help=f"file to archive (at most 10)",
+            help=f"file to recover",
             metavar="FILE")
-
 
 
     action = "untrack"
     sub_parser = sub_level.add_parser(action, help= _actions[action].help)
 
-    sub_parser.add_argument(
+    files_mutually_exclusive_group = sub_parser.add_mutually_exclusive_group()
+
+    files_mutually_exclusive_group.add_argument(
             "--fofn",
             nargs="?",
             type=T.Path,
-            help=f"file of file names to archive",
+            help=f"file of file names to untrack",
             metavar="FOFN")
 
-    sub_parser.add_argument(
+    files_mutually_exclusive_group.add_argument(
             "files",
             nargs="*",
             type=T.Path,
+            default=[],
             help=f"file to untrack",
             metavar="FILE")
 
-
-
-
-
+ 
     def parser(args:T.List[str]) -> argparse.Namespace:
         # Parse the given arguments and ensure mutual exclusivity
         parsed = top_level.parse_args(args)
         text = _actions[parsed.action]
 
+        # Delete fofn or file arguments if --view is passed
+        # Raise errors in incompatible options are passed
         if parsed.action == "keep":
             if parsed.view:
                 del parsed.files
@@ -248,6 +258,7 @@ def _parser_factory():
         if parsed.action == "recover":
             if parsed.view or (parsed.all and not parsed.absolute):
                 del parsed.files
+                del parsed.fofn
                 if parsed.view and parsed.all:
                     action_level[parsed.action].error("cannot accept arguments --view and --all simultaneously")
             else:
@@ -256,9 +267,7 @@ def _parser_factory():
                 if not parsed.files and not parsed.fofn:
                     action_level[parsed.action].error(_actions[parsed.action].args_error)
 
-        # NOTE There is no special case for the "untrack" action
-
-        if "files" in parsed:
+        if "files" in parsed and not parsed.files:
             def _resolve_path(path: T.Path) -> T.Path:
                 resolved_path = path.resolve()
                 if path.is_symlink():
@@ -267,7 +276,19 @@ def _parser_factory():
 
             # Resolve all paths
             parsed.files = [_resolve_path(path) for path in parsed.files]
+        
+        if "fofn" in parsed and parsed.fofn is not None:
+            def _create_fofn_generator(fofn):
+                # Check: Any problems with yield from within a context manager? 
+                with open(fofn) as file:
+                    while filepath := file.readline():
+                        resolved_path = T.Path(filepath.rstrip()).resolve()
+                        if T.Path(filepath).is_symlink():
+                            log.warning(f"{filepath} is a symlink. Acting on the original file: {resolved_path}")
+                        yield resolved_path
 
+            parsed.files = _create_fofn_generator(parsed.fofn)
+        
         return parsed
 
     return parser
