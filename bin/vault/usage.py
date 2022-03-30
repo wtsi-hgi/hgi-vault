@@ -226,7 +226,6 @@ def _parser_factory():
         # Parse the given arguments and ensure mutual exclusivity
         parsed = top_level.parse_args(args)
         text = _actions[parsed.action]
-
         # Delete fofn or file arguments if --view is passed
         # Raise errors in incompatible options are passed
         if parsed.action == "keep":
@@ -267,7 +266,7 @@ def _parser_factory():
                 if not parsed.files and not parsed.fofn:
                     action_level[parsed.action].error(_actions[parsed.action].args_error)
 
-        if "files" in parsed and not parsed.files:
+        if "files" in parsed and parsed.files:
             def _resolve_path(path: T.Path) -> T.Path:
                 resolved_path = path.resolve()
                 if path.is_symlink():
@@ -278,11 +277,13 @@ def _parser_factory():
             parsed.files = [_resolve_path(path) for path in parsed.files]
         
         if "fofn" in parsed and parsed.fofn is not None:
-            def _create_fofn_generator(fofn):
-                # Check: Any problems with yield from within a context manager? 
+
+            def _create_fofn_generator(fofn: T.Path) -> T.Iterator[T.Path]:
+                # Check: Any problems with yield from within a context manager?   
                 with open(fofn) as file:
-                    while filepath := file.readline():
-                        resolved_path = T.Path(filepath.rstrip()).resolve()
+                    while file_line := file.readline():
+                        filepath = T.Path(file_line.rstrip())
+                        resolved_path = filepath.resolve()
                         if T.Path(filepath).is_symlink():
                             log.warning(f"{filepath} is a symlink. Acting on the original file: {resolved_path}")
                         yield resolved_path

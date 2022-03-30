@@ -22,6 +22,7 @@ import unittest
 from unittest import mock
 from unittest.mock import call, mock_open
 
+from tempfile import TemporaryDirectory
 import os
 os.environ["VAULTRC"] = "eg/.vaultrc"
 from bin.vault import main, ViewContext
@@ -94,6 +95,41 @@ class TestMain(unittest.TestCase):
         main(["__init__","keep" ,"/file1", "/file2"])
         mock_add.assert_called_with(Branch.Keep, [T.Path("/file1"), T.Path("/file2")])
         mock_remove.assert_not_called()
+
+    # Test for log warning message about symlink
+    @mock.patch('bin.vault.untrack')
+    @mock.patch('bin.vault.add')
+    def test_keep_files_symlink(self, mock_add, mock_remove):
+        
+        self._tmp = TemporaryDirectory()
+        path = T.Path(self._tmp.name).resolve()
+        # Form a directory hierarchy
+        filepath = path / "a"
+        symlink= path / "b"
+        filepath.touch()
+        os.symlink(filepath, symlink)
+      
+        main(["__init__","keep" , str(symlink)])
+        mock_add.assert_called_with(Branch.Keep, [filepath])
+        mock_remove.assert_not_called()
+        self._tmp.cleanup()
+
+    # Test for log warning message about symlink
+    @mock.patch('bin.vault.untrack')
+    def test_symlink_fofn(self, mock_untrack):
+        self._tmp = TemporaryDirectory()
+        path = T.Path(self._tmp.name).resolve()
+        # Form temporary files
+        filepath = path / "a"
+        symlink= path / "b"
+        filepath.touch()
+        os.symlink(filepath, symlink)
+        with mock.patch("builtins.open", new_callable=mock_open, read_data=f"{symlink}\n"):
+            main(["__init__","untrack" ,"--fofn", "mock_file"])
+            args = mock_untrack.call_args.args
+            files = list(args[0])
+            self.assertEqual(files , [filepath])
+        self._tmp.cleanup()
 
     @mock.patch("builtins.open", new_callable=mock_open, read_data='/file1\n/file2')
     @mock.patch('bin.vault.untrack')
