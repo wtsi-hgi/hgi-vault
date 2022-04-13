@@ -18,6 +18,7 @@ with this program. If not, see https://www.gnu.org/licenses/
 """
 
 import sys
+import os
 
 from core import config, typing as T
 from api.config import Config
@@ -33,6 +34,9 @@ class version(T.SimpleNamespace):
 
 # Common configuration
 try:
+    if 'unittest' in sys.modules:
+        os.environ["VAULTRC"] = "eg/.vaultrc"
+
     _cfg_path = config.utils.path("VAULTRC", T.Path("~/.vaultrc"), T.Path("/etc/vaultrc"))
     config = Config(_cfg_path)
 except (config.exception.ConfigurationNotFound,
