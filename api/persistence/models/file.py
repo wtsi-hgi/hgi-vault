@@ -35,6 +35,7 @@ class File(persistence.base.File):
     path:T.Path
     key:T.Optional[T.Path]
     mtime:T.DateTime
+    atime: T.DateTime
     owner:idm.base.User
     group:idm.base.Group
     size:int
@@ -50,6 +51,7 @@ class File(persistence.base.File):
                    path   = path,
                    key    = None,
                    mtime  = time.epoch(stat.st_mtime),
+                   atime  = time.epoch(stat.st_atime),
                    owner  = idm.user(uid=stat.st_uid),
                    group  = idm.group(gid=stat.st_gid),
                    size   = stat.st_size)
@@ -92,6 +94,7 @@ class File(persistence.base.File):
     def __eq__(self, other:File) -> bool:
         """ Equality predicate """
         # We don't care if the vault keys don't match
+        # *** need test for this needing atime check as well
         return self.device == other.device \
            and self.inode  == other.inode \
            and self.path   == other.path \

@@ -68,6 +68,7 @@ class File(file.BaseFile):
     @classmethod
     def FromStat(cls, path:T.Path, stat:os.stat_result, timestamp:T.DateTime) -> File:
         """ Construct from explicit stat data """
+        # *** need test for needing to set atime in here as well
         file = models.File(device = stat.st_dev,
                            inode  = stat.st_ino,
                            path   = path,
@@ -89,7 +90,7 @@ class File(file.BaseFile):
     @property
     def age(self) -> T.TimeDelta:
         self.restat()
-        return time.now() - self._file.mtime
+        return time.now() - max([self._file.mtime, self._file.atime])
 
     @property
     def locked(self) -> bool:
