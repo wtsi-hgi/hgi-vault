@@ -99,6 +99,7 @@ class File(persistence.base.File):
            and self.inode  == other.inode \
            and self.path   == other.path \
            and self.mtime  == other.mtime \
+           and self.atime  == other.atime \
            and self.owner  == other.owner \
            and self.group  == other.group \
            and self.size   == other.size

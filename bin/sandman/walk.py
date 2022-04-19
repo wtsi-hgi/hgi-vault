@@ -68,12 +68,12 @@ class File(file.BaseFile):
     @classmethod
     def FromStat(cls, path:T.Path, stat:os.stat_result, timestamp:T.DateTime) -> File:
         """ Construct from explicit stat data """
-        # *** need test for needing to set atime in here as well
         file = models.File(device = stat.st_dev,
                            inode  = stat.st_ino,
                            path   = path,
                            key    = None,
                            mtime  = time.epoch(stat.st_mtime),
+                           atime  = time.epoch(stat.st_atime),
                            owner  = idm.user(uid=stat.st_uid),
                            group  = idm.group(gid=stat.st_gid),
                            size   = stat.st_size)
