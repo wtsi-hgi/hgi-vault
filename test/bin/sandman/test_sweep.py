@@ -366,8 +366,8 @@ class TestSweeper(unittest.TestCase):
     @mock.patch('bin.sandman.walk.idm', new = dummy_idm)
     @mock.patch('bin.vault._create_vault')
     def test_deletion_threshold_passed(self, vault_mock):
-        new_mtime = time.now() - config.deletion.threshold - time.delta(seconds = 1)
-        file.touch(self.file_one, mtime=new_mtime)
+        new_time = time.now() - config.deletion.threshold - time.delta(seconds = 1)
+        file.touch(self.file_one, mtime=new_time, atime=new_time)
 
         walk = [(self.vault, File.FromFS(self.file_one), None)]
         dummy_walker = _DummyWalker(walk)
@@ -384,13 +384,35 @@ class TestSweeper(unittest.TestCase):
         # Check if the file has been added to Limbo
         self.assertTrue(os.path.isfile(vault_file_path))
 
+    # Behavior: When a regular, untracked, non-vault file has been modified more than the deletion threshold ago, but read recently, the source is not deleted and a hardlink is not created in Limbo
+    @mock.patch('bin.sandman.walk.idm', new = dummy_idm)
+    @mock.patch('bin.vault._create_vault')
+    def test_deletion_threshold_not_passed_for_access(self, vault_mock):
+        new_mtime = time.now() - config.deletion.threshold - time.delta(seconds = 1)
+        file.touch(self.file_one, mtime=new_mtime, atime=time.now())
+
+        walk = [(self.vault, File.FromFS(self.file_one), None)]
+        dummy_walker = _DummyWalker(walk)
+        dummy_persistence = MagicMock()
+        # Find the corresponding vault file
+        inode_no = self.file_one.stat().st_ino
+        vault_relative_path = self.file_one.relative_to(self.parent)
+        limbo_root = self.parent/ ".vault"/ Branch.Limbo
+        vault_file_path = limbo_root / VFK(vault_relative_path, inode_no).path
+
+        sweeper = Sweeper(dummy_walker, dummy_persistence, True)
+        # Check if the untracked file has been deleted
+        self.assertTrue(os.path.isfile(self.file_one))
+        # Check if the file has been added to Limbo
+        self.assertFalse(os.path.isfile(vault_file_path))
+
     # Behavior: When a Limbo file has been there for more than the limbo threshold, it is deleted
     @mock.patch('bin.sandman.walk.idm', new = dummy_idm)
     @mock.patch('bin.vault._create_vault')
     def test_limbo_deletion_threshold_passed(self, vault_mock):
         vault_file_one = self.vault.add(Branch.Limbo, self.file_one)
-        new_mtime = time.now() - config.deletion.limbo - time.delta(seconds = 1)
-        file.touch(vault_file_one.path, mtime=new_mtime)
+        new_time = time.now() - config.deletion.limbo - time.delta(seconds = 1)
+        file.touch(vault_file_one.path, mtime=new_time, atime=new_time)
         self.file_one.unlink()
 
         walk = [(self.vault, File.FromFS(vault_file_one.path), VaultExc.PhysicalVaultFile("File is in Limbo"))]
@@ -401,13 +423,30 @@ class TestSweeper(unittest.TestCase):
         self.assertFalse(os.path.isfile(self.file_one))
         self.assertFalse(os.path.isfile(vault_file_one.path))
 
+    # Behavior: When a Limbo file was modifed more than the limbo threshold ago, but read recently, it is not deleted
+    @mock.patch('bin.sandman.walk.idm', new = dummy_idm)
+    @mock.patch('bin.vault._create_vault')
+    def test_limbo_deletion_threshold_not_passed_for_access(self, vault_mock):
+        vault_file_one = self.vault.add(Branch.Limbo, self.file_one)
+        new_mtime = time.now() - config.deletion.limbo - time.delta(seconds = 1)
+        file.touch(vault_file_one.path, mtime=new_mtime, atime=time.now())
+        self.file_one.unlink()
+
+        walk = [(self.vault, File.FromFS(vault_file_one.path), VaultExc.PhysicalVaultFile("File is in Limbo"))]
+        dummy_walker = _DummyWalker(walk)
+        dummy_persistence = MagicMock()
+        sweeper = Sweeper(dummy_walker, dummy_persistence, True)
+
+        self.assertFalse(os.path.isfile(self.file_one))
+        self.assertTrue(os.path.isfile(vault_file_one.path))
+
     # Behavior: When a Limbo file has been there for less than the limbo threshold, it is not deleted
     @mock.patch('bin.sandman.walk.idm', new = dummy_idm)
     @mock.patch('bin.vault._create_vault')
     def test_limbo_deletion_threshold_not_passed(self, vault_mock):
         vault_file_one = self.vault.add(Branch.Limbo, self.file_one)
-        new_mtime = time.now() - config.deletion.limbo + time.delta(seconds = 1)
-        file.touch(vault_file_one.path, mtime=new_mtime)
+        new_time = time.now() - config.deletion.limbo + time.delta(seconds = 1)
+        file.touch(vault_file_one.path, mtime=new_time, atime=new_time)
         self.file_one.unlink()
 
         walk = [(self.vault, File.FromFS(vault_file_one.path), VaultExc.PhysicalVaultFile("File is in Limbo"))]
