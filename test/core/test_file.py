@@ -1,9 +1,10 @@
 """
-Copyright (c) 2020, 2021 Genome Research Limited
+Copyright (c) 2020, 2021, 2022 Genome Research Limited
 
 Authors:
 * Christopher Harrison <ch12@sanger.ac.uk>
 * Piyush Ahuja <pa11@sanger.ac.uk>
+* Michael Grace <mg38@sanger.ac.uk>
 
 This program is free software: you can redistribute it and/or modify it
 under the terms of the GNU General Public License as published by the
@@ -72,9 +73,9 @@ class TestFile(unittest.TestCase):
 
         before = int(time.timestamp(time.now()))
         file.touch(tmp_file)
+        _stat = tmp_file.stat()
         after = int(time.timestamp(time.now()))
 
-        _stat = tmp_file.stat()
         atime = int(_stat.st_atime)
         mtime = int(_stat.st_mtime)
 
