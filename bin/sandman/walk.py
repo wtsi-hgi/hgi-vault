@@ -74,6 +74,7 @@ class File(file.BaseFile):
                            key    = None,
                            mtime  = time.epoch(stat.st_mtime),
                            atime  = time.epoch(stat.st_atime),
+                           ctime  = time.epoch(stat.st_ctime),
                            owner  = idm.user(uid=stat.st_uid),
                            group  = idm.group(gid=stat.st_gid),
                            size   = stat.st_size)
@@ -90,7 +91,7 @@ class File(file.BaseFile):
     @property
     def age(self) -> T.TimeDelta:
         self.restat()
-        return time.now() - max([self._file.mtime, self._file.atime])
+        return time.now() - max([self._file.mtime, self._file.atime, self._file.ctime])
 
     @property
     def locked(self) -> bool:

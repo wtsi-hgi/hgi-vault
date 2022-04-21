@@ -4,6 +4,7 @@ Copyright (c) 2021, 2022 Genome Research Limited
 Authors: 
     - Piyush Ahuja <pa11@sanger.ac.uk>
     - Michael Grace <mg38@sanger.ac.uk>
+    - Sendu Bala <sb10@sanger.ac.uk>
 
 This program is free software: you can redistribute it and/or modify it
 under the terms of the GNU General Public License as published by the
@@ -40,6 +41,8 @@ from bin.sandman.sweep import Sweeper
 from bin.sandman.walk import BaseWalker, File
 from bin.common import idm, config
 from eg.mock_mailer import MockMailer
+from api.persistence import models
+from datetime import datetime
 
 class _DummyWalker(BaseWalker):
     def __init__(self, walk):
@@ -48,6 +51,29 @@ class _DummyWalker(BaseWalker):
     def files(self):
         yield from self._walk
 
+class _DummyFile(models.File):
+    @classmethod
+    def FromFS(cls, path:T.Path, idm:IdM.base.IdentityManager, ctime:datetime, atime:datetime, mtime:datetime) -> File:
+        file = models.File.FromFS(path, idm)
+        file.ctime = ctime
+        file.atime = atime
+        file.mtime = mtime
+        return File(file)
+
+def after_deletion_threshold() -> datetime:
+    return time.now() - config.deletion.threshold - time.delta(seconds = 1)
+
+def make_file_seem_old(path: T.Path) -> File:
+    long_ago = after_deletion_threshold()
+    return _DummyFile.FromFS(path, idm, ctime=long_ago, mtime=long_ago, atime=long_ago)
+
+def make_file_seem_old_but_read_recently(path: T.Path) -> File:
+    long_ago = after_deletion_threshold()
+    return _DummyFile.FromFS(path, idm, ctime=long_ago, mtime=long_ago, atime=time.now())
+
+def make_file_seem_modified_long_ago(path: T.Path) -> File:
+    long_ago = after_deletion_threshold()
+    return _DummyFile.FromFS(path, idm, ctime=time.now(), mtime=long_ago, atime=time.now())
 
 class _DummyUser(IdM.base.User):
     def __init__(self, uid: int, name: T.Optional[str] = None, email: T.Optional[str] = None):
@@ -204,20 +230,27 @@ class TestSweeper(unittest.TestCase):
         self._tmp.cleanup()
         del self.parent
 
+    def determine_vault_path(self, path, branch) -> T.Path:
+        inode_no = path.stat().st_ino
+        vault_relative_path = self.file_one.relative_to(self.parent)
+        root = self.parent/ ".vault"/ branch
+        return root / VFK(vault_relative_path, inode_no).path
+
     # Behavior:  Sweeper does not delete anything if its a dry run
     @mock.patch('bin.sandman.walk.idm', new = dummy_idm)
     @mock.patch('bin.vault._create_vault')
-    def test_basic_case(self, vault_mock):
+    def test_dryrun_basic(self, vault_mock):
         vault_file_one = self.vault.add(Branch.Keep, self.file_one)
         vault_file_two = self.vault.add(Branch.Archive, self.file_two)
         vault_file_three = self.vault.add(Branch.Limbo, self.file_three)
 
-        walk = [(self.vault, File.FromFS(vault_file_one.path), VaultExc.PhysicalVaultFile()),
-        (self.vault, File.FromFS(vault_file_two.path), VaultExc.PhysicalVaultFile()),
-            (self.vault, File.FromFS(vault_file_three.path), VaultExc.PhysicalVaultFile())]
+        walk = [(self.vault, make_file_seem_old(vault_file_one.path), VaultExc.PhysicalVaultFile()),
+            (self.vault, make_file_seem_old(vault_file_two.path), VaultExc.PhysicalVaultFile()),
+            (self.vault, make_file_seem_old(vault_file_three.path), VaultExc.PhysicalVaultFile()),
+            (self.vault, make_file_seem_old(self.file_three), None)]
         dummy_walker = _DummyWalker(walk)
         dummy_persistence = MagicMock()
-        sweeper = Sweeper(dummy_walker, dummy_persistence, False)
+        Sweeper(dummy_walker, dummy_persistence, False)
 
         self.assertTrue(os.path.isfile(self.file_one))
         self.assertTrue(os.path.isfile(self.file_two))
@@ -229,14 +262,14 @@ class TestSweeper(unittest.TestCase):
     # Behavior:  Sweeper does not delete staged files
     @mock.patch('bin.sandman.walk.idm', new = dummy_idm)
     @mock.patch('bin.vault._create_vault')
-    def test_basic_case(self, vault_mock):
+    def test_dryrun_staged(self, vault_mock):
         vault_file_one = self.vault.add(Branch.Staged, self.file_one)
         self.file_one.unlink()
 
-        walk = [(self.vault, File.FromFS(vault_file_one.path), VaultExc.PhysicalVaultFile())]
+        walk = [(self.vault, make_file_seem_old(vault_file_one.path), VaultExc.PhysicalVaultFile())]
         dummy_walker = _DummyWalker(walk)
         dummy_persistence = MagicMock()
-        sweeper = Sweeper(dummy_walker, dummy_persistence, False)
+        Sweeper(dummy_walker, dummy_persistence, True)
 
         self.assertFalse(os.path.isfile(self.file_one))
         self.assertTrue(os.path.isfile(vault_file_one.path))
@@ -255,7 +288,7 @@ class TestSweeper(unittest.TestCase):
             (self.vault, File.FromFS(vault_file_three.path), VaultExc.PhysicalVaultFile())]
         dummy_walker = _DummyWalker(walk)
         dummy_persistence = MagicMock()
-        sweeper = Sweeper(dummy_walker, dummy_persistence, False)
+        Sweeper(dummy_walker, dummy_persistence, False)
 
         self.assertFalse(os.path.isfile(self.file_one))
         self.assertTrue(os.path.isfile(vault_file_one.path))
@@ -268,7 +301,6 @@ class TestSweeper(unittest.TestCase):
     @mock.patch('bin.sandman.walk.idm', new = dummy_idm)
     @mock.patch('bin.vault._create_vault')
     def test_keep_corruption_case_actual(self, vault_mock):
-
         vault_file_one = self.vault.add(Branch.Keep, self.file_one)
         vault_file_two = self.vault.add(Branch.Archive, self.file_two)
         vault_file_three = self.vault.add(Branch.Limbo, self.file_three)
@@ -279,7 +311,7 @@ class TestSweeper(unittest.TestCase):
             (self.vault, File.FromFS(vault_file_three.path), VaultExc.PhysicalVaultFile())]
         dummy_walker = _DummyWalker(walk)
         dummy_persistence = MagicMock()
-        sweeper = Sweeper(dummy_walker, dummy_persistence, True)
+        Sweeper(dummy_walker, dummy_persistence, True)
 
         self.assertFalse(os.path.isfile(self.file_one))
         self.assertFalse(os.path.isfile(vault_file_one.path))
@@ -303,7 +335,7 @@ class TestSweeper(unittest.TestCase):
             (self.vault, File.FromFS(vault_file_three.path), VaultExc.PhysicalVaultFile())]
         dummy_walker = _DummyWalker(walk)
         dummy_persistence = MagicMock()
-        sweeper = Sweeper(dummy_walker, dummy_persistence, False)
+        Sweeper(dummy_walker, dummy_persistence, False)
 
         self.assertTrue(os.path.isfile(self.file_one))
         self.assertTrue(os.path.isfile(vault_file_one.path))
@@ -316,7 +348,7 @@ class TestSweeper(unittest.TestCase):
     # Behavior: When the source file of a vault file in Archive is deleted, Sweeper deletes the vault file
     @mock.patch('bin.sandman.walk.idm', new = dummy_idm)
     @mock.patch('bin.vault._create_vault')
-    def test_archive_corruption_case_actual(self, vault_mock):
+    def test_archive_source_deleted(self, vault_mock):
         vault_file_one = self.vault.add(Branch.Keep, self.file_one)
         vault_file_two = self.vault.add(Branch.Archive, self.file_two)
         vault_file_three = self.vault.add(Branch.Limbo, self.file_three)
@@ -330,7 +362,7 @@ class TestSweeper(unittest.TestCase):
         dummy_walker = _DummyWalker(walk)
         dummy_persistence = MagicMock()
 
-        sweeper = Sweeper(dummy_walker, dummy_persistence, True)
+        Sweeper(dummy_walker, dummy_persistence, True)
 
         self.assertFalse(os.path.isfile(self.file_one))
         self.assertFalse(os.path.isfile(vault_file_one.path))
@@ -341,20 +373,19 @@ class TestSweeper(unittest.TestCase):
         self.assertTrue(os.path.isfile(vault_file_three.path))
 
     # Behavior: 
-    # The vault file is in Stash, but has less than one hardlink: corruption islogged.
+    # The vault file is in Stash, but has less than one hardlink: corruption is logged.
     # The vault file is in Staged, but has more than one hardlink: there is no corruption.
-    # The vault file is in Limbo, but has more than one hardlink: corruption is merely logged.
+    # The vault file is in Limbo, but has more than one hardlink: corruption is logged.
     @mock.patch('bin.sandman.walk.idm', new = dummy_idm)
     @mock.patch('bin.vault._create_vault')
     def test_archive_corruption_case_actual(self, vault_mock):
-
         vault_file_one = self.vault.add(Branch.Staged, self.file_one)
         vault_file_two = self.vault.add(Branch.Limbo, self.file_two)
         walk = [(self.vault, File.FromFS(vault_file_one.path), VaultExc.PhysicalVaultFile("File is in Staged and can have to hardlinks if the file was archived with the stash option")),
         (self.vault, File.FromFS(vault_file_two.path), VaultExc.PhysicalVaultFile("File is in Limbo and has two hardlinks"))]
         dummy_walker = _DummyWalker(walk)
         dummy_persistence = MagicMock()
-        sweeper = Sweeper(dummy_walker, dummy_persistence, True)
+        Sweeper(dummy_walker, dummy_persistence, True)
 
         self.assertTrue(os.path.isfile(self.file_one))
         self.assertTrue(os.path.isfile(vault_file_one.path))
@@ -375,7 +406,7 @@ class TestSweeper(unittest.TestCase):
         walk = [(self.vault, File.FromFS(self.file_one), Branch.Keep), (self.vault, File.FromFS(self.file_two), Branch.Stash), (self.vault, File.FromFS(self.file_three), VaultExc.VaultCorruption(f"{self.file_three} is limboed in the vault in {self.vault.root}, but also exists outside the vault"))]
         dummy_walker = _DummyWalker(walk)
         dummy_persistence = MagicMock()
-        sweeper = Sweeper(dummy_walker, dummy_persistence, True)
+        Sweeper(dummy_walker, dummy_persistence, True)
 
         self.assertTrue(os.path.isfile(self.file_one))
         self.assertTrue(os.path.isfile(vault_file_one.path))
@@ -389,20 +420,15 @@ class TestSweeper(unittest.TestCase):
     @mock.patch('bin.sandman.walk.idm', new = dummy_idm)
     @mock.patch('bin.vault._create_vault')
     def test_tracked_file_archived(self, vault_mock):
-
         vault_file_one_archive = self.vault.add(Branch.Archive, self.file_one)
 
         walk = [(self.vault, File.FromFS(self.file_one), Branch.Archive)]
 
-        # Find the destination staged vault file for vault_file_three
-        inode_no = self.file_one.stat().st_ino
-        vault_relative_path = self.file_one.relative_to(self.parent)
-        staged_root = self.parent/ ".vault"/ Branch.Staged
-        vault_file_one_staged = staged_root / VFK(vault_relative_path, inode_no).path
+        vault_file_one_staged = self.determine_vault_path(self.file_one, Branch.Staged)
 
         dummy_walker = _DummyWalker(walk)
         dummy_persistence = MagicMock()
-        sweeper = Sweeper(dummy_walker, dummy_persistence, True)
+        Sweeper(dummy_walker, dummy_persistence, True)
 
         self.assertFalse(os.path.isfile(self.file_one))
         self.assertFalse(os.path.isfile(vault_file_one_archive.path))
@@ -413,20 +439,15 @@ class TestSweeper(unittest.TestCase):
     @mock.patch('bin.sandman.walk.idm', new = dummy_idm)
     @mock.patch('bin.vault._create_vault')
     def test_tracked_file_stashed(self, vault_mock):
-
         vault_file_one_stash = self.vault.add(Branch.Stash, self.file_one)
 
         walk = [(self.vault, File.FromFS(self.file_one), Branch.Stash)]
 
-        # Find the destination staged vault file for vault_file_three
-        inode_no = self.file_one.stat().st_ino
-        vault_relative_path = self.file_one.relative_to(self.parent)
-        staged_root = self.parent/ ".vault"/ Branch.Staged
-        vault_file_one_staged = staged_root / VFK(vault_relative_path, inode_no).path
+        vault_file_one_staged = self.determine_vault_path(self.file_one, Branch.Staged)
 
         dummy_walker = _DummyWalker(walk)
         dummy_persistence = MagicMock()
-        sweeper = Sweeper(dummy_walker, dummy_persistence, True)
+        Sweeper(dummy_walker, dummy_persistence, True)
 
         self.assertTrue(os.path.isfile(self.file_one))
         self.assertFalse(os.path.isfile(vault_file_one_stash.path))
@@ -436,19 +457,14 @@ class TestSweeper(unittest.TestCase):
     @mock.patch('bin.sandman.walk.idm', new = dummy_idm)
     @mock.patch('bin.vault._create_vault')
     def test_deletion_threshold_passed(self, vault_mock):
-        new_time = time.now() - config.deletion.threshold - time.delta(seconds = 1)
-        file.touch(self.file_one, mtime=new_time, atime=new_time)
-
-        walk = [(self.vault, File.FromFS(self.file_one), None)]
+        walk = [(self.vault, make_file_seem_old(self.file_one), None)]
         dummy_walker = _DummyWalker(walk)
         dummy_persistence = MagicMock()
-        # Find the corresponding vault file
-        inode_no = self.file_one.stat().st_ino
-        vault_relative_path = self.file_one.relative_to(self.parent)
-        limbo_root = self.parent/ ".vault"/ Branch.Limbo
-        vault_file_path = limbo_root / VFK(vault_relative_path, inode_no).path
 
-        sweeper = Sweeper(dummy_walker, dummy_persistence, True)
+        vault_file_path = self.determine_vault_path(self.file_one, Branch.Limbo)
+
+        Sweeper(dummy_walker, dummy_persistence, True)
+
         # Check if the untracked file has been deleted
         self.assertFalse(os.path.isfile(self.file_one))
         # Check if the file has been added to Limbo
@@ -458,19 +474,31 @@ class TestSweeper(unittest.TestCase):
     @mock.patch('bin.sandman.walk.idm', new = dummy_idm)
     @mock.patch('bin.vault._create_vault')
     def test_deletion_threshold_not_passed_for_access(self, vault_mock):
-        new_mtime = time.now() - config.deletion.threshold - time.delta(seconds = 1)
-        file.touch(self.file_one, mtime=new_mtime, atime=time.now())
-
-        walk = [(self.vault, File.FromFS(self.file_one), None)]
+        walk = [(self.vault, make_file_seem_old_but_read_recently(self.file_one), None)]
         dummy_walker = _DummyWalker(walk)
         dummy_persistence = MagicMock()
-        # Find the corresponding vault file
-        inode_no = self.file_one.stat().st_ino
-        vault_relative_path = self.file_one.relative_to(self.parent)
-        limbo_root = self.parent/ ".vault"/ Branch.Limbo
-        vault_file_path = limbo_root / VFK(vault_relative_path, inode_no).path
 
-        sweeper = Sweeper(dummy_walker, dummy_persistence, True)
+        vault_file_path = self.determine_vault_path(self.file_one, Branch.Limbo)
+
+        Sweeper(dummy_walker, dummy_persistence, True)
+
+        # Check if the untracked file has been deleted
+        self.assertTrue(os.path.isfile(self.file_one))
+        # Check if the file has been added to Limbo
+        self.assertFalse(os.path.isfile(vault_file_path))
+
+    # Behavior: When a regular, untracked, non-vault file has been modified more than the deletion threshold ago, but created recently, the source is not deleted and a hardlink is not created in Limbo
+    @mock.patch('bin.sandman.walk.idm', new = dummy_idm)
+    @mock.patch('bin.vault._create_vault')
+    def test_deletion_threshold_not_passed_for_creation(self, vault_mock):
+        walk = [(self.vault, make_file_seem_modified_long_ago(self.file_one), None)]
+        dummy_walker = _DummyWalker(walk)
+        dummy_persistence = MagicMock()
+
+        vault_file_path = self.determine_vault_path(self.file_one, Branch.Limbo)
+
+        Sweeper(dummy_walker, dummy_persistence, True)
+
         # Check if the untracked file has been deleted
         self.assertTrue(os.path.isfile(self.file_one))
         # Check if the file has been added to Limbo
@@ -481,14 +509,12 @@ class TestSweeper(unittest.TestCase):
     @mock.patch('bin.vault._create_vault')
     def test_limbo_deletion_threshold_passed(self, vault_mock):
         vault_file_one = self.vault.add(Branch.Limbo, self.file_one)
-        new_time = time.now() - config.deletion.limbo - time.delta(seconds = 1)
-        file.touch(vault_file_one.path, mtime=new_time, atime=new_time)
         self.file_one.unlink()
 
-        walk = [(self.vault, File.FromFS(vault_file_one.path), VaultExc.PhysicalVaultFile("File is in Limbo"))]
+        walk = [(self.vault, make_file_seem_old(vault_file_one.path), VaultExc.PhysicalVaultFile("File is in Limbo"))]
         dummy_walker = _DummyWalker(walk)
         dummy_persistence = MagicMock()
-        sweeper = Sweeper(dummy_walker, dummy_persistence, True)
+        Sweeper(dummy_walker, dummy_persistence, True)
 
         self.assertFalse(os.path.isfile(self.file_one))
         self.assertFalse(os.path.isfile(vault_file_one.path))
@@ -498,14 +524,12 @@ class TestSweeper(unittest.TestCase):
     @mock.patch('bin.vault._create_vault')
     def test_limbo_deletion_threshold_not_passed_for_access(self, vault_mock):
         vault_file_one = self.vault.add(Branch.Limbo, self.file_one)
-        new_mtime = time.now() - config.deletion.limbo - time.delta(seconds = 1)
-        file.touch(vault_file_one.path, mtime=new_mtime, atime=time.now())
         self.file_one.unlink()
 
-        walk = [(self.vault, File.FromFS(vault_file_one.path), VaultExc.PhysicalVaultFile("File is in Limbo"))]
+        walk = [(self.vault, make_file_seem_old_but_read_recently(vault_file_one.path), VaultExc.PhysicalVaultFile("File is in Limbo"))]
         dummy_walker = _DummyWalker(walk)
         dummy_persistence = MagicMock()
-        sweeper = Sweeper(dummy_walker, dummy_persistence, True)
+        Sweeper(dummy_walker, dummy_persistence, True)
 
         self.assertFalse(os.path.isfile(self.file_one))
         self.assertTrue(os.path.isfile(vault_file_one.path))
@@ -516,13 +540,12 @@ class TestSweeper(unittest.TestCase):
     def test_limbo_deletion_threshold_not_passed(self, vault_mock):
         vault_file_one = self.vault.add(Branch.Limbo, self.file_one)
         new_time = time.now() - config.deletion.limbo + time.delta(seconds = 1)
-        file.touch(vault_file_one.path, mtime=new_time, atime=new_time)
         self.file_one.unlink()
 
-        walk = [(self.vault, File.FromFS(vault_file_one.path), VaultExc.PhysicalVaultFile("File is in Limbo"))]
+        walk = [(self.vault, _DummyFile.FromFS(vault_file_one.path, idm, ctime=new_time, mtime=new_time, atime=new_time), VaultExc.PhysicalVaultFile("File is in Limbo"))]
         dummy_walker = _DummyWalker(walk)
         dummy_persistence = MagicMock()
-        sweeper = Sweeper(dummy_walker, dummy_persistence, True)
+        Sweeper(dummy_walker, dummy_persistence, True)
 
         self.assertFalse(os.path.isfile(self.file_one))
         self.assertTrue(os.path.isfile(vault_file_one.path))

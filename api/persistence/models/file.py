@@ -37,6 +37,7 @@ class File(persistence.base.File):
     key:T.Optional[T.Path]
     mtime:T.DateTime
     atime: T.DateTime
+    ctime: T.DateTime
     owner:idm.base.User
     group:idm.base.Group
 
@@ -52,6 +53,7 @@ class File(persistence.base.File):
                    key    = None,
                    mtime  = time.epoch(stat.st_mtime),
                    atime  = time.epoch(stat.st_atime),
+                   ctime  = time.epoch(stat.st_ctime),
                    owner  = idm.user(uid=stat.st_uid),
                    group  = idm.group(gid=stat.st_gid),
                    size   = stat.st_size)
@@ -64,6 +66,8 @@ class File(persistence.base.File):
                    path   = T.Path(record.path),
                    key    = T.Path(record.key) if record.key is not None else None,
                    mtime  = time.to_utc(record.mtime),
+                   atime  = time.to_utc(record.mtime),
+                   ctime  = time.to_utc(record.mtime),
                    owner  = idm.user(uid=record.owner),
                    group  = idm.group(gid=record.group_id),
                    size   = record.size)
