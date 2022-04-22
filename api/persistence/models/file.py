@@ -66,6 +66,8 @@ class File(persistence.base.File):
                    path   = T.Path(record.path),
                    key    = T.Path(record.key) if record.key is not None else None,
                    mtime  = time.to_utc(record.mtime),
+                   # The db only records mtime, so we set a and c time to mtime
+                   # for now.
                    atime  = time.to_utc(record.mtime),
                    ctime  = time.to_utc(record.mtime),
                    owner  = idm.user(uid=record.owner),
