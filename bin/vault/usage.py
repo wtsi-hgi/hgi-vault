@@ -240,7 +240,7 @@ def _parser_factory():
                 elif len(parsed.files) > 10:
                     # Limit number of files to at most 10
                     action_level[parsed.action].error("too many FILEs; you may specify no more than 10")
-
+           
         if parsed.action == "archive":
             if parsed.view or parsed.view_staged:
                 del parsed.files
@@ -266,16 +266,16 @@ def _parser_factory():
                 if not parsed.files and not parsed.fofn:
                     action_level[parsed.action].error(_actions[parsed.action].args_error)
 
+        def _resolve_path(path: T.Path) -> T.Path:
+            resolved_path = path.resolve()
+            if path.is_symlink():
+                log.warning(f"{path} is a symlink. Acting on the original file: {resolved_path}")
+            return resolved_path
+        
         if "files" in parsed and parsed.files:
-            def _resolve_path(path: T.Path) -> T.Path:
-                resolved_path = path.resolve()
-                if path.is_symlink():
-                    log.warning(f"{path} is a symlink. Acting on the original file: {resolved_path}")
-                return resolved_path
-
             # Resolve all paths
             parsed.files = [_resolve_path(path) for path in parsed.files]
-        
+
         if "fofn" in parsed and parsed.fofn is not None:
 
             def _create_fofn_generator(fofn: T.Path) -> T.Iterator[T.Path]:
@@ -283,13 +283,11 @@ def _parser_factory():
                 with open(fofn) as file:
                     while file_line := file.readline():
                         filepath = T.Path(file_line.rstrip())
-                        resolved_path = filepath.resolve()
-                        if T.Path(filepath).is_symlink():
-                            log.warning(f"{filepath} is a symlink. Acting on the original file: {resolved_path}")
-                        yield resolved_path
-
+                        yield filepath
             parsed.files = _create_fofn_generator(parsed.fofn)
-        
+            # Resolve all paths
+            parsed.files = (_resolve_path(path) for path in parsed.files)
+
         return parsed
 
     return parser

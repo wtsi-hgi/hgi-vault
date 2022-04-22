@@ -114,7 +114,7 @@ class TestMain(unittest.TestCase):
         mock_remove.assert_not_called()
         self._tmp.cleanup()
 
-    # Test for log warning message about symlink
+    # Test for log warning message about symlink in fofn case
     @mock.patch('bin.vault.untrack')
     def test_symlink_fofn(self, mock_untrack):
         self._tmp = TemporaryDirectory()

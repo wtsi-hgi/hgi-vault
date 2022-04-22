@@ -89,7 +89,7 @@ def view(branch: Branch, view_mode: ViewContext, absolute: bool) -> None:
         else ''}""")
 
 
-def add(branch: Branch, files: T.List[T.Path]) -> None:
+def add(branch: Branch, files: T.Iterable[T.Path]) -> None:
     """ Add the given files to the appropriate branch """
     for f in files:
         if not file.is_regular(f):
@@ -115,7 +115,7 @@ def add(branch: Branch, files: T.List[T.Path]) -> None:
             log.error(f"Cannot add: {e}")
 
 
-def untrack(files: T.List[T.Path]) -> None:
+def untrack(files: T.Iterable[T.Path]) -> None:
     """ Untrack the given files """
     for f in files:
         if not file.is_regular(f):
@@ -149,7 +149,7 @@ def untrack(files: T.List[T.Path]) -> None:
                 pass
 
 
-def recover(files: T.Optional[T.List[T.Path]] = None) -> None:
+def recover(files: T.Optional[T.Iterable[T.Path]] = None) -> None:
     """
     Recover the given files from Limbo branch or Recover all files from
     the Limbo branch
