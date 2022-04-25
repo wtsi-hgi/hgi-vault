@@ -170,12 +170,7 @@ class TestUsage(unittest.TestCase):
 
     def test_untrack_view(self):
         args = ["untrack", "--view"]
-        success = False
-        try:
-            parse_args(args)
-        except:
-            success = True
-        self.assertTrue(success)
+        self.assertRaises(SystemExit, parse_args, args)
 
     def test_stash(self):
         args= parse_args(["archive", "--stash", "/file1", "/file2"])
@@ -183,31 +178,36 @@ class TestUsage(unittest.TestCase):
         self.assertEqual(args.files, expected)
 
     def test_stash_exception_keep(self):
-        success = False
-        try:
-            args= parse_args(["keep", "--stash", "/file1", "/file2"])
-        except:
-            success = True
-        self.assertTrue(success)
+        
+        args= ["keep", "--stash", "/file1", "/file2"]
+        self.assertRaises(SystemExit, parse_args, args)
         
     def test_stash_exception_view(self):
-        success = False
-        try:
-            args= parse_args(["archive", "--stash", "--view"])
-        except:
-            success = True
-        self.assertTrue(success)
+               
+        args= ["archive", "--stash", "--view"]
+        self.assertRaises(SystemExit, parse_args, args)
 
-        success = False
-        try:
-            args= parse_args(["archive", "--view", "--stash"])
-        except:
-            success = True
-        self.assertTrue(success)
+        args= ["archive", "--view", "--stash"]
+        self.assertRaises(SystemExit, parse_args, args)
 
-        success = False
-        try:
-            args= parse_args(["archive", "--stash"])
-        except:
-            success = True
-        self.assertTrue(success)
+        args= ["archive", "--stash"]
+        self.assertRaises(KeyError, parse_args, args)
+
+    def test_file_exception_fofn(self):
+        
+        args= ["archive", "--stash", "/file1", "/file2", "--fofn" "/file3"]
+        self.assertRaises(SystemExit, parse_args, args)
+     
+        args= ["archive", "--fofn" "/file3", "/file1", "/file2"]
+        self.assertRaises(SystemExit, parse_args, args)
+        
+        args= ["keep", "--fofn" "/file3", "/file1", "/file2"]
+        self.assertRaises(SystemExit, parse_args, args)
+
+        args= ["recover", "--fofn" "/file3", "/file1", "/file2"]
+        self.assertRaises(SystemExit, parse_args, args)
+        
+        args= ["untrack", "--fofn" "/file3", "/file1", "/file2"]
+        self.assertRaises(SystemExit, parse_args, args)
+
+

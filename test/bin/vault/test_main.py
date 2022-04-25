@@ -20,8 +20,9 @@ with this program. If not, see https://www.gnu.org/licenses/
 """
 import unittest
 from unittest import mock
-from unittest.mock import call
+from unittest.mock import call, mock_open
 
+from tempfile import TemporaryDirectory
 import os
 os.environ["VAULTRC"] = "eg/.vaultrc"
 from bin.vault import main, ViewContext
@@ -94,6 +95,54 @@ class TestMain(unittest.TestCase):
         main(["__init__","keep" ,"/file1", "/file2"])
         mock_add.assert_called_with(Branch.Keep, [T.Path("/file1"), T.Path("/file2")])
         mock_remove.assert_not_called()
+
+    # Test for log warning message about symlink
+    @mock.patch('bin.vault.untrack')
+    @mock.patch('bin.vault.add')
+    def test_keep_files_symlink(self, mock_add, mock_remove):
+        
+        self._tmp = TemporaryDirectory()
+        path = T.Path(self._tmp.name).resolve()
+        # Form a directory hierarchy
+        filepath = path / "a"
+        symlink= path / "b"
+        filepath.touch()
+        os.symlink(filepath, symlink)
+      
+        main(["__init__","keep" , str(symlink)])
+        mock_add.assert_called_with(Branch.Keep, [filepath])
+        mock_remove.assert_not_called()
+        self._tmp.cleanup()
+
+    # Test for log warning message about symlink in fofn case
+    @mock.patch('bin.vault.untrack')
+    def test_symlink_fofn(self, mock_untrack):
+        self._tmp = TemporaryDirectory()
+        path = T.Path(self._tmp.name).resolve()
+        # Form temporary files
+        filepath = path / "a"
+        symlink= path / "b"
+        filepath.touch()
+        os.symlink(filepath, symlink)
+        with mock.patch("builtins.open", new_callable=mock_open, read_data=f"{symlink}\n"):
+            main(["__init__","untrack" ,"--fofn", "mock_file"])
+            args = mock_untrack.call_args.args
+            files = list(args[0])
+            self.assertEqual(files , [filepath])
+        self._tmp.cleanup()
+
+    @mock.patch("builtins.open", new_callable=mock_open, read_data='/file1\n/file2')
+    @mock.patch('bin.vault.untrack')
+    @mock.patch('bin.vault.add')
+    def test_keep_fofn(self, mock_add, mock_remove, mock_file):
+        main(["__init__","keep" ,"--fofn", "mock_file"])
+        args = mock_add.call_args.args
+        files = list(args[1])
+        branch = args[0]
+        self.assertEqual(files , [T.Path("/file1"), T.Path("/file2")])
+        self.assertEqual(branch, Branch.Keep)
+        mock_remove.assert_not_called()
+
 
     @mock.patch('bin.vault.untrack')
     @mock.patch('bin.vault.view')
@@ -231,6 +280,30 @@ class TestMain(unittest.TestCase):
         mock_add.assert_called_with(Branch.Archive, [T.Path("/file1"), T.Path("/file2")])
         mock_remove.assert_not_called()
 
+    @mock.patch("builtins.open", new_callable=mock_open, read_data='/file1\n/file2')
+    @mock.patch('bin.vault.untrack')
+    @mock.patch('bin.vault.add')
+    def test_archive_fofn(self, mock_add, mock_remove, mock_file):
+        main(["__init__","archive" ,"--fofn", "mock_file"])
+        args = mock_add.call_args.args
+        files = list(args[1])
+        branch = args[0]
+        self.assertEqual(files , [T.Path("/file1"), T.Path("/file2")])
+        self.assertEqual(branch, Branch.Archive)
+        mock_remove.assert_not_called()
+
+    @mock.patch("builtins.open", new_callable=mock_open, read_data='/file1\n/file2')
+    @mock.patch('bin.vault.untrack')
+    @mock.patch('bin.vault.add')
+    def test_archive_stash_fofn(self, mock_add, mock_remove, mock_file):
+        main(["__init__","archive" ,"--stash", "--fofn", "mock_file"])
+        args = mock_add.call_args.args
+        files = list(args[1])
+        branch = args[0]
+        self.assertEqual(files , [T.Path("/file1"), T.Path("/file2")])
+        self.assertEqual(branch, Branch.Stash)
+        mock_remove.assert_not_called()
+
 
     @mock.patch('bin.vault.untrack')
     @mock.patch('bin.vault.add')
@@ -255,7 +328,25 @@ class TestMain(unittest.TestCase):
         mock_recover.assert_called_with(None)
         mock_untrack.assert_not_called()
 
+    @mock.patch("builtins.open", new_callable=mock_open, read_data='/file1\n/file2\n')
+    @mock.patch('bin.vault.untrack')
+    @mock.patch('bin.vault.recover')
+    def test_recover_fofn(self, mock_recover, mock_remove, mock_file):
+        main(["__init__","recover", "--fofn", "mock_file"])
+        args = mock_recover.call_args.args
+        files = list(args[0])
+        self.assertEqual(files , [T.Path("/file1"), T.Path("/file2")])
+        mock_remove.assert_not_called()
+
     @mock.patch('bin.vault.untrack')
     def test_untrack(self, mock_untrack):
         main(["__init__","untrack" ,"/file1", "/file2"])
         mock_untrack.assert_called_with([T.Path("/file1"), T.Path("/file2")])
+
+    @mock.patch("builtins.open", new_callable=mock_open, read_data='/file1\n/file2\n')
+    @mock.patch('bin.vault.untrack')
+    def test_untrack_fofn(self, mock_untrack, mock_file):
+        main(["__init__","untrack" ,"--fofn", "mock_file"])
+        args = mock_untrack.call_args.args
+        files = list(args[0])
+        self.assertEqual(files , [T.Path("/file1"), T.Path("/file2")])
