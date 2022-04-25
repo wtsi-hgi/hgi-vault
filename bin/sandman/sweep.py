@@ -287,11 +287,15 @@ class Sweeper(Loggable):
         log = self.log
         log.debug(f"{file.path} is untracked")
 
-        if not VaultFile(vault, Branch.Limbo, file.path).can_add:
-            # Check we'll actually be able to soft-delete the file
-            # This only needs to be here, as this is the only time
-            # we interact with untracked files automatically
-            raise core.file.exception.UnactionableFile(f"{file.path} can't be actioned")
+        try:
+            if not VaultFile(vault, Branch.Limbo, file.path).can_add:
+                # Check we'll actually be able to soft-delete the file
+                # This only needs to be here, as this is the only time
+                # we interact with untracked files automatically
+                raise core.file.exception.UnactionableFile(f"{file.path} can't be actioned")
+        except core.vault.exception.VaultCorruption:
+            # this will be handled when the file is added to the branch
+            pass
 
         if _can_soft_delete(file):
             if file.locked:

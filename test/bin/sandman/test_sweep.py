@@ -568,10 +568,8 @@ class TestSweeper(unittest.TestCase):
         and then check if the email that is generated mentions
         the right information
         """
-        new_mtime: T.DateTime = time.now() - config.deletion.threshold + max(config.deletion.warnings) - time.delta(seconds = 1)
-        file.touch(self.file_one, mtime=new_mtime, atime=new_mtime)
-
-        dummy_walker = _DummyWalker([(self.vault, File.FromFS(self.file_one), None)])
+        new_time: T.DateTime = time.now() - config.deletion.threshold + max(config.deletion.warnings) - time.delta(seconds = 1)
+        dummy_walker = _DummyWalker([(self.vault, _DummyFile.FromFS(self.file_one, idm, ctime=new_time, mtime=new_time, atime=new_time), None)])
         dummy_persistence = _DummyPersistence(config.persistence, idm)
         MockMailer.file_path = T.Path(self._tmp.name).resolve() / "mail"
         Sweeper(dummy_walker, dummy_persistence, True, MockMailer) # this will make the email
