@@ -262,7 +262,7 @@ class TestSweeper(unittest.TestCase):
     # Behavior:  Sweeper does not delete staged files
     @mock.patch('bin.sandman.walk.idm', new = dummy_idm)
     @mock.patch('bin.vault._create_vault')
-    def test_dryrun_staged(self, vault_mock):
+    def test_staged_not_deleted(self, vault_mock):
         vault_file_one = self.vault.add(Branch.Staged, self.file_one)
         self.file_one.unlink()
 
