@@ -25,11 +25,13 @@ import os
 
 from . import time, typing as T
 
+
 class exception(T.SimpleNamespace):
     """Namespace of exceptions"""
 
     class UnactionableFile(Exception):
         """Raised when a file isn't actionable"""
+
 
 class BaseFile(metaclass=ABCMeta):
     """ Base class for files """
@@ -49,7 +51,7 @@ def cwd() -> T.Path:
     return T.Path.cwd()
 
 
-def delete(path:T.Path) -> None:
+def delete(path: T.Path) -> None:
     """
     Delete the given file
 
@@ -60,7 +62,7 @@ def delete(path:T.Path) -> None:
     path.unlink()
 
 
-def inode_id(path:T.Path) -> int:
+def inode_id(path: T.Path) -> int:
     """
     Return the inode ID for the given file, without following symlinks
 
@@ -70,7 +72,7 @@ def inode_id(path:T.Path) -> int:
     return path.stat().st_ino
 
 
-def is_regular(path:T.Path) -> bool:
+def is_regular(path: T.Path) -> bool:
     """
     Check whether the given path is a regular file
 
@@ -81,7 +83,7 @@ def is_regular(path:T.Path) -> bool:
     return (not path.is_symlink()) and path.is_file()
 
 
-def hardlinks(path:T.Path) -> int:
+def hardlinks(path: T.Path) -> int:
     """
     Return the number of hardlinks for the given file
 
@@ -91,7 +93,7 @@ def hardlinks(path:T.Path) -> int:
     return path.stat().st_nlink
 
 
-def touch(path:T.Path, atime:T.Optional[T.DateTime] = None, mtime:T.Optional[T.DateTime] = None) -> None:
+def touch(path: T.Path, atime: T.Optional[T.DateTime] = None, mtime: T.Optional[T.DateTime] = None) -> None:
     """
     Update the access and/or modification time of a given file
 
@@ -109,8 +111,10 @@ def touch(path:T.Path, atime:T.Optional[T.DateTime] = None, mtime:T.Optional[T.D
         new_utime = None
     else:
         file_stat = path.stat()
-        new_atime = file_stat.st_atime if atime is None else time.timestamp(atime)
-        new_mtime = file_stat.st_mtime if mtime is None else time.timestamp(mtime)
+        new_atime = file_stat.st_atime if atime is None else time.timestamp(
+            atime)
+        new_mtime = file_stat.st_mtime if mtime is None else time.timestamp(
+            mtime)
         new_utime = (new_atime, new_mtime)
 
     os.utime(path, times=new_utime)

@@ -31,10 +31,11 @@ from bin.common import version
 
 @dataclass
 class _ActionText:
-    help:str
-    view_help:T.Optional[str] = None
+    help: str
+    view_help: T.Optional[str] = None
     usage: T.Optional[str] = None
     args_error: T.Optional[str] = None
+
 
 _absolute_help: str = "use absolute file paths"
 _view_mode_help: str = """
@@ -59,16 +60,17 @@ _actions = {
     "untrack": _ActionText("untrack files annotated for retention or archival"),
 
     "recover": _ActionText("file recovery operations",
-                            f"view recoverable files | {_view_mode_help}",
-                            "%(prog)s [-h] (--view [{all | here | mine}] [--absolute] | --all | FILE [FILE...])",
-                            "one of the arguments --view or --all or FILE is required")
+                           f"view recoverable files | {_view_mode_help}",
+                           "%(prog)s [-h] (--view [{all | here | mine}] [--absolute] | --all | FILE [FILE...])",
+                           "one of the arguments --view or --all or FILE is required")
 }
 
 
 def _parser_factory():
     """ Build an argument parser meeting requirements """
     top_level = argparse.ArgumentParser("vault")
-    top_level.add_argument("--version", action="version", version=f"%(prog)s {version.vault}")
+    top_level.add_argument("--version", action="version",
+                           version=f"%(prog)s {version.vault}")
 
     sub_level = top_level.add_subparsers(
         description="Operations on files against their respective vault",
@@ -79,51 +81,49 @@ def _parser_factory():
     action_level = {}
 
     action = "keep"
-    sub_parser = sub_level.add_parser(action, help= _actions[action].help)
+    sub_parser = sub_level.add_parser(action, help=_actions[action].help)
     sub_parser.usage = _actions[action].usage
     sub_parser.add_argument(
-                "--view",
-                choices=["all", "here", "mine"],
-                nargs="?",
-                const="all",
-                help=_actions[action].view_help)
+        "--view",
+        choices=["all", "here", "mine"],
+        nargs="?",
+        const="all",
+        help=_actions[action].view_help)
 
     sub_parser.add_argument(
-                "--absolute",
-                action="store_true",
-                help=_absolute_help
+        "--absolute",
+        action="store_true",
+        help=_absolute_help
     )
 
-    
     files_mutually_exclusive_group = sub_parser.add_mutually_exclusive_group()
 
     files_mutually_exclusive_group.add_argument(
-            "--fofn",
-            nargs="?",
-            type=T.Path,
-            help=f"file of file names to keep",
-            metavar="FOFN")
+        "--fofn",
+        nargs="?",
+        type=T.Path,
+        help=f"file of file names to keep",
+        metavar="FOFN")
 
     files_mutually_exclusive_group.add_argument(
-            "files",
-            nargs="*",
-            type=T.Path,
-            default=[],
-            help=f"file to keep (at most 10)",
-            metavar="FILE")
-
+        "files",
+        nargs="*",
+        type=T.Path,
+        default=[],
+        help=f"file to keep (at most 10)",
+        metavar="FILE")
 
     action = "archive"
-    sub_parser = sub_level.add_parser(action, help= _actions[action].help)
+    sub_parser = sub_level.add_parser(action, help=_actions[action].help)
     sub_parser.usage = _actions[action].usage
     archive_mutually_exclusive_group = sub_parser.add_mutually_exclusive_group()
     archive_mutually_exclusive_group.add_argument(
-                "--view",
-                nargs="?",
-                const="all",
-                choices=["all", "here", "mine"],
-                help=_actions[action].view_help)
-    
+        "--view",
+        nargs="?",
+        const="all",
+        choices=["all", "here", "mine"],
+        help=_actions[action].view_help)
+
     archive_mutually_exclusive_group.add_argument(
         "--view-staged",
         nargs="?",
@@ -133,96 +133,91 @@ def _parser_factory():
     )
     archive_mutually_exclusive_group.add_argument(
         "--stash",
-         action="store_true",
-         help= "archive without deleting the source file"
+        action="store_true",
+        help="archive without deleting the source file"
     )
     sub_parser.add_argument(
-                "--absolute",
-                action="store_true",
-                help=_absolute_help
+        "--absolute",
+        action="store_true",
+        help=_absolute_help
     )
-
 
     files_mutually_exclusive_group = sub_parser.add_mutually_exclusive_group()
 
     files_mutually_exclusive_group.add_argument(
-            "--fofn",
-            nargs="?",
-            type=T.Path,
-            help=f"file of file names to archive",
-            metavar="FOFN")
+        "--fofn",
+        nargs="?",
+        type=T.Path,
+        help=f"file of file names to archive",
+        metavar="FOFN")
 
     files_mutually_exclusive_group.add_argument(
-            "files",
-            nargs="*",
-            type=T.Path,
-            default=[],
-            help=f"file to archive (at most 10)",
-            metavar="FILE")
-    
-   
+        "files",
+        nargs="*",
+        type=T.Path,
+        default=[],
+        help=f"file to archive (at most 10)",
+        metavar="FILE")
+
     action = "recover"
-    sub_parser = sub_level.add_parser(action, help= _actions[action].help)
+    sub_parser = sub_level.add_parser(action, help=_actions[action].help)
     sub_parser.usage = _actions[action].usage
     sub_parser.add_argument(
-                "--view",
-                nargs="?",
-                const="all",
-                choices=["all", "here", "mine"],
-                help=_actions[action].view_help)
+        "--view",
+        nargs="?",
+        const="all",
+        choices=["all", "here", "mine"],
+        help=_actions[action].view_help)
 
     sub_parser.add_argument(
-                "--absolute",
-                action="store_true",
-                help=_absolute_help
+        "--absolute",
+        action="store_true",
+        help=_absolute_help
     )
 
     sub_parser.add_argument(
-                "--all",
-                action="store_true",
-                help="recover all recoverable files")
+        "--all",
+        action="store_true",
+        help="recover all recoverable files")
 
-   
     files_mutually_exclusive_group = sub_parser.add_mutually_exclusive_group()
 
     files_mutually_exclusive_group.add_argument(
-            "--fofn",
-            nargs="?",
-            type=T.Path,
-            help=f"file of file names to recover",
-            metavar="FOFN")
+        "--fofn",
+        nargs="?",
+        type=T.Path,
+        help=f"file of file names to recover",
+        metavar="FOFN")
 
     files_mutually_exclusive_group.add_argument(
-            "files",
-            nargs="*",
-            default=[],
-            type=T.Path,
-            help=f"file to recover",
-            metavar="FILE")
-
+        "files",
+        nargs="*",
+        default=[],
+        type=T.Path,
+        help=f"file to recover",
+        metavar="FILE")
 
     action = "untrack"
-    sub_parser = sub_level.add_parser(action, help= _actions[action].help)
+    sub_parser = sub_level.add_parser(action, help=_actions[action].help)
 
     files_mutually_exclusive_group = sub_parser.add_mutually_exclusive_group()
 
     files_mutually_exclusive_group.add_argument(
-            "--fofn",
-            nargs="?",
-            type=T.Path,
-            help=f"file of file names to untrack",
-            metavar="FOFN")
+        "--fofn",
+        nargs="?",
+        type=T.Path,
+        help=f"file of file names to untrack",
+        metavar="FOFN")
 
     files_mutually_exclusive_group.add_argument(
-            "files",
-            nargs="*",
-            type=T.Path,
-            default=[],
-            help=f"file to untrack",
-            metavar="FILE")
+        "files",
+        nargs="*",
+        type=T.Path,
+        default=[],
+        help=f"file to untrack",
+        metavar="FILE")
 
- 
-    def parser(args:T.List[str]) -> argparse.Namespace:
+    def parser(args: T.List[str]) -> argparse.Namespace:
         # Parse the given arguments and ensure mutual exclusivity
         parsed = top_level.parse_args(args)
         text = _actions[parsed.action]
@@ -234,44 +229,54 @@ def _parser_factory():
                 del parsed.fofn
             else:
                 if parsed.absolute:
-                    action_level[parsed.action].error("you must use --view flag to use --absolute flag")
+                    action_level[parsed.action].error(
+                        "you must use --view flag to use --absolute flag")
                 if not parsed.files and not parsed.fofn:
-                    action_level[parsed.action].error(_actions[parsed.action].args_error)
+                    action_level[parsed.action].error(
+                        _actions[parsed.action].args_error)
                 elif len(parsed.files) > 10:
                     # Limit number of files to at most 10
-                    action_level[parsed.action].error("too many FILEs; you may specify no more than 10")
-           
+                    action_level[parsed.action].error(
+                        "too many FILEs; you may specify no more than 10")
+
         if parsed.action == "archive":
             if parsed.view or parsed.view_staged:
                 del parsed.files
                 del parsed.fofn
             else:
                 if parsed.absolute:
-                    action_level[parsed.action].error("you must use --view flag or --view-staged flag to use --absolute flag")
+                    action_level[parsed.action].error(
+                        "you must use --view flag or --view-staged flag to use --absolute flag")
                 if not parsed.files and not parsed.fofn:
-                    action_level[parsed.action].error(_actions[parsed.action].args_error)
+                    action_level[parsed.action].error(
+                        _actions[parsed.action].args_error)
                 elif len(parsed.files) > 10:
                     # Limit number of files to at most 10
-                    action_level[parsed.action].error("too many FILEs; you may specify no more than 10")
+                    action_level[parsed.action].error(
+                        "too many FILEs; you may specify no more than 10")
 
         if parsed.action == "recover":
             if parsed.view or (parsed.all and not parsed.absolute):
                 del parsed.files
                 del parsed.fofn
                 if parsed.view and parsed.all:
-                    action_level[parsed.action].error("cannot accept arguments --view and --all simultaneously")
+                    action_level[parsed.action].error(
+                        "cannot accept arguments --view and --all simultaneously")
             else:
                 if parsed.absolute:
-                    action_level[parsed.action].error("you must use --view flag to use --absolute flag")
+                    action_level[parsed.action].error(
+                        "you must use --view flag to use --absolute flag")
                 if not parsed.files and not parsed.fofn:
-                    action_level[parsed.action].error(_actions[parsed.action].args_error)
+                    action_level[parsed.action].error(
+                        _actions[parsed.action].args_error)
 
         def _resolve_path(path: T.Path) -> T.Path:
             resolved_path = path.resolve()
             if path.is_symlink():
-                log.warning(f"{path} is a symlink. Acting on the original file: {resolved_path}")
+                log.warning(
+                    f"{path} is a symlink. Acting on the original file: {resolved_path}")
             return resolved_path
-        
+
         if "files" in parsed and parsed.files:
             # Resolve all paths
             parsed.files = [_resolve_path(path) for path in parsed.files]
@@ -279,7 +284,7 @@ def _parser_factory():
         if "fofn" in parsed and parsed.fofn is not None:
 
             def _create_fofn_generator(fofn: T.Path) -> T.Iterator[T.Path]:
-                # Check: Any problems with yield from within a context manager?   
+                # Check: Any problems with yield from within a context manager?
                 with open(fofn) as file:
                     while file_line := file.readline():
                         filepath = T.Path(file_line.rstrip())

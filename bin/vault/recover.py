@@ -71,8 +71,9 @@ def derelativise(path: T.Path, working_directory: T.Path, vault_root: T.Path) ->
     output: this/is/relative/path
     """
 
-    full_path = (vault_root/ working_directory / path).resolve()
+    full_path = (vault_root / working_directory / path).resolve()
     return T.Path(relpath(full_path, vault_root))
+
 
 def move_with_path_safety_checks(full_source_path: T.Path, full_dest_path: T.Path) -> None:
     """
@@ -86,11 +87,14 @@ def move_with_path_safety_checks(full_source_path: T.Path, full_dest_path: T.Pat
     """
 
     if not full_source_path.exists():
-        raise exception.NoSourceFound(f"Source file {full_source_path} does not exist")
+        raise exception.NoSourceFound(
+            f"Source file {full_source_path} does not exist")
     if not full_dest_path.parent.exists():
-        raise exception.NoParentForDestination(f"Source path exists {full_source_path} but destination parent {full_dest_path.parent} does not exist")
+        raise exception.NoParentForDestination(
+            f"Source path exists {full_source_path} but destination parent {full_dest_path.parent} does not exist")
     if full_dest_path.exists():
-        raise exception.DestinationAlreadyExists(f"Destination {full_dest_path} already has an existing file")
+        raise exception.DestinationAlreadyExists(
+            f"Destination {full_dest_path} already has an existing file")
 
     full_source_path.replace(full_dest_path)
     log.debug(f"{full_source_path} moved to {full_dest_path} ")

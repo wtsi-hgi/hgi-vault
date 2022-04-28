@@ -22,16 +22,20 @@ import unittest
 from hot.combinator import agreed, exception
 
 
-_noop = lambda _: None
+def _noop(_): return None
+
 
 def _square(x):
     return x * x
 
+
 def _another_square(x):
     return x ** 2
 
+
 def _broken_square(x):
     return x
+
 
 def _really_broken(x):
     raise Exception("Oh the humanity!")

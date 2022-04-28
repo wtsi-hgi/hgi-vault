@@ -30,14 +30,14 @@ from . import typing as T, time
 
 class Level(Enum):
     """ Convenience enumeration for logging levels """
-    Debug    = logging.DEBUG
-    Info     = logging.INFO
-    Warning  = logging.WARNING
-    Error    = logging.ERROR
+    Debug = logging.DEBUG
+    Info = logging.INFO
+    Warning = logging.WARNING
+    Error = logging.ERROR
     Critical = logging.CRITICAL
 
 
-def _equal_stream_handlers(lhs:logging.StreamHandler, rhs:logging.StreamHandler) -> bool:
+def _equal_stream_handlers(lhs: logging.StreamHandler, rhs: logging.StreamHandler) -> bool:
     """
     Check two stream handlers (n.b., file handlers are stream handlers)
     are equal, by virtue of having the same stream name, level and
@@ -49,8 +49,9 @@ def _equal_stream_handlers(lhs:logging.StreamHandler, rhs:logging.StreamHandler)
     @return  Equality
     """
     return lhs.stream.name == rhs.stream.name \
-       and lhs.level == rhs.level \
-       and lhs.formatter == rhs.formatter
+        and lhs.level == rhs.level \
+        and lhs.formatter == rhs.formatter
+
 
 class _LoggableMixin:
     """ Base mixin class for logging interface """
@@ -59,9 +60,9 @@ class _LoggableMixin:
     # a different _level will change that value for that logger, but not
     # any handlers that have already been defined. This is a bit messy,
     # but it's to facilitate the easy definition of downstream mixins
-    _logger:str
-    _level:Level
-    _formatter:logging.Formatter
+    _logger: str
+    _level: Level
+    _formatter: logging.Formatter
 
     @property
     def logger(self) -> logging.Logger:
@@ -77,27 +78,27 @@ class _LoggableMixin:
         parent = self
 
         class _wrapper:
-            def __call__(self, message:str, level:Level = Level.Info) -> None:
+            def __call__(self, message: str, level: Level = Level.Info) -> None:
                 """ Log a message at an optional level """
                 parent.logger.log(level.value, message)
 
-            def debug(self, message:str) -> None:
+            def debug(self, message: str) -> None:
                 # Convenience alias
                 self(message, Level.Debug)
 
-            def info(self, message:str) -> None:
+            def info(self, message: str) -> None:
                 # Convenience alias
                 self(message, Level.Info)
 
-            def warning(self, message:str) -> None:
+            def warning(self, message: str) -> None:
                 # Convenience alias
                 self(message, Level.Warning)
 
-            def error(self, message:str) -> None:
+            def error(self, message: str) -> None:
                 # Convenience alias
                 self(message, Level.Error)
 
-            def critical(self, message:str) -> None:
+            def critical(self, message: str) -> None:
                 # Convenience alias
                 self(message, Level.Critical)
 
@@ -106,7 +107,7 @@ class _LoggableMixin:
                 """ Iterator of StreamHandlers on the logger """
                 yield from filter(lambda h: isinstance(h, logging.StreamHandler), parent.logger.handlers)
 
-            def _to_stream(self, handler:logging.StreamHandler, formatter:T.Optional[logging.Formatter] = None, level:T.Optional[Level] = None) -> None:
+            def _to_stream(self, handler: logging.StreamHandler, formatter: T.Optional[logging.Formatter] = None, level: T.Optional[Level] = None) -> None:
                 """ Add a new stream handler to the logger """
                 handler.setFormatter(formatter or parent._formatter)
                 handler.setLevel((level or parent._level).value)
@@ -114,18 +115,19 @@ class _LoggableMixin:
                 if not any(_equal_stream_handlers(handler, stream) for stream in self._streams):
                     parent.logger.addHandler(handler)
 
-            def to_tty(self, formatter:T.Optional[logging.Formatter] = None, level:T.Optional[Level] = None) -> None:
+            def to_tty(self, formatter: T.Optional[logging.Formatter] = None, level: T.Optional[Level] = None) -> None:
                 # Convenience alias
                 self._to_stream(logging.StreamHandler(), formatter, level)
 
-            def to_file(self, filename:T.Path, formatter:T.Optional[logging.Formatter] = None, level:T.Optional[Level] = None) -> None:
+            def to_file(self, filename: T.Path, formatter: T.Optional[logging.Formatter] = None, level: T.Optional[Level] = None) -> None:
                 # Convenience alias
-                self._to_stream(logging.FileHandler(filename), formatter, level)
+                self._to_stream(logging.FileHandler(
+                    filename), formatter, level)
 
         return _wrapper()
 
 
-def _set_exception_handler(loggable:T.Type[_LoggableMixin]) -> None:
+def _set_exception_handler(loggable: T.Type[_LoggableMixin]) -> None:
     """
     Create an exception handler that logs uncaught exceptions (except
     keyboard interrupts) and spews the traceback to stderr (in debugging
@@ -133,7 +135,7 @@ def _set_exception_handler(loggable:T.Type[_LoggableMixin]) -> None:
 
     @param   loggable  Loggable mixin class
     """
-    def _log_uncaught_exception(exc_type:T.Type[Exception], exc_val:Exception, traceback:TracebackType) -> None:
+    def _log_uncaught_exception(exc_type: T.Type[Exception], exc_val: Exception, traceback: TracebackType) -> None:
         if issubclass(exc_type, KeyboardInterrupt):
             sys.__excepthook__(exc_type, exc_val, traceback)
 
@@ -147,7 +149,7 @@ def _set_exception_handler(loggable:T.Type[_LoggableMixin]) -> None:
     sys.excepthook = _log_uncaught_exception
 
 
-def _to_tty(loggable:T.Type[_LoggableMixin]) -> None:
+def _to_tty(loggable: T.Type[_LoggableMixin]) -> None:
     """
     Add a stream handler to the specified loggable mixin
 
@@ -163,15 +165,16 @@ class base(T.SimpleNamespace):
 
 class utils(T.SimpleNamespace):
     """ Namespace of utilities to make importing easier """
-    make_format           = partial(logging.Formatter, datefmt=time.ISO8601)
+    make_format = partial(logging.Formatter, datefmt=time.ISO8601)
     set_exception_handler = _set_exception_handler
-    to_tty                = _to_tty
+    to_tty = _to_tty
 
 
 class formats(T.SimpleNamespace):
     """ Namespace of formatters to make importing easier """
     default = utils.make_format("%(asctime)s\t%(levelname)s\t%(message)s")
-    with_username = utils.make_format(f"%(asctime)s\t%(levelname)s\t{getuser()}\t%(message)s")
+    with_username = utils.make_format(
+        f"%(asctime)s\t%(levelname)s\t{getuser()}\t%(message)s")
 
 
 class levels(T.SimpleNamespace):

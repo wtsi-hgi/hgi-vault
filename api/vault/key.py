@@ -31,16 +31,17 @@ from core.utils import base64
 _PrefixSuffixT = T.Tuple[T.Optional[T.Path], str]
 _default_max_name_length: int = os.pathconf(".", "PC_NAME_MAX")
 
+
 class VaultFileKey(os.PathLike):
     """ HGI vault file key properties """
     # NOTE This is implemented in a separate class to keep that part of
     # the logic outside VaultFile and to decouple it from the filesystem
-    _delimiter:T.ClassVar[str] = "-"
+    _delimiter: T.ClassVar[str] = "-"
 
-    _prefix:T.Optional[T.Path]  # inode prefix path, without the LSB
-    _suffix:str                 # LSB and encoded basename suffix name
+    _prefix: T.Optional[T.Path]  # inode prefix path, without the LSB
+    _suffix: str                 # LSB and encoded basename suffix name
 
-    def __init__(self, path:T.Path, inode:T.Optional[int] = None, max_file_name_length: int = _default_max_name_length) -> None:
+    def __init__(self, path: T.Path, inode: T.Optional[int] = None, max_file_name_length: int = _default_max_name_length) -> None:
         """
         Construct the key from a path and (optional) inode
 
@@ -73,12 +74,12 @@ class VaultFileKey(os.PathLike):
         encoded_path = base64.encode(path)
         max_file_name_length -= 3
         self._suffix = chunks[-1] + self._delimiter + str(
-            T.Path(*[encoded_path[i:i+max_file_name_length] 
-            for i in range(0, len(encoded_path), max_file_name_length)])
+            T.Path(*[encoded_path[i:i+max_file_name_length]
+                     for i in range(0, len(encoded_path), max_file_name_length)])
         )
 
     @classmethod
-    def Reconstruct(cls, key_path:T.Path) -> VaultFileKey:
+    def Reconstruct(cls, key_path: T.Path) -> VaultFileKey:
         """
         Alternative constructor: Reconstruct the key from a key path
 
@@ -89,14 +90,14 @@ class VaultFileKey(os.PathLike):
         return cls(path, inode)
 
     @classmethod
-    def _decode_key(cls, key_path:T.Path) -> T.Tuple[T.Path, int]:
+    def _decode_key(cls, key_path: T.Path) -> T.Tuple[T.Path, int]:
         """ Decode a key path into its original path and inode ID """
         inode_hex, path_b64 = "".join(key_path.parts).split(cls._delimiter)
         return T.Path(base64.decode(path_b64).decode()), int(inode_hex, 16)
 
-    def __eq__(self, rhs:VaultFileKey) -> bool:
+    def __eq__(self, rhs: VaultFileKey) -> bool:
         return self._prefix == rhs._prefix \
-           and self._suffix == rhs._suffix
+            and self._suffix == rhs._suffix
 
     def __bool__(self) -> bool:
         return True
@@ -107,7 +108,7 @@ class VaultFileKey(os.PathLike):
     @cached_property
     def path(self) -> T.Path:
         return T.Path(self._suffix) if self._prefix is None \
-          else T.Path(self._prefix, self._suffix)
+            else T.Path(self._prefix, self._suffix)
 
     @cached_property
     def source(self) -> T.Path:

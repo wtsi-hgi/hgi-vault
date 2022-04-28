@@ -38,27 +38,31 @@ _POOL_MAX = int(os.getenv("PG_POOL_MAX", "10"))
 
 _ExcT = T.TypeVar("_ExcT", bound=persistence.exception.BackendException)
 
-def _exception(heading:str, pg_exc:PGError, exc_type:T.Type[_ExcT]) -> _ExcT:
+
+def _exception(heading: str, pg_exc: PGError, exc_type: T.Type[_ExcT]) -> _ExcT:
     message = f"{heading} {pg_exc.pgcode}"
     if pg_exc.pgerror:
         message += f"\n{pg_exc.pgerror}"
 
     return exc_type(message)
 
+
 @singledispatch
-def _exception_mapper(exc:PGError) -> persistence.exception.BackendException:
+def _exception_mapper(exc: PGError) -> persistence.exception.BackendException:
     # Fallback to BackendException
     return _exception("PostgreSQL error", exc, persistence.exception.BackendException)
 
+
 @_exception_mapper.register
-def _(exc:RaiseException) -> persistence.exception.LogicException:
+def _(exc: RaiseException) -> persistence.exception.LogicException:
     # RaiseException -> LogicException
     return _exception("PL/pgSQL exception", exc, persistence.exception.LogicException)
 
+
 class _BaseSession(AbstractContextManager, metaclass=ABCMeta):
     """ Abstract base class for session context managers """
-    _connection:BaseConnection
-    _cursor:BaseCursor
+    _connection: BaseConnection
+    _cursor: BaseCursor
 
     def __enter__(self) -> BaseCursor:
         self.session()
@@ -88,12 +92,13 @@ class _BaseSession(AbstractContextManager, metaclass=ABCMeta):
     def teardown(self) -> None:
         """ Teardown session state """
 
+
 class Transaction(_BaseSession):
     """ Transaction context manager, using an injected connection pool """
-    _pool:AbstractConnectionPool
-    _autocommit:bool
+    _pool: AbstractConnectionPool
+    _autocommit: bool
 
-    def __init__(self, *, pool:AbstractConnectionPool, autocommit:bool) -> None:
+    def __init__(self, *, pool: AbstractConnectionPool, autocommit: bool) -> None:
         self._pool = pool
         self._autocommit = autocommit
 
@@ -116,19 +121,20 @@ class PostgreSQL:
     Maintain a thread-safe connection pool and provide convenience
     methods for downstream, with dotted access to cursor results
     """
-    _pool:AbstractConnectionPool
+    _pool: AbstractConnectionPool
 
-    def __init__(self, *, database:str, user:str, password:str, host:str, port:int = 5432) -> None:
+    def __init__(self, *, database: str, user: str, password: str, host: str, port: int = 5432) -> None:
         dsn = f"dbname={database} user={user} password={password} host={host} port={port}"
-        self._pool = ThreadedConnectionPool(_POOL_MIN, _POOL_MAX, dsn, cursor_factory=NamedTupleCursor)
+        self._pool = ThreadedConnectionPool(
+            _POOL_MIN, _POOL_MAX, dsn, cursor_factory=NamedTupleCursor)
 
     def __del__(self) -> None:
         self._pool.closeall()
 
-    def transaction(self, autocommit:bool = False) -> Transaction:
+    def transaction(self, autocommit: bool = False) -> Transaction:
         return Transaction(pool=self._pool, autocommit=autocommit)
 
-    def execute_script(self, sql:T.Path) -> None:
+    def execute_script(self, sql: T.Path) -> None:
         """
         Execute the given SQL script against the database
 

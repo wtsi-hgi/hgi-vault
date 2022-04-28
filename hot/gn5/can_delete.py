@@ -21,7 +21,7 @@ from core import typing as T
 from core.file import BaseFile
 
 
-def can_delete(file:BaseFile, threshold:T.TimeDelta) -> bool:
+def can_delete(file: BaseFile, threshold: T.TimeDelta) -> bool:
     """ This function should return truthfully
           if the file's age meets or exceeds the threshold.
         It should return false otherwise. """

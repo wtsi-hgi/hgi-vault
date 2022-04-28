@@ -18,29 +18,28 @@ Public License for more details.
 You should have received a copy of the GNU General Public License along
 with this program. If not, see https://www.gnu.org/licenses/
 """
+import argparse
+from core import typing as T
+from bin.vault.usage import parse_args
 import unittest
 
 import os
 os.environ["VAULTRC"] = "eg/.vaultrc"
-from bin.vault.usage import parse_args
-from core import typing as T
-import argparse
-
 
 
 class TestUsage(unittest.TestCase):
 
     def test_keep(self):
-        args = parse_args(["keep" ,"/file1", "/file2"])
+        args = parse_args(["keep", "/file1", "/file2"])
         expected = [T.Path("/file1"), T.Path("/file2")]
         self.assertEqual(args.files, expected)
 
     def test_keep_view(self):
-        args = parse_args(["keep" ,"--view"])
+        args = parse_args(["keep", "--view"])
         self.assertTrue(args.view)
 
     def test_keep_file_view(self):
-        args = parse_args(["keep" ,"/file1", "--view"])
+        args = parse_args(["keep", "/file1", "--view"])
         self.assertTrue(args.view)
 
         success = False
@@ -51,21 +50,21 @@ class TestUsage(unittest.TestCase):
         self.assertTrue(success)
 
     def test_keep_extra_files(self):
-        args = ["keep" ,"/file1", "/file2", "/file3", "/file4",
-            "/file5", "/file6", "/file7", "/file8", "/file9", "/file10", "/file11"]
+        args = ["keep", "/file1", "/file2", "/file3", "/file4",
+                "/file5", "/file6", "/file7", "/file8", "/file9", "/file10", "/file11"]
         self.assertRaises(KeyError, parse_args, args)
 
     def test_archive(self):
-        args = parse_args(["archive" ,"/file1", "/file2"])
+        args = parse_args(["archive", "/file1", "/file2"])
         expected = [T.Path("/file1"), T.Path("/file2")]
         self.assertEqual(args.files, expected)
 
     def test_archive_view(self):
-        args = parse_args(["archive" ,"--view"])
+        args = parse_args(["archive", "--view"])
         self.assertTrue(args.view)
 
     def test_archive_file_view(self):
-        args = parse_args(["archive" ,"/file1", "--view"])
+        args = parse_args(["archive", "/file1", "--view"])
         self.assertTrue(args.view)
 
         success = False
@@ -76,33 +75,33 @@ class TestUsage(unittest.TestCase):
         self.assertTrue(success)
 
     def test_archive_extra_files(self):
-        args = ["archive" ,"/file1", "/file2", "/file3", "/file4",
-            "/file5", "/file6", "/file7", "/file8", "/file9", "/file10", "/file11"]
+        args = ["archive", "/file1", "/file2", "/file3", "/file4",
+                "/file5", "/file6", "/file7", "/file8", "/file9", "/file10", "/file11"]
         self.assertRaises(KeyError, parse_args, args)
 
     def test_recover(self):
-        args = parse_args(["recover" ,"/file1", "/file2"])
+        args = parse_args(["recover", "/file1", "/file2"])
         expected = [T.Path("/file1"), T.Path("/file2")]
         self.assertEqual(args.files, expected)
 
     def test_recover_view(self):
-        args = parse_args(["recover" ,"--view"])
+        args = parse_args(["recover", "--view"])
         self.assertTrue(args.view)
 
     def test_recover_all(self):
-        args = parse_args(["recover" ,"--all"])
+        args = parse_args(["recover", "--all"])
         self.assertTrue(args.all)
 
     def test_recover_view_all(self):
-        args = ["recover" ,"--all", "--view"]
+        args = ["recover", "--all", "--view"]
         self.assertRaises(KeyError, parse_args, args)
 
     def test_recover_view_all(self):
-        args = ["recover" ,"--view", "--all"]
+        args = ["recover", "--view", "--all"]
         self.assertRaises(KeyError, parse_args, args)
 
     def test_recover_file_view(self):
-        args = parse_args(["recover" ,"/file1", "--view"])
+        args = parse_args(["recover", "/file1", "--view"])
         self.assertTrue(args.view)
 
         success = False
@@ -113,7 +112,7 @@ class TestUsage(unittest.TestCase):
         self.assertTrue(success)
 
     def test_recover_file_all(self):
-        args = parse_args(["recover" ,"/file1", "--all"])
+        args = parse_args(["recover", "/file1", "--all"])
         self.assertTrue(args.all)
 
         success = False
@@ -124,7 +123,7 @@ class TestUsage(unittest.TestCase):
         self.assertTrue(success)
 
     def test_recover_all_file(self):
-        args = parse_args(["recover" ,"--all", "/file1"])
+        args = parse_args(["recover", "--all", "/file1"])
         self.assertTrue(args.all)
 
         success = False
@@ -134,9 +133,8 @@ class TestUsage(unittest.TestCase):
             success = True
         self.assertTrue(success)
 
-
     def test_recover_file_view(self):
-        args = parse_args(["recover" ,"/file1", "--view"])
+        args = parse_args(["recover", "/file1", "--view"])
         self.assertTrue(args.view)
 
         success = False
@@ -149,17 +147,18 @@ class TestUsage(unittest.TestCase):
     def test_recover_view_file(self):
         success = False
         try:
-            parse_args(["recover" , "--view", "/file1"])
+            parse_args(["recover", "--view", "/file1"])
         except (argparse.ArgumentError, SystemExit):
             success = True
         self.assertTrue(success)
 
     def test_recover_extra_files(self):
-        args = parse_args(["recover" ,"/file1", "/file2", "/file3", "/file4",
-            "/file5", "/file6", "/file7", "/file8", "/file9", "/file10", "/file11"])
+        args = parse_args(["recover", "/file1", "/file2", "/file3", "/file4",
+                           "/file5", "/file6", "/file7", "/file8", "/file9", "/file10", "/file11"])
         expected = [T.Path("/file1"), T.Path("/file2"), T.Path("/file3"),
-        T.Path("/file4"), T.Path("/file5"), T.Path("/file6"), T.Path("/file7"),
-         T.Path("/file8"), T.Path("/file9"), T.Path("/file10"), T.Path("/file11")]
+                    T.Path(
+                        "/file4"), T.Path("/file5"), T.Path("/file6"), T.Path("/file7"),
+                    T.Path("/file8"), T.Path("/file9"), T.Path("/file10"), T.Path("/file11")]
 
         self.assertEqual(args.files, expected)
 
@@ -173,41 +172,39 @@ class TestUsage(unittest.TestCase):
         self.assertRaises(SystemExit, parse_args, args)
 
     def test_stash(self):
-        args= parse_args(["archive", "--stash", "/file1", "/file2"])
+        args = parse_args(["archive", "--stash", "/file1", "/file2"])
         expected = [T.Path("/file1"), T.Path("/file2")]
         self.assertEqual(args.files, expected)
 
     def test_stash_exception_keep(self):
-        
-        args= ["keep", "--stash", "/file1", "/file2"]
+
+        args = ["keep", "--stash", "/file1", "/file2"]
         self.assertRaises(SystemExit, parse_args, args)
-        
+
     def test_stash_exception_view(self):
-               
-        args= ["archive", "--stash", "--view"]
+
+        args = ["archive", "--stash", "--view"]
         self.assertRaises(SystemExit, parse_args, args)
 
-        args= ["archive", "--view", "--stash"]
+        args = ["archive", "--view", "--stash"]
         self.assertRaises(SystemExit, parse_args, args)
 
-        args= ["archive", "--stash"]
+        args = ["archive", "--stash"]
         self.assertRaises(KeyError, parse_args, args)
 
     def test_file_exception_fofn(self):
-        
-        args= ["archive", "--stash", "/file1", "/file2", "--fofn" "/file3"]
-        self.assertRaises(SystemExit, parse_args, args)
-     
-        args= ["archive", "--fofn" "/file3", "/file1", "/file2"]
-        self.assertRaises(SystemExit, parse_args, args)
-        
-        args= ["keep", "--fofn" "/file3", "/file1", "/file2"]
+
+        args = ["archive", "--stash", "/file1", "/file2", "--fofn" "/file3"]
         self.assertRaises(SystemExit, parse_args, args)
 
-        args= ["recover", "--fofn" "/file3", "/file1", "/file2"]
-        self.assertRaises(SystemExit, parse_args, args)
-        
-        args= ["untrack", "--fofn" "/file3", "/file1", "/file2"]
+        args = ["archive", "--fofn" "/file3", "/file1", "/file2"]
         self.assertRaises(SystemExit, parse_args, args)
 
+        args = ["keep", "--fofn" "/file3", "/file1", "/file2"]
+        self.assertRaises(SystemExit, parse_args, args)
 
+        args = ["recover", "--fofn" "/file3", "/file1", "/file2"]
+        self.assertRaises(SystemExit, parse_args, args)
+
+        args = ["untrack", "--fofn" "/file3", "/file1", "/file2"]
+        self.assertRaises(SystemExit, parse_args, args)

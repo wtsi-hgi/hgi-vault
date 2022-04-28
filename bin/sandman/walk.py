@@ -52,32 +52,32 @@ class InvalidVaultBases(Exception):
 
 class File(file.BaseFile):
     """ Walked file model (wrapper around persistence file model) """
-    _file:models.File
-    _timestamp:T.DateTime
+    _file: models.File
+    _timestamp: T.DateTime
 
-    def __init__(self, file:models.File, timestamp:T.Optional[T.DateTime] = None) -> None:
+    def __init__(self, file: models.File, timestamp: T.Optional[T.DateTime] = None) -> None:
         """ Construct from filesystem """
         self._file = file
         self._timestamp = timestamp or time.now()
 
     @classmethod
-    def FromFS(cls, path:T.Path) -> File:
+    def FromFS(cls, path: T.Path) -> File:
         """ Construct from filesystem """
         return cls(models.File.FromFS(path, idm))
 
     @classmethod
-    def FromStat(cls, path:T.Path, stat:os.stat_result, timestamp:T.DateTime) -> File:
+    def FromStat(cls, path: T.Path, stat: os.stat_result, timestamp: T.DateTime) -> File:
         """ Construct from explicit stat data """
-        file = models.File(device = stat.st_dev,
-                           inode  = stat.st_ino,
-                           path   = path,
-                           key    = None,
-                           mtime  = time.epoch(stat.st_mtime),
-                           atime  = time.epoch(stat.st_atime),
-                           ctime  = time.epoch(stat.st_ctime),
-                           owner  = idm.user(uid=stat.st_uid),
-                           group  = idm.group(gid=stat.st_gid),
-                           size   = stat.st_size)
+        file = models.File(device=stat.st_dev,
+                           inode=stat.st_ino,
+                           path=path,
+                           key=None,
+                           mtime=time.epoch(stat.st_mtime),
+                           atime=time.epoch(stat.st_atime),
+                           ctime=time.epoch(stat.st_ctime),
+                           owner=idm.user(uid=stat.st_uid),
+                           group=idm.group(gid=stat.st_gid),
+                           size=stat.st_size)
 
         return cls(file, timestamp)
 
@@ -109,7 +109,7 @@ class File(file.BaseFile):
             except OSError:
                 return True
 
-    def restat(self, *, force:bool = False) -> None:
+    def restat(self, *, force: bool = False) -> None:
         """ Forcibly restat the file if it's stale """
         # NOTE We backup and restore the key value because it's set to
         # None in the constructor with no way to override it
@@ -124,7 +124,7 @@ class File(file.BaseFile):
         """ Delete the file """
         file.delete(self.path)
 
-    def to_persistence(self, *, key:T.Optional[T.Path] = None) -> models.File:
+    def to_persistence(self, *, key: T.Optional[T.Path] = None) -> models.File:
         """
         Extract (and restat, if necessary) the persistence file model
 
@@ -150,7 +150,7 @@ class BaseWalker(Loggable, metaclass=ABCMeta):
         """
 
     @staticmethod
-    def _fetch_vaults(*paths:T.Path) -> T.Set[Vault]:
+    def _fetch_vaults(*paths: T.Path) -> T.Set[Vault]:
         """
         Return the Vaults covered by the given paths
 
@@ -166,7 +166,8 @@ class BaseWalker(Loggable, metaclass=ABCMeta):
             try:
                 if (vault := Vault(path, idm=idm, autocreate=False)).root != path:
                     # Safety feature: Only allow Vault root directories
-                    raise InvalidVaultBases(f"The Vault at {path} is rooted at {vault.root}; the Vault root directory must be provided")
+                    raise InvalidVaultBases(
+                        f"The Vault at {path} is rooted at {vault.root}; the Vault root directory must be provided")
 
                 vaults.add(vault)
 
@@ -176,16 +177,18 @@ class BaseWalker(Loggable, metaclass=ABCMeta):
 
         if len(vaults) == 0:
             # Safety feature: Require at least one Vault directory
-            raise InvalidVaultBases("At least one Vault directory must be provided")
+            raise InvalidVaultBases(
+                "At least one Vault directory must be provided")
 
         if len(vaults) != given:
             # Safety feature: Don't allow duplicate entries
-            raise InvalidVaultBases("Duplicate Vault directories detected; check command line arguments")
+            raise InvalidVaultBases(
+                "Duplicate Vault directories detected; check command line arguments")
 
         return vaults
 
     @staticmethod
-    def _vault_status(vault:Vault, path:T.Path) -> _VaultStatusT:
+    def _vault_status(vault: Vault, path: T.Path) -> _VaultStatusT:
         """
         Determine a file's vault branch/exceptional status, if any, for
         downstream processing
@@ -204,9 +207,9 @@ class BaseWalker(Loggable, metaclass=ABCMeta):
 
 class FilesystemWalker(BaseWalker):
     """ Walk the filesystem directly: Expensive, but accurate """
-    _vaults:T.Set[Vault]
+    _vaults: T.Set[Vault]
 
-    def __init__(self, *bases:T.Path) -> None:
+    def __init__(self, *bases: T.Path) -> None:
         """
         Constructor: Set the base paths from which to start the walk.
         Note that any paths that are not directories, don't exist, or
@@ -217,7 +220,7 @@ class FilesystemWalker(BaseWalker):
         self._vaults = self._fetch_vaults(*bases)
 
     @staticmethod
-    def _walk_tree(path:T.Path, vault:Vault) -> T.Iterator[T.Tuple[Vault, File, _VaultStatusT]]:
+    def _walk_tree(path: T.Path, vault: Vault) -> T.Iterator[T.Tuple[Vault, File, _VaultStatusT]]:
         # Recursively walk the tree from the given path
         for f in path.iterdir():
             # NOTE Don't walk symlinked directories: if they're symlinks
@@ -229,8 +232,8 @@ class FilesystemWalker(BaseWalker):
             # We only care about regular files
             elif file.is_regular(f):
                 yield vault, \
-                      File.FromFS(f), \
-                      FilesystemWalker._vault_status(vault, f)
+                    File.FromFS(f), \
+                    FilesystemWalker._vault_status(vault, f)
 
     def files(self) -> T.Iterator[T.Tuple[Vault, File, _VaultStatusT]]:
         for vault in self._vaults:
@@ -238,25 +241,26 @@ class FilesystemWalker(BaseWalker):
 
 
 # mpistat field indices
-_SIZE   = 0
-_OWNER  = 1
-_GROUP  = 2
-_ATIME  = 3
-_MTIME  = 4
-_CTIME  = 5
-_MODE   = 6
-_INODE  = 7
+_SIZE = 0
+_OWNER = 1
+_GROUP = 2
+_ATIME = 3
+_MTIME = 4
+_CTIME = 5
+_MODE = 6
+_INODE = 7
 _NLINKS = 8
 _DEVICE = 9
 
+
 class mpistatWalker(BaseWalker):
     """ Walk an mpistat output file: Cheaper, but imprecise """
-    _mpistat:T.Path
-    _timestamp:T.DateTime
+    _mpistat: T.Path
+    _timestamp: T.DateTime
 
-    _vaults:T.Dict[str, Vault]
+    _vaults: T.Dict[str, Vault]
 
-    def __init__(self, mpistat:T.Path, *bases:T.Path) -> None:
+    def __init__(self, mpistat: T.Path, *bases: T.Path) -> None:
         """
         Constructor: Set the base paths from which to start the walk.
         Note that any paths that are not directories, don't exist, or
@@ -266,7 +270,8 @@ class mpistatWalker(BaseWalker):
         @param  bases    Base paths
         """
         if not mpistat.is_file():
-            raise FileNotFoundError(f"{mpistat} does not exist or is not a file")
+            raise FileNotFoundError(
+                f"{mpistat} does not exist or is not a file")
 
         # mpistat file and its modification timestamp
         self._mpistat = mpistat
@@ -274,7 +279,8 @@ class mpistatWalker(BaseWalker):
 
         # Log a warning if forcible restat'ing is going to happen
         if time.now() - self._timestamp > _RESTAT_AFTER:
-            self.log.warning(f"mpistat file is out of date; files will be forcibly restat'ed")
+            self.log.warning(
+                f"mpistat file is out of date; files will be forcibly restat'ed")
 
         self._vaults = {
             mpistatWalker._base64_prefix(vault.root): vault
@@ -282,14 +288,14 @@ class mpistatWalker(BaseWalker):
         }
 
     @staticmethod
-    def _base64_prefix(path:T.Path) -> str:
+    def _base64_prefix(path: T.Path) -> str:
         # Find the common base64 prefix of a path to optimise searching
-        bare    = base64.encode(path)
+        bare = base64.encode(path)
         slashed = base64.encode(f"{path}/")
 
         return commonprefix([bare, slashed])
 
-    def _is_match(self, encoded_path:str) -> T.Optional[T.Tuple[Vault, T.Path]]:
+    def _is_match(self, encoded_path: str) -> T.Optional[T.Tuple[Vault, T.Path]]:
         """ Check that an encoded path is in one of our vaults """
         for prefix, vault in self._vaults.items():
             if encoded_path.startswith(prefix):
@@ -309,7 +315,7 @@ class mpistatWalker(BaseWalker):
         return None
 
     @staticmethod
-    def _make_stat(*stats:str) -> os.stat_result:
+    def _make_stat(*stats: str) -> os.stat_result:
         """ Convert an mpistat record into an os.stat_result """
         # WARNING os.stat_result does not have a documented interface
         assert len(stats) == 10
@@ -339,5 +345,5 @@ class mpistatWalker(BaseWalker):
 
                     vault, path = match
                     yield vault, \
-                          File.FromStat(path, mpistatWalker._make_stat(*stats), self._timestamp), \
-                          mpistatWalker._vault_status(vault, path)
+                        File.FromStat(path, mpistatWalker._make_stat(*stats), self._timestamp), \
+                        mpistatWalker._vault_status(vault, path)

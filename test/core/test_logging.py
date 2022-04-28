@@ -26,9 +26,10 @@ from core import logging
 
 _mock_logger = MagicMock()
 
+
 class _DummyLogger(logging.base.LoggableMixin):
-    _logger    = "test"
-    _level     = logging.Level.Debug
+    _logger = "test"
+    _level = logging.Level.Debug
     _formatter = logging.formats.default
 
     @property
@@ -42,37 +43,45 @@ class TestLogger(unittest.TestCase):
 
     def test_interface(self):
         _DummyLogger().log("Hello")
-        _mock_logger.log.assert_called_once_with(logging.Level.Info.value, "Hello")
+        _mock_logger.log.assert_called_once_with(
+            logging.Level.Info.value, "Hello")
 
     def test_debug(self):
         _DummyLogger().log.debug("Hello")
-        _mock_logger.log.assert_called_once_with(logging.Level.Debug.value, "Hello")
+        _mock_logger.log.assert_called_once_with(
+            logging.Level.Debug.value, "Hello")
 
     def test_info(self):
         _DummyLogger().log.info("Hello")
-        _mock_logger.log.assert_called_once_with(logging.Level.Info.value, "Hello")
+        _mock_logger.log.assert_called_once_with(
+            logging.Level.Info.value, "Hello")
 
     def test_warning(self):
         _DummyLogger().log.warning("Hello")
-        _mock_logger.log.assert_called_once_with(logging.Level.Warning.value, "Hello")
+        _mock_logger.log.assert_called_once_with(
+            logging.Level.Warning.value, "Hello")
 
     def test_error(self):
         _DummyLogger().log.error("Hello")
-        _mock_logger.log.assert_called_once_with(logging.Level.Error.value, "Hello")
+        _mock_logger.log.assert_called_once_with(
+            logging.Level.Error.value, "Hello")
 
     def test_critical(self):
         _DummyLogger().log.critical("Hello")
-        _mock_logger.log.assert_called_once_with(logging.Level.Critical.value, "Hello")
+        _mock_logger.log.assert_called_once_with(
+            logging.Level.Critical.value, "Hello")
 
     def test_debug(self):
         _DummyLogger().log.debug("Hello")
-        _mock_logger.log.assert_called_once_with(logging.Level.Debug.value, "Hello")
+        _mock_logger.log.assert_called_once_with(
+            logging.Level.Debug.value, "Hello")
 
     @patch("sys.exit")
     def test_unhandled_exception(self, mock_exit):
         logging.utils.set_exception_handler(_DummyLogger)
         sys.excepthook(Exception, Exception("Oh no!"), None)
-        _mock_logger.log.assert_called_once_with(logging.Level.Critical.value, "Oh no!")
+        _mock_logger.log.assert_called_once_with(
+            logging.Level.Critical.value, "Oh no!")
         mock_exit.assert_called_once_with(1)
 
 

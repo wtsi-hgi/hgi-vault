@@ -34,6 +34,7 @@ class _MockOtherUserOwnedFile(PosixPath):
     class _StatResult:
         """_StatResult allows the individual parts of a stat() call to
         be accessed, including our fake owner and group info."""
+
         def __init__(self, stats, id) -> None:
             self.st_gid = id
             self.st_uid = id
@@ -50,7 +51,7 @@ class _MockOtherUserOwnedFile(PosixPath):
     def stat(self):
         """stat() overrides the PosixPath's version, allowing
         us to return whatever stat result we want
-        
+
         We check if the object has the `id` attribute first, because
         the PosixPath class may attempt to create more instances of
         this class, not knowing it needs a fake user/group id
@@ -67,7 +68,7 @@ class MockRootOwnedVaultFile(api.vault.VaultFile):
     """
     @property
     def source(self):
-        return _MockOtherUserOwnedFile(0, super().source) # 0 is root user UID
+        return _MockOtherUserOwnedFile(0, super().source)  # 0 is root user UID
 
 
 class MockOtherUserOwnedVaultFile(api.vault.VaultFile):
@@ -76,4 +77,5 @@ class MockOtherUserOwnedVaultFile(api.vault.VaultFile):
     """
     @property
     def source(self):
-        return _MockOtherUserOwnedFile(-1, super().source) # -1 will never be current UID
+        # -1 will never be current UID
+        return _MockOtherUserOwnedFile(-1, super().source)

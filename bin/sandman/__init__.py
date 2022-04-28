@@ -29,7 +29,7 @@ from .sweep import Sweeper
 from .drain import drain
 
 
-def main(argv:T.List[str] = sys.argv) -> None:
+def main(argv: T.List[str] = sys.argv) -> None:
     args = usage.parse_args(argv[1:])
 
     log.info("Enter Sandman")

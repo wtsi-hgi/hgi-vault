@@ -25,9 +25,9 @@ from hot import ch12, an12, gn5, pa11
 
 
 class _DummyFile(file.BaseFile):
-    _age:T.TimeDelta
+    _age: T.TimeDelta
 
-    def __init__(self, age:T.TimeDelta) -> None:
+    def __init__(self, age: T.TimeDelta) -> None:
         self._age = age
 
     @property
@@ -45,6 +45,7 @@ _implementations = [
     gn5.can_delete,
     pa11.can_delete
 ]
+
 
 class TestCanDelete(unittest.TestCase):
     def test_can_delete(self):

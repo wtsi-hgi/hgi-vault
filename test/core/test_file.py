@@ -28,8 +28,8 @@ from core import file, time, typing as T
 
 class TestFile(unittest.TestCase):
     # NOTE These tests are somewhat pointless
-    _tmp:TemporaryDirectory
-    _path:T.Path
+    _tmp: TemporaryDirectory
+    _path: T.Path
 
     def setUp(self) -> None:
         self._tmp = TemporaryDirectory()
@@ -58,7 +58,7 @@ class TestFile(unittest.TestCase):
 
     def test_is_regular(self) -> None:
         tmp_file = self._path / "foo"
-        symlink  = self._path / "bar"
+        symlink = self._path / "bar"
 
         self.assertTrue(file.is_regular(tmp_file))
         self.assertFalse(file.is_regular(T.Path("/")))

@@ -43,7 +43,7 @@ class exception(T.SimpleNamespace):
         """ Raised when the configuration file cannot be found """
 
 
-def _path(env:str, *paths:T.Path) -> T.Path:
+def _path(env: str, *paths: T.Path) -> T.Path:
     """
     Return the file path of the configuration file from a number of
     options in the given precedence
@@ -66,28 +66,30 @@ def _path(env:str, *paths:T.Path) -> T.Path:
 ValueT = T.Any
 NodeT = T.Mapping[str, ValueT]
 
+
 class _BaseConfig(metaclass=ABCMeta):
     """ Abstract base class for tree-like configuration container """
-    _contents:NodeT
+    _contents: NodeT
 
     @singledispatchmethod
-    def __init__(self, source:T.Any) -> None:
+    def __init__(self, source: T.Any) -> None:
         """ Build the configuration node from source """
         self._contents = self._build(source)
         if not self._is_valid:
             raise exception.InvalidSemantics("Configuration did not validate")
 
     @__init__.register(dict)
-    def _(self, source:NodeT) -> None:
+    def _(self, source: NodeT) -> None:
         """ Build the configuration node from explicit contents """
         self._contents = source
 
     @__init__.register
-    def _(self, source:None) -> None:
+    def _(self, source: None) -> None:
         """ Forbid null-configuration """
-        raise exception.InvalidConfiguration("Cannot build configuration from nothing")
+        raise exception.InvalidConfiguration(
+            "Cannot build configuration from nothing")
 
-    def __getattr__(self, item:str) -> T.Union[_BaseConfig, ValueT]:
+    def __getattr__(self, item: str) -> T.Union[_BaseConfig, ValueT]:
         try:
             contents = self._contents[item]
         except KeyError:
@@ -103,7 +105,7 @@ class _BaseConfig(metaclass=ABCMeta):
 
     @staticmethod
     @abstractmethod
-    def _build(source:T.Any) -> NodeT:
+    def _build(source: T.Any) -> NodeT:
         """
         Build contents from some external source
 

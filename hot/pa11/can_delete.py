@@ -18,7 +18,6 @@ with this program. If not, see https://www.gnu.org/licenses/
 """
 
 
-
 # Please implement the function "can_delete", which takes two positional
 # arguments and returns a Boolean result. The arguments are:
 
@@ -39,10 +38,11 @@ with this program. If not, see https://www.gnu.org/licenses/
 from core import file
 from core import typing as T
 
-def can_delete(file: file.BaseFile , threshold: T.TimeDelta):
-	"""The function should return truthfully if the file's age meets or exceeds
-the threshold. It should return false, otherwise. """
-	if file.age >= threshold:
-		return True
 
-	return False
+def can_delete(file: file.BaseFile, threshold: T.TimeDelta):
+    """The function should return truthfully if the file's age meets or exceeds
+the threshold. It should return false, otherwise. """
+    if file.age >= threshold:
+        return True
+
+    return False

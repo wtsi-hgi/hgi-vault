@@ -25,9 +25,11 @@ the postman in the sweeper with this class.
 It writes any "emails" to /tmp/mail
 """
 
+
+
+
 from pathlib import Path
 from core import mail, typing as T
-
 class MockMailer(mail.base.Postman):
     """
     Provides a class for "sending" emails
@@ -35,7 +37,7 @@ class MockMailer(mail.base.Postman):
     """
 
     file_path: T.Path = Path("/tmp/mail")
-    
+
     @property
     def addresser(self) -> str:
         return "fake-emailer@sanger.ac.uk"

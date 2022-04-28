@@ -28,10 +28,11 @@ from core.utils import base64, human_size, human_time, umask
 
 @dataclass
 class _DUMMY:
-    value:T.Stringable
+    value: T.Stringable
 
     def __str__(self) -> str:
         return str(self.value)
+
 
 class TestBase64(unittest.TestCase):
     def test_encode(self):
@@ -54,8 +55,9 @@ class TestBase64(unittest.TestCase):
 
 S_IRWXA = stat.S_IRWXU | stat.S_IRWXG | stat.S_IRWXO
 
+
 class TestUmask(unittest.TestCase):
-    _tmp:TemporaryDirectory
+    _tmp: TemporaryDirectory
 
     def setUp(self):
         self._tmp = TemporaryDirectory()

@@ -47,10 +47,12 @@ def _create_vault(relative_to: T.Path) -> Vault:
         log.critical(e)
         sys.exit(1)
 
+
 class ViewContext(Enum):
     All = "all"
     Here = "here"
     Mine = "mine"
+
 
 def view(branch: Branch, view_mode: ViewContext, absolute: bool) -> None:
     """ List the contents of the given branch 
@@ -76,7 +78,7 @@ def view(branch: Branch, view_mode: ViewContext, absolute: bool) -> None:
             time_to_live = config.deletion.limbo - \
                 (time.now() - time.epoch(_limbo_file.stat().st_mtime))
             print(
-                relative_path if absolute else relative_path, 
+                relative_path if absolute else relative_path,
                 f"{round(time_to_live/time.delta(hours=1), 1)} hours", sep="\t"
             )
         else:
@@ -201,7 +203,7 @@ _view_contexts = {
 
 def main(argv: T.List[str] = sys.argv) -> None:
     args = usage.parse_args(argv[1:])
-        
+
     # Note: Actions do not map 1:1 to branches
     # e.g. "archive" action can map to Stash or Staged branches.
     if args.action == "keep":
@@ -210,7 +212,6 @@ def main(argv: T.List[str] = sys.argv) -> None:
         else:
             if args.files:
                 add(Branch.Keep, args.files)
-          
 
     if args.action == "archive":
         if context := args.view:
@@ -218,21 +219,19 @@ def main(argv: T.List[str] = sys.argv) -> None:
             view(Branch.Stash, _view_contexts[context], args.absolute)
         elif context := args.view_staged:
             view(Branch.Staged, _view_contexts[context], args.absolute)
-        else: 
+        else:
             if args.stash:
                 branch = Branch.Stash
             else:
                 branch = Branch.Archive
             if args.files:
                 add(branch, args.files)
-          
 
     if args.action == "recover":
         if context := args.view:
             view(Branch.Limbo, _view_contexts[context], args.absolute)
-        else: 
-           recover(None if args.all else args.files)
-            
+        else:
+            recover(None if args.all else args.files)
 
     if args.action == "untrack":
         untrack(args.files)

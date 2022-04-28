@@ -21,12 +21,11 @@ You should have received a copy of the GNU General Public License along
 with this program. If not, see https://www.gnu.org/licenses/
 """
 
-
-        ## IMPORTANT ###########################################
-        ##                                                    ##
-        ##  Search for "DELETION WARNING" for sensitive code  ##
-        ##                                                    ##
-        ########################################################
+## IMPORTANT ###########################################
+##                                                    ##
+##  Search for "DELETION WARNING" for sensitive code  ##
+##                                                    ##
+########################################################
 
 
 from contextlib import ExitStack
@@ -53,29 +52,31 @@ Filter = core.persistence.Filter
 # Hot code implementations
 _hot = agreed(*(m.can_delete for m in (ch12, an12, gn5, pa11)))
 
-def _can_soft_delete(file:walk.File) -> bool:
+
+def _can_soft_delete(file: walk.File) -> bool:
     return _hot(file, config.deletion.threshold)
 
-def _can_permanently_delete(file:walk.File) -> bool:
+
+def _can_permanently_delete(file: walk.File) -> bool:
     return _hot(file, config.deletion.limbo)
 
 
 class Sweeper(Loggable):
     """ Encapsulation of the sweep phase """
-    _walker:walk.BaseWalker
-    _persistence:core.persistence.base.Persistence
-    _weaponised:bool
+    _walker: walk.BaseWalker
+    _persistence: core.persistence.base.Persistence
+    _weaponised: bool
 
     def __init__(
-            self, 
-            walker: walk.BaseWalker, 
-            persistence: core.persistence.base.Persistence,
-            weaponised: bool,
-            postman: T.Type[core.mail.base.Postman] = Postman
-        ) -> None:
-        self._walker      = walker
+        self,
+        walker: walk.BaseWalker,
+        persistence: core.persistence.base.Persistence,
+        weaponised: bool,
+        postman: T.Type[core.mail.base.Postman] = Postman
+    ) -> None:
+        self._walker = walker
         self._persistence = persistence
-        self._weaponised  = weaponised
+        self._weaponised = weaponised
         self._postman = postman
 
         # Run the phase steps
@@ -104,13 +105,14 @@ class Sweeper(Loggable):
 
             with ExitStack() as stack:
                 # For convenience
-                def _files(state:T.Type[core.persistence.base.State], **kwargs) -> FileCollection.User:
+                def _files(state: T.Type[core.persistence.base.State], **kwargs) -> FileCollection.User:
                     """
                     Filtered file factory for the current stakeholder in
                     this context management stack with the given state
                     """
                     state_args = {"notified": False, **kwargs}
-                    criteria = Filter(state=state(**state_args), stakeholder=stakeholder)
+                    criteria = Filter(state=state(
+                        **state_args), stakeholder=stakeholder)
                     return stack.enter_context(self._persistence.files(criteria))
 
                 # Deleted and Staged files that require notification
@@ -121,8 +123,8 @@ class Sweeper(Loggable):
 
                 # Convenience aliases for e-mail constructor
                 deleted = attachments["deleted"].accumulator
-                staged  = attachments["staged"].accumulator
-                warned  = []
+                staged = attachments["staged"].accumulator
+                warned = []
 
                 # Warned files that require notification
                 for tminus in config.deletion.warnings:
@@ -142,7 +144,8 @@ class Sweeper(Loggable):
                                             [file.path for file in files])
                 if non_trivial:
                     postman.send(mail, stakeholder)
-                    log.info(f"Sent summary e-mail to {stakeholder.name} ({stakeholder.email})")
+                    log.info(
+                        f"Sent summary e-mail to {stakeholder.name} ({stakeholder.email})")
 
                 else:
                     log.debug("Skipping: Trivial e-mail")
@@ -160,7 +163,7 @@ class Sweeper(Loggable):
         # for now the answer is: "Maybe"... :P
 
     @singledispatchmethod
-    def _handler(self, status, vault:Vault, file:walk.File) -> None:
+    def _handler(self, status, vault: Vault, file: walk.File) -> None:
         """
         Single dispatch handler for files reported by the sweep
 
@@ -173,13 +176,14 @@ class Sweeper(Loggable):
     ## File Handler Implementations ####################################
 
     @_handler.register
-    def _(self, status:VaultExc.PhysicalVaultFile, vault, file):
+    def _(self, status: VaultExc.PhysicalVaultFile, vault, file):
         """
         Handle files that are physically contained within the vault's
         special directories
         """
         log = self.log
-        log.debug(f"{file.path} is physically contained within the vault in {vault.root}")
+        log.debug(
+            f"{file.path} is physically contained within the vault in {vault.root}")
 
         # We only need to check for corruptions (i.e., single hardlink)
         # of files that physically exist in the keep or archive branches
@@ -194,30 +198,36 @@ class Sweeper(Loggable):
 
             if branch == Branch.Limbo:
                 if hardlinks(file.path) > 1:
-                    log.warning(f"Corruption detected: Physical vault file {file.path} in limbo has more than one hardlink")
+                    log.warning(
+                        f"Corruption detected: Physical vault file {file.path} in limbo has more than one hardlink")
 
                 if _can_permanently_delete(file):
-                    log.info(f"Permanently Deleting: {file.path} has passed the hard-deletion threshold")
+                    log.info(
+                        f"Permanently Deleting: {file.path} has passed the hard-deletion threshold")
                     if self.Yes_I_Really_Mean_It_This_Time:
                         try:
                             file.delete()  # DELETION WARNING
                         except PermissionError:
-                            log.error(f"Could not delete {file.path}: Permission denied")
+                            log.error(
+                                f"Could not delete {file.path}: Permission denied")
 
             else:
                 if hardlinks(file.path) == 1:
-                    log.warning(f"Corruption detected: Physical vault file {file.path} does not link to any source")
+                    log.warning(
+                        f"Corruption detected: Physical vault file {file.path} does not link to any source")
                     if self.Yes_I_Really_Mean_It_This_Time:
                         try:
                             file.delete()  # DELETION WARNING
-                            log.info(f"Corruption corrected: {file.path} deleted")
+                            log.info(
+                                f"Corruption corrected: {file.path} deleted")
                         except PermissionError:
-                            log.error(f"Could not delete {file.path}: Permission denied")
+                            log.error(
+                                f"Could not delete {file.path}: Permission denied")
 
     ####################################################################
 
     @_handler.register
-    def _(self, status:VaultExc.VaultCorruption, vault, file):
+    def _(self, status: VaultExc.VaultCorruption, vault, file):
         """
         Handle files that raise a vault corruption
 
@@ -237,7 +247,7 @@ class Sweeper(Loggable):
     ####################################################################
 
     @_handler.register
-    def _(self, status:Branch, vault, file):
+    def _(self, status: Branch, vault, file):
         """
         Handle files that are tracked by the vault
 
@@ -246,11 +256,13 @@ class Sweeper(Loggable):
         staging, the original source file is hard-deleted
         """
         log = self.log
-        log.debug(f"{file.path} is in the {status} branch of the vault in {vault.root}")
+        log.debug(
+            f"{file.path} is in the {status} branch of the vault in {vault.root}")
 
         if status in [Branch.Stash, Branch.Archive]:
             if file.locked:
-                log.info(f"Skipping: {file.path} is marked for archival, but is locked by another process")
+                log.info(
+                    f"Skipping: {file.path} is marked for archival, but is locked by another process")
                 return
 
             log.info(f"Staging {file.path} for archival")
@@ -261,8 +273,9 @@ class Sweeper(Loggable):
 
                 # 2. Persist to database
                 to_persist = file.to_persistence(key=staged.path)
-                self._persistence.persist(to_persist, State.Staged(notified=False))
-                
+                self._persistence.persist(
+                    to_persist, State.Staged(notified=False))
+
                 log.info(f"{file.path} has been staged for archival")
 
             if status == Branch.Archive:
@@ -271,12 +284,13 @@ class Sweeper(Loggable):
                 try:
                     file.delete()  # DELETION WARNING
                 except PermissionError:
-                    log.error(f"Could not hard-delete {file.path}: Permission denied")
+                    log.error(
+                        f"Could not hard-delete {file.path}: Permission denied")
 
     ####################################################################
 
     @_handler.register
-    def _(self, status:None, vault: Vault, file: walk.File):
+    def _(self, status: None, vault: Vault, file: walk.File):
         """
         Handle files that are not tracked by the vault
 
@@ -292,17 +306,20 @@ class Sweeper(Loggable):
                 # Check we'll actually be able to soft-delete the file
                 # This only needs to be here, as this is the only time
                 # we interact with untracked files automatically
-                raise core.file.exception.UnactionableFile(f"{file.path} can't be actioned")
+                raise core.file.exception.UnactionableFile(
+                    f"{file.path} can't be actioned")
         except core.vault.exception.VaultCorruption:
             # this will be handled when the file is added to the branch
             pass
 
         if _can_soft_delete(file):
             if file.locked:
-                log.info(f"Skipping: {file.path} has passed the soft-deletion threshold, but is locked by another process")
+                log.info(
+                    f"Skipping: {file.path} has passed the soft-deletion threshold, but is locked by another process")
                 return
 
-            log.info(f"Deleting: {file.path} has passed the soft-deletion threshold")
+            log.info(
+                f"Deleting: {file.path} has passed the soft-deletion threshold")
             if self.Yes_I_Really_Mean_It_This_Time:
                 # 0. Instantiate the persisted file model before it's
                 #    deleted so we don't lose its stat information
@@ -317,21 +334,25 @@ class Sweeper(Loggable):
                     log.info(f"Soft-deleted {file.path}")
 
                 except PermissionError:
-                    log.error(f"Could not soft-delete {file.path}: Permission denied")
+                    log.error(
+                        f"Could not soft-delete {file.path}: Permission denied")
                     return
 
                 log.info(f"{file.path} has been soft-deleted")
 
                 # 2. Persist to database
-                self._persistence.persist(to_persist, State.Deleted(notified=False))
+                self._persistence.persist(
+                    to_persist, State.Deleted(notified=False))
 
         elif self.Yes_I_Really_Mean_It_This_Time:
             # Determine passed checkpoints, if any
             until_delete = config.deletion.threshold - file.age
-            checkpoints = [t for t in config.deletion.warnings if t > until_delete]
+            checkpoints = [
+                t for t in config.deletion.warnings if t > until_delete]
 
             # Persist warnings for passed checkpoints
             if len(checkpoints) > 0:
                 to_persist = file.to_persistence()
                 for tminus in checkpoints:
-                    self._persistence.persist(to_persist, State.Warned(notified=False, tminus=tminus))
+                    self._persistence.persist(
+                        to_persist, State.Warned(notified=False, tminus=tminus))

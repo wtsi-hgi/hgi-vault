@@ -21,5 +21,5 @@ from api.vault.key import VaultFileKey
 
 
 # For convenience
-VFK   = lambda path, inode: VaultFileKey(path, inode)
-VFK_k = lambda path: VaultFileKey.Reconstruct(path)
+def VFK(path, inode): return VaultFileKey(path, inode)
+def VFK_k(path): return VaultFileKey.Reconstruct(path)

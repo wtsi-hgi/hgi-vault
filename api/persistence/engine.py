@@ -29,20 +29,21 @@ from .postgres import PostgreSQL, Transaction
 _StateT = T.Union[State.Deleted, State.Staged, State.Warned]
 _FileCollectionT = T.Union[FileCollection.User, FileCollection.StagedQueue]
 
+
 class Persistence(persistence.base.Persistence, Loggable):
     """ PostgreSQL-backed persistence implementation """
-    _pg:PostgreSQL
-    _idm:idm.base.IdentityManager
+    _pg: PostgreSQL
+    _idm: idm.base.IdentityManager
 
     # Groups are not modelled explicitly, so we handle them here
-    _known_groups:T.Set[int]
+    _known_groups: T.Set[int]
 
-    def __init__(self, config:config.base.Config, idm:idm.base.IdentityManager) -> None:
-        self._pg = PostgreSQL(host     = config.postgres.host,
-                              port     = config.postgres.port,
-                              database = config.database,
-                              user     = config.user,
-                              password = config.password)
+    def __init__(self, config: config.base.Config, idm: idm.base.IdentityManager) -> None:
+        self._pg = PostgreSQL(host=config.postgres.host,
+                              port=config.postgres.port,
+                              database=config.database,
+                              user=config.user,
+                              password=config.password)
         self._idm = idm
 
         # Create schema (idempotent)
@@ -67,7 +68,7 @@ class Persistence(persistence.base.Persistence, Loggable):
             for group in t.fetchall():
                 self._persist_group(t, self._idm.group(gid=group.gid))
 
-    def _persist_group(self, t:Transaction, group:idm.base.Group) -> None:
+    def _persist_group(self, t: Transaction, group: idm.base.Group) -> None:
         """ Persist a group and its owners from the IdM """
         log = self.log
 
@@ -90,14 +91,14 @@ class Persistence(persistence.base.Persistence, Loggable):
 
         self._known_groups.add(gid)
 
-    def persist(self, file:File, state:_StateT) -> None:
+    def persist(self, file: File, state: _StateT) -> None:
         """
         Persist a file to the database with the specified state
 
         @param   file   File model to persist
         @param   state  State in which to set the state
         """
-        log     = self.log
+        log = self.log
         file_id = f"{file.device}:{file.inode}"
 
         # If a persisted file's status (mtime, size, etc.) has changed
@@ -133,7 +134,7 @@ class Persistence(persistence.base.Persistence, Loggable):
             t.execute("select stakeholder from stakeholders;")
             yield from (self._idm.user(uid=user.stakeholder) for user in t)
 
-    def files(self, criteria:persistence.Filter) -> _FileCollectionT:
+    def files(self, criteria: persistence.Filter) -> _FileCollectionT:
         """
         Fetch the collection of files based on the given criteria
 
@@ -163,7 +164,8 @@ class Persistence(persistence.base.Persistence, Loggable):
             """, params)
 
             for record in t:
-                self.log.debug(f"Adding {record.device}:{record.inode} to collection")
+                self.log.debug(
+                    f"Adding {record.device}:{record.inode} to collection")
                 collection += File.FromDBRecord(record, self._idm)
 
         return collection
@@ -174,7 +176,7 @@ class Persistence(persistence.base.Persistence, Loggable):
         self.log.error("Cannot clean unknown file collection type")
 
     @clean.register
-    def _(self, files:FileCollection.User) -> None:
+    def _(self, files: FileCollection.User) -> None:
         """ Set the notification state of the files in the collection """
         # Once notified, deleted and warning states will be cleaned up
         # automatically (or deferred) on subsequent instantiations
@@ -186,7 +188,7 @@ class Persistence(persistence.base.Persistence, Loggable):
                 state.mark_notified(t, file, stakeholder)
 
     @clean.register
-    def _(self, files:FileCollection.StagedQueue) -> None:
+    def _(self, files: FileCollection.StagedQueue) -> None:
         """ Delete the files in the staging queue """
         assert isinstance(files.criteria.state, State.Staged)
         assert files.criteria.state.notified

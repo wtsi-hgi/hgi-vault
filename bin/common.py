@@ -28,7 +28,7 @@ from api.logging import log
 
 # Executable versioning
 class version(T.SimpleNamespace):
-    vault   = "0.0.9"
+    vault = "0.0.9"
     sandman = "0.0.7"
 
 
@@ -37,7 +37,8 @@ try:
     if 'unittest' in sys.modules:
         os.environ["VAULTRC"] = "eg/.vaultrc"
 
-    _cfg_path = config.utils.path("VAULTRC", T.Path("~/.vaultrc"), T.Path("/etc/vaultrc"))
+    _cfg_path = config.utils.path("VAULTRC", T.Path(
+        "~/.vaultrc"), T.Path("/etc/vaultrc"))
     config = Config(_cfg_path)
 except (config.exception.ConfigurationNotFound,
         config.exception.InvalidConfiguration) as e:

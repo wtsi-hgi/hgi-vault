@@ -35,25 +35,26 @@ class exception(T.SimpleNamespace):
 @dataclass
 class _BaseAttachment:
     """ Base class for attachments """
-    filename:str
-    mime_type:str
-    data:T.BinaryIO = field(default_factory=io.BytesIO)
+    filename: str
+    mime_type: str
+    data: T.BinaryIO = field(default_factory=io.BytesIO)
 
 
 @dataclass
 class _BaseMessage:
     """ Base class for messages """
-    subject:str
-    body:str
-    attachments:T.Collection[_BaseAttachment] = field(default_factory=list)
+    subject: str
+    body: str
+    attachments: T.Collection[_BaseAttachment] = field(default_factory=list)
 
 
 class _BasePostman(metaclass=ABCMeta):
     """ Abstract base class for sending mail """
+
     def __init__(self, *args, **kwargs) -> None:
         ...
 
-    def send(self, message:_BaseMessage, *addressee:idm.base.User, addresser:T.Optional[idm.base.User] = None) -> None:
+    def send(self, message: _BaseMessage, *addressee: idm.base.User, addresser: T.Optional[idm.base.User] = None) -> None:
         """
         Send the supplied e-mail message to the appropriate recipients
 
@@ -73,12 +74,12 @@ class _BasePostman(metaclass=ABCMeta):
         """ Get the default sender's e-mail address """
 
     @abstractmethod
-    def _deliver(self, message:_BaseMessage, recipients:T.Collection[str], sender:str) -> None:
+    def _deliver(self, message: _BaseMessage, recipients: T.Collection[str], sender: str) -> None:
         """ Deliver the message """
 
 
 class base(T.SimpleNamespace):
     """ Namespace of base classes to make importing easier """
     Attachment = _BaseAttachment
-    Message    = _BaseMessage
-    Postman    = _BasePostman
+    Message = _BaseMessage
+    Postman = _BasePostman

@@ -32,9 +32,9 @@ _SQLSnippet = T.Tuple[str, T.Tuple]
 
 class _PersistedState(persistence.base.State):
     """ Base for our persistence operations """
-    db_type:T.ClassVar[str]
+    db_type: T.ClassVar[str]
 
-    def exists(self, t:Transaction, file:File) -> T.Optional[int]:
+    def exists(self, t: Transaction, file: File) -> T.Optional[int]:
         """
         Check the status exists for a given file
 
@@ -55,7 +55,7 @@ class _PersistedState(persistence.base.State):
             return None
         return record.id
 
-    def persist(self, t:Transaction, file:File) -> int:
+    def persist(self, t: Transaction, file: File) -> int:
         """
         Persist the status for a given file
 
@@ -79,7 +79,7 @@ class _PersistedState(persistence.base.State):
 
         return state_id
 
-    def mark_notified(self, t:Transaction, file:File, stakeholder:_MaybeStakeholder) -> None:
+    def mark_notified(self, t: Transaction, file: File, stakeholder: _MaybeStakeholder) -> None:
         """
         Set the notification state to true for a file and stakeholder
 
@@ -112,7 +112,7 @@ class _PersistedState(persistence.base.State):
             on conflict do nothing;
         """, query_params)
 
-    def file_cte(self, stakeholder:_MaybeStakeholder) -> _SQLSnippet:
+    def file_cte(self, stakeholder: _MaybeStakeholder) -> _SQLSnippet:
         """
         Return the SQL CTE snippet and parameters to fetch the file IDs
         satisfying the present state for the given stakeholder
@@ -160,9 +160,9 @@ class State(T.SimpleNamespace):
     class Warned(_PersistedState):
         """ File warned for deletion """
         db_type = "warned"
-        tminus:T.Union[T.TimeDelta, T.Type[_Anything]]
+        tminus: T.Union[T.TimeDelta, T.Type[_Anything]]
 
-        def exists(self, t:Transaction, file:File) -> T.Optional[int]:
+        def exists(self, t: Transaction, file: File) -> T.Optional[int]:
             # Warnings are special, so we override the superclass
             assert hasattr(file, "db_id")
             assert self.tminus != _Anything
@@ -180,7 +180,7 @@ class State(T.SimpleNamespace):
                 return None
             return record.id
 
-        def persist(self, t:Transaction, file:File) -> int:
+        def persist(self, t: Transaction, file: File) -> int:
             # Warnings are special, so we extend the superclass
             assert hasattr(file, "db_id")
             assert self.tminus != _Anything
@@ -193,7 +193,7 @@ class State(T.SimpleNamespace):
 
             return state_id
 
-        def file_cte(self, stakeholder:_MaybeStakeholder) -> _SQLSnippet:
+        def file_cte(self, stakeholder: _MaybeStakeholder) -> _SQLSnippet:
             # Warnings are special, so we override the superclass
             # TODO There's scope for abstraction here: the query is the
             # same, with an additional join and possible parameter

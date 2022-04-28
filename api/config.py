@@ -31,33 +31,37 @@ from core import config, time, typing as T
 class _YAMLConfig(config.base.Config, metaclass=ABCMeta):
     """ Abstract base class for building configuration from YAML """
     @staticmethod
-    def _build(source:T.Path) -> T.Dict:
+    def _build(source: T.Path) -> T.Dict:
         with source.open() as stream:
             try:
                 if not isinstance(parsed := yaml.safe_load(stream), dict):
-                    raise config.exception.InvalidConfiguration(f"Configuration in {source.name} is not a mapping")
+                    raise config.exception.InvalidConfiguration(
+                        f"Configuration in {source.name} is not a mapping")
                 return parsed
 
             except yaml.YAMLError:
-                raise config.exception.InvalidConfiguration(f"Could not parse {source.name}")
+                raise config.exception.InvalidConfiguration(
+                    f"Could not parse {source.name}")
 
 
 # Convenience type constructors for days and hours (less than a month)
-def _Days(days:int) -> T.TimeDelta:
+def _Days(days: int) -> T.TimeDelta:
     return time.delta(days=days)
 
-def _HoursLessThanThreeMonths(hours:int) -> T.TimeDelta:
+
+def _HoursLessThanThreeMonths(hours: int) -> T.TimeDelta:
     if (delta := time.delta(hours=hours)) > time.delta(days=90):
         raise TypeError("I'm not waiting that long")
 
     return delta
 
+
 @dataclass
 class _ListOf:
     """ Homogeneous Collection Type Constructor """
-    cast:T.Type
+    cast: T.Type
 
-    def __call__(self, data:T.Any):
+    def __call__(self, data: T.Any):
         if not isinstance(data, list):
             data = [] if data is None else [data]
 
@@ -66,13 +70,15 @@ class _ListOf:
 
 _TypeConstructor = T.Callable[[T.Any], T.Any]
 
+
 class _Required:
     """ Sentinel object to mark required settings """
 
+
 @dataclass
 class _Setting:
-    cast:_TypeConstructor = str
-    default:T.Any = _Required()
+    cast: _TypeConstructor = str
+    default: T.Any = _Required()
 
     @property
     def is_scalar(self):
@@ -121,7 +127,8 @@ _schema = {
         "threshold":         _Setting(cast=int),
         "handler":           _Setting(cast=T.Path)}}
 
-def _validate(data:T.Dict, schema:T.Dict) -> bool:
+
+def _validate(data: T.Dict, schema: T.Dict) -> bool:
     """
     Recursively validate and type cast the input data in-place against
     the given schema, returning the validity of the input
@@ -158,6 +165,7 @@ def _validate(data:T.Dict, schema:T.Dict) -> bool:
                 return False
 
     return True
+
 
 class Config(_YAMLConfig):
     @cached_property

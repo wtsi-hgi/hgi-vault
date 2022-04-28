@@ -27,7 +27,7 @@ from typing import *
 from typing.io import *
 
 from .time import datetime as DateTime, \
-                  timedelta as TimeDelta
+    timedelta as TimeDelta
 
 
 @runtime_checkable

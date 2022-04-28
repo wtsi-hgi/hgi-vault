@@ -36,17 +36,18 @@ class NoResultsFound(Exception):
 
 class Scope(Enum):
     """ LDAP search scope enumeration """
-    Base     = auto()
+    Base = auto()
     OneLevel = auto()
-    SubTree  = auto()
+    SubTree = auto()
 
 
 _EntryT = T.Dict[str, T.List[T.Any]]
 
+
 class _BaseLDAP(metaclass=ABCMeta):
     """ Quick-and-dirty abstract base class for LDAP searching """
     @abstractmethod
-    def search(self, dn:str, query:str, scope:Scope = Scope.SubTree) -> T.Iterator[_EntryT]:
+    def search(self, dn: str, query: str, scope: Scope = Scope.SubTree) -> T.Iterator[_EntryT]:
         """
         Search the base DN at the given scope with the specified query
         and return the results, or raise NoResultsFound if no matches
@@ -65,23 +66,25 @@ _scope_map = {
     Scope.SubTree:  ldap3.SUBTREE
 }
 
+
 class LDAP(_BaseLDAP):
     """ ldap3 implementation of _BaseLDAP """
-    _server:ldap3.Server
-    _connection:ldap3.Connection
+    _server: ldap3.Server
+    _connection: ldap3.Connection
 
-    def __init__(self, config:config.base.Config) -> None:
+    def __init__(self, config: config.base.Config) -> None:
         self._server = ldap3.Server(host=config.host, port=config.port)
         self._connection = ldap3.Connection(self._server, authentication=ldap3.ANONYMOUS,
-                                                          read_only=True,
-                                                          lazy=True)
+                                            read_only=True,
+                                            lazy=True)
 
-    def search(self, dn:str, query:str, scope:Scope = Scope.SubTree) -> T.Iterator[_EntryT]:
+    def search(self, dn: str, query: str, scope: Scope = Scope.SubTree) -> T.Iterator[_EntryT]:
         with self._connection as ldap:
             if not ldap.search(search_base=dn,
                                search_filter=query,
                                search_scope=_scope_map[scope],
                                attributes=ldap3.ALL_ATTRIBUTES):
-                raise NoResultsFound(f"No entries found under DN {dn} matching filter {query}")
+                raise NoResultsFound(
+                    f"No entries found under DN {dn} matching filter {query}")
 
             return (entry.entry_attributes_as_dict for entry in ldap.entries)

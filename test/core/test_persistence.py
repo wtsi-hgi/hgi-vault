@@ -25,7 +25,8 @@ from core.persistence import GroupSummary
 
 class TestGroupSummary(unittest.TestCase):
     def test_aggregation(self):
-        GS = lambda path, count, size: GroupSummary(T.Path(path), count, size)
+        def GS(path, count, size): return GroupSummary(
+            T.Path(path), count, size)
 
         (_, accumulator), *cases = [
             # Test Case                       Running accumulator
