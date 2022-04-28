@@ -4,6 +4,7 @@ Copyright (c) 2020, 2022 Genome Research Limited
 Author:
     - Christopher Harrison <ch12@sanger.ac.uk>
     - Michael Grace <mg38@sanger.ac.uk>
+    - Sendu Bala <sb10@sanger.ac.uk>
 
 This program is free software: you can redistribute it and/or modify it
 under the terms of the GNU General Public License as published by the
@@ -37,6 +38,7 @@ class File(persistence.base.File):
     key:T.Optional[T.Path]
     mtime:T.DateTime
     atime: T.DateTime
+    ctime: T.DateTime
     owner:idm.base.User
     group:idm.base.Group
 
@@ -52,6 +54,7 @@ class File(persistence.base.File):
                    key    = None,
                    mtime  = time.epoch(stat.st_mtime),
                    atime  = time.epoch(stat.st_atime),
+                   ctime  = time.epoch(stat.st_ctime),
                    owner  = idm.user(uid=stat.st_uid),
                    group  = idm.group(gid=stat.st_gid),
                    size   = stat.st_size)
@@ -64,6 +67,10 @@ class File(persistence.base.File):
                    path   = T.Path(record.path),
                    key    = T.Path(record.key) if record.key is not None else None,
                    mtime  = time.to_utc(record.mtime),
+                   # The db only records mtime, so we set a and c time to mtime
+                   # for now.
+                   atime  = time.to_utc(record.mtime),
+                   ctime  = time.to_utc(record.mtime),
                    owner  = idm.user(uid=record.owner),
                    group  = idm.group(gid=record.group_id),
                    size   = record.size)
