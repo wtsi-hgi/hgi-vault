@@ -88,7 +88,8 @@ class _VaultFile:
 class _BaseVaultFile(PathLike, _VaultFile, metaclass=ABCMeta):
     """ Abstract base class for files stored in the vault """
     @abstractmethod
-    def __init__(self, vault: _BaseVault, branch: _BaseBranch, path: T.Path) -> None:
+    def __init__(self, vault: _BaseVault, branch: _BaseBranch,
+                 path: T.Path) -> None:
         """ Initialise the dataclass values """
 
     @property

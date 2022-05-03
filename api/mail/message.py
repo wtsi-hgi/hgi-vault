@@ -91,11 +91,13 @@ class NotificationEMail(_Message):
     _subject = "Action Required: HGI Vault Summary"
     _template = resource.read_text("api.mail", "notification.j2")
 
-    def __init__(self, stakeholder: idm.base.User, deleted: _GroupSummariesT, staged: _GroupSummariesT, warned: _WarnedSummariesT) -> None:
+    def __init__(self, stakeholder: idm.base.User, deleted: _GroupSummariesT,
+                 staged: _GroupSummariesT, warned: _WarnedSummariesT) -> None:
         super().__init__(NotificationEMail.Context(stakeholder, deleted, staged, warned))
 
     @staticmethod
-    def Context(stakeholder: idm.base.User, deleted: _GroupSummariesT, staged: _GroupSummariesT, warned: _WarnedSummariesT) -> T.Dict:
+    def Context(stakeholder: idm.base.User, deleted: _GroupSummariesT,
+                staged: _GroupSummariesT, warned: _WarnedSummariesT) -> T.Dict:
         """
         Helper method to create the context that the notification
         template expects
@@ -115,11 +117,11 @@ class NotificationEMail(_Message):
 
         return {
             "stakeholder": stakeholder.name,
-            "deleted":     _group_context(deleted),
-            "staged":      _group_context(staged),
+            "deleted": _group_context(deleted),
+            "staged": _group_context(staged),
             "warned": [
                 {
-                    "tminus":  time.seconds(tminus),
+                    "tminus": time.seconds(tminus),
                     "summary": _group_context(summary)
                 }
                 for tminus, summary in warned

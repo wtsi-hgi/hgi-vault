@@ -55,12 +55,12 @@ class ViewContext(Enum):
 
 
 def view(branch: Branch, view_mode: ViewContext, absolute: bool) -> None:
-    """ List the contents of the given branch 
+    """ List the contents of the given branch
 
     :param branch: Which Vault branch we're going to look at
-    :param view_mode: 
-        ViewContext.All: list all files, 
-        ViewContext.Here: list files in current directory, 
+    :param view_mode:
+        ViewContext.All: list all files,
+        ViewContext.Here: list files in current directory,
         ViewContext.Mine: files owned by current user
     :param absolute: - Whether to view absolute paths or not
     """
@@ -85,9 +85,9 @@ def view(branch: Branch, view_mode: ViewContext, absolute: bool) -> None:
             print(path if absolute else relative_path)
 
         count += 1
-    log.info(f"""{branch} branch of the vault in {vault.root} contains {count} files 
+    log.info(f"""{branch} branch of the vault in {vault.root} contains {count} files
         {'in the current directory' if view_mode == ViewContext.Here
-        else 'owned by the current user' if view_mode == ViewContext.Mine 
+        else 'owned by the current user' if view_mode == ViewContext.Mine
         else ''}""")
 
 

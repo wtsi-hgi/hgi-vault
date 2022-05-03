@@ -30,14 +30,16 @@ _B64_DUMMY = base64.encode(_DUMMY)
 _DUMMY_LONG = T.Path("this/path/is/going/to/be/much/much/much/much/much/much/much/much/much/much/much/much/much/much/much/much/much/much/much/much/much/much/much/much/much/much/much/much/much/much/much/much/much/much/much/much/much/much/much/much/much/much/much/much/longer/than/two/hundred/and/fifty/five/characters")
 _B64_DUMMY_LONG = base64.encode(_DUMMY_LONG)
 # Assuming test is run on a filesystem (such as Linux) where NAME_MAX = 255.
-# If NAME_MAX != 255, these tests for long and really long relative paths would fail.
+# If NAME_MAX != 255, these tests for long and really long relative paths
+# would fail.
 _B64_DUMMY_LONG_FIRST_PART = _B64_DUMMY_LONG[0:252]
 _B64_DUMMY_LONG_SECOND_PART = _B64_DUMMY_LONG[252:]
 
 _DUMMY_LONGEST = T.Path("this/path/is/going/to/be/much/much/much/much/much/much/much/much/much/much/much/much/much/much/much/much/much/much/much/much/much/much/much/much/much/much/much/much/much/much/much/much/much/much/much/much/much/much/much/much/much/much/much/much/much/much/much/much/much/much/much/much/much/much/much/much/much/much/much/much/much/much/much/much/much/much/much/much/much/much/much/much/much/much/much/much/much/much/much/much/much/much/longer/than/two/hundred/and/fifty/five/characters")
 
 # Assuming test is run on a filesystem (such as Linux) where NAME_MAX = 255.
-# If NAME_MAX != 255, these tests for long and really long relative paths would fa
+# If NAME_MAX != 255, these tests for long and really long relative paths
+# would fa
 _B64_DUMMY_LONGEST = base64.encode(_DUMMY_LONGEST)
 _B64_DUMMY_LONGEST_FIRST_PART = _B64_DUMMY_LONGEST[0:252]
 _B64_DUMMY_LONGEST_SECOND_PART = _B64_DUMMY_LONGEST[252:504]
@@ -46,44 +48,44 @@ _B64_DUMMY_LONGEST_THIRD_PART = _B64_DUMMY_LONGEST[504:]
 
 class TestVaultFileKey(unittest.TestCase):
     def test_constructor(self):
-        self.assertEqual(VFK(_DUMMY, 0x1).path,    T.Path(f"01-{_B64_DUMMY}"))
-        self.assertEqual(VFK(_DUMMY, 0x12).path,   T.Path(f"12-{_B64_DUMMY}"))
+        self.assertEqual(VFK(_DUMMY, 0x1).path, T.Path(f"01-{_B64_DUMMY}"))
+        self.assertEqual(VFK(_DUMMY, 0x12).path, T.Path(f"12-{_B64_DUMMY}"))
         self.assertEqual(VFK(_DUMMY, 0x123).path,
                          T.Path(f"01/23-{_B64_DUMMY}"))
         self.assertEqual(VFK(_DUMMY, 0x1234).path,
                          T.Path(f"12/34-{_B64_DUMMY}"))
 
     def test_constructor_long(self):
-        self.assertEqual(VFK(_DUMMY_LONG, 0x1).path,    T.Path(
+        self.assertEqual(VFK(_DUMMY_LONG, 0x1).path, T.Path(
             f"01-{_B64_DUMMY_LONG_FIRST_PART}/{_B64_DUMMY_LONG_SECOND_PART}"))
-        self.assertEqual(VFK(_DUMMY_LONG, 0x12).path,   T.Path(
+        self.assertEqual(VFK(_DUMMY_LONG, 0x12).path, T.Path(
             f"12-{_B64_DUMMY_LONG_FIRST_PART}/{_B64_DUMMY_LONG_SECOND_PART}"))
-        self.assertEqual(VFK(_DUMMY_LONG, 0x123).path,  T.Path(
+        self.assertEqual(VFK(_DUMMY_LONG, 0x123).path, T.Path(
             f"01/23-{_B64_DUMMY_LONG_FIRST_PART}/{_B64_DUMMY_LONG_SECOND_PART}"))
         self.assertEqual(VFK(_DUMMY_LONG, 0x1234).path, T.Path(
             f"12/34-{_B64_DUMMY_LONG_FIRST_PART}/{_B64_DUMMY_LONG_SECOND_PART}"))
 
     def test_constructor_longest(self):
-        self.assertEqual(VFK(_DUMMY_LONGEST, 0x1).path,    T.Path(
+        self.assertEqual(VFK(_DUMMY_LONGEST, 0x1).path, T.Path(
             f"01-{_B64_DUMMY_LONGEST_FIRST_PART}/{_B64_DUMMY_LONGEST_SECOND_PART}/{_B64_DUMMY_LONGEST_THIRD_PART}"))
-        self.assertEqual(VFK(_DUMMY_LONGEST, 0x12).path,   T.Path(
+        self.assertEqual(VFK(_DUMMY_LONGEST, 0x12).path, T.Path(
             f"12-{_B64_DUMMY_LONGEST_FIRST_PART}/{_B64_DUMMY_LONGEST_SECOND_PART}/{_B64_DUMMY_LONGEST_THIRD_PART}"))
-        self.assertEqual(VFK(_DUMMY_LONGEST, 0x123).path,  T.Path(
+        self.assertEqual(VFK(_DUMMY_LONGEST, 0x123).path, T.Path(
             f"01/23-{_B64_DUMMY_LONGEST_FIRST_PART}/{_B64_DUMMY_LONGEST_SECOND_PART}/{_B64_DUMMY_LONGEST_THIRD_PART}"))
         self.assertEqual(VFK(_DUMMY_LONGEST, 0x1234).path, T.Path(
             f"12/34-{_B64_DUMMY_LONGEST_FIRST_PART}/{_B64_DUMMY_LONGEST_SECOND_PART}/{_B64_DUMMY_LONGEST_THIRD_PART}"))
 
     def test_reconstructor(self):
-        self.assertEqual(VFK_k(T.Path(f"01-{_B64_DUMMY}")).source,    _DUMMY)
-        self.assertEqual(VFK_k(T.Path(f"12-{_B64_DUMMY}")).source,    _DUMMY)
+        self.assertEqual(VFK_k(T.Path(f"01-{_B64_DUMMY}")).source, _DUMMY)
+        self.assertEqual(VFK_k(T.Path(f"12-{_B64_DUMMY}")).source, _DUMMY)
         self.assertEqual(VFK_k(T.Path(f"01/23-{_B64_DUMMY}")).source, _DUMMY)
         self.assertEqual(VFK_k(T.Path(f"12/34-{_B64_DUMMY}")).source, _DUMMY)
 
     def test_reconstructor_long(self):
         self.assertEqual(VFK_k(T.Path(
-            f"01-{_B64_DUMMY_LONG_FIRST_PART}/{_B64_DUMMY_LONG_SECOND_PART}")).source,    _DUMMY_LONG)
+            f"01-{_B64_DUMMY_LONG_FIRST_PART}/{_B64_DUMMY_LONG_SECOND_PART}")).source, _DUMMY_LONG)
         self.assertEqual(VFK_k(T.Path(
-            f"12-{_B64_DUMMY_LONG_FIRST_PART}/{_B64_DUMMY_LONG_SECOND_PART}")).source,    _DUMMY_LONG)
+            f"12-{_B64_DUMMY_LONG_FIRST_PART}/{_B64_DUMMY_LONG_SECOND_PART}")).source, _DUMMY_LONG)
         self.assertEqual(VFK_k(T.Path(
             f"01/23-{_B64_DUMMY_LONG_FIRST_PART}/{_B64_DUMMY_LONG_SECOND_PART}")).source, _DUMMY_LONG)
         self.assertEqual(VFK_k(T.Path(
@@ -91,9 +93,9 @@ class TestVaultFileKey(unittest.TestCase):
 
     def test_reconstructor_longest(self):
         self.assertEqual(VFK_k(T.Path(
-            f"01-{_B64_DUMMY_LONGEST_FIRST_PART}/{_B64_DUMMY_LONGEST_SECOND_PART}/{_B64_DUMMY_LONGEST_THIRD_PART}")).source,    _DUMMY_LONGEST)
+            f"01-{_B64_DUMMY_LONGEST_FIRST_PART}/{_B64_DUMMY_LONGEST_SECOND_PART}/{_B64_DUMMY_LONGEST_THIRD_PART}")).source, _DUMMY_LONGEST)
         self.assertEqual(VFK_k(T.Path(
-            f"12-{_B64_DUMMY_LONGEST_FIRST_PART}/{_B64_DUMMY_LONGEST_SECOND_PART}/{_B64_DUMMY_LONGEST_THIRD_PART}")).source,    _DUMMY_LONGEST)
+            f"12-{_B64_DUMMY_LONGEST_FIRST_PART}/{_B64_DUMMY_LONGEST_SECOND_PART}/{_B64_DUMMY_LONGEST_THIRD_PART}")).source, _DUMMY_LONGEST)
         self.assertEqual(VFK_k(T.Path(
             f"01/23-{_B64_DUMMY_LONGEST_FIRST_PART}/{_B64_DUMMY_LONGEST_SECOND_PART}/{_B64_DUMMY_LONGEST_THIRD_PART}")).source, _DUMMY_LONGEST)
         self.assertEqual(VFK_k(T.Path(
@@ -114,18 +116,18 @@ class TestVaultFileKey(unittest.TestCase):
             f"01-{_B64_DUMMY_LONGEST_FIRST_PART}/{_B64_DUMMY_LONGEST_SECOND_PART}/{_B64_DUMMY_LONGEST_THIRD_PART}")).source, _DUMMY_LONGEST)
 
     def test_equality(self):
-        self.assertEqual(VFK(_DUMMY, 0x12),  VFK_k(T.Path(f"12-{_B64_DUMMY}")))
+        self.assertEqual(VFK(_DUMMY, 0x12), VFK_k(T.Path(f"12-{_B64_DUMMY}")))
         self.assertEqual(VFK(_DUMMY, 0x123), VFK_k(
             T.Path(f"01/23-{_B64_DUMMY}")))
 
     def test_equality_long(self):
-        self.assertEqual(VFK(_DUMMY_LONG, 0x12),  VFK_k(
+        self.assertEqual(VFK(_DUMMY_LONG, 0x12), VFK_k(
             T.Path(f"12-{_B64_DUMMY_LONGEST_FIRST_PART}/{_B64_DUMMY_LONG_SECOND_PART}")))
         self.assertEqual(VFK(_DUMMY_LONG, 0x123), VFK_k(
             T.Path(f"01/23-{_B64_DUMMY_LONGEST_FIRST_PART}/{_B64_DUMMY_LONG_SECOND_PART}")))
 
     def test_equality_longest(self):
-        self.assertEqual(VFK(_DUMMY_LONGEST, 0x12),  VFK_k(T.Path(
+        self.assertEqual(VFK(_DUMMY_LONGEST, 0x12), VFK_k(T.Path(
             f"12-{_B64_DUMMY_LONGEST_FIRST_PART}/{_B64_DUMMY_LONGEST_SECOND_PART}/{_B64_DUMMY_LONGEST_THIRD_PART}")))
         self.assertEqual(VFK(_DUMMY_LONGEST, 0x123), VFK_k(T.Path(
             f"01/23-{_B64_DUMMY_LONGEST_FIRST_PART}/{_B64_DUMMY_LONGEST_SECOND_PART}/{_B64_DUMMY_LONGEST_THIRD_PART}")))

@@ -47,10 +47,10 @@ _archive_staged_help: str = "view files staged for archival. these will be archi
 
 
 _actions = {
-    "keep":    _ActionText("file retention operations",
-                           f"view files annotated for retention | {_view_mode_help}",
-                           "%(prog)s [-h] (--view [{all | here | mine}] [--absolute] | FILE [FILE...])",
-                           "one of the arguments --view or FILE is required"),
+    "keep": _ActionText("file retention operations",
+                        f"view files annotated for retention | {_view_mode_help}",
+                        "%(prog)s [-h] (--view [{all | here | mine}] [--absolute] | FILE [FILE...])",
+                        "one of the arguments --view or FILE is required"),
 
     "archive": _ActionText("file archival operations",
                            f"view files annotated for archival | {_view_mode_help}",

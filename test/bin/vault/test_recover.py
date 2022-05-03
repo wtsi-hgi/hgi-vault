@@ -1,7 +1,7 @@
 """
 Copyright (c) 2021 Genome Research Limited
 
-Authors: 
+Authors:
 * Piyush Ahuja <pa11@sanger.ac.uk>
 * Michael Grace <mg38@sanger.ac.uk>
 

@@ -1,7 +1,7 @@
 """
 Copyright (c) 2021 Genome Research Limited
 
-Authors: 
+Authors:
     * Michael Grace <mg38@sanger.ac.uk>
 
 This program is free software: you can redistribute it and/or modify it

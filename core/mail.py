@@ -1,7 +1,7 @@
 """
 Copyright (c) 2020, 2022 Genome Research Limited
 
-Authors: 
+Authors:
     - Christopher Harrison <ch12@sanger.ac.uk>
     - Michael Grace <mg38@sanger.ac.uk>
 
@@ -54,7 +54,8 @@ class _BasePostman(metaclass=ABCMeta):
     def __init__(self, *args, **kwargs) -> None:
         ...
 
-    def send(self, message: _BaseMessage, *addressee: idm.base.User, addresser: T.Optional[idm.base.User] = None) -> None:
+    def send(self, message: _BaseMessage, *addressee: idm.base.User,
+             addresser: T.Optional[idm.base.User] = None) -> None:
         """
         Send the supplied e-mail message to the appropriate recipients
 
@@ -74,7 +75,8 @@ class _BasePostman(metaclass=ABCMeta):
         """ Get the default sender's e-mail address """
 
     @abstractmethod
-    def _deliver(self, message: _BaseMessage, recipients: T.Collection[str], sender: str) -> None:
+    def _deliver(self, message: _BaseMessage,
+                 recipients: T.Collection[str], sender: str) -> None:
         """ Deliver the message """
 
 

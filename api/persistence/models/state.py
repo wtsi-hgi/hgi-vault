@@ -79,7 +79,8 @@ class _PersistedState(persistence.base.State):
 
         return state_id
 
-    def mark_notified(self, t: Transaction, file: File, stakeholder: _MaybeStakeholder) -> None:
+    def mark_notified(self, t: Transaction, file: File,
+                      stakeholder: _MaybeStakeholder) -> None:
         """
         Set the notification state to true for a file and stakeholder
 

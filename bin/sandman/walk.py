@@ -55,7 +55,8 @@ class File(file.BaseFile):
     _file: models.File
     _timestamp: T.DateTime
 
-    def __init__(self, file: models.File, timestamp: T.Optional[T.DateTime] = None) -> None:
+    def __init__(self, file: models.File,
+                 timestamp: T.Optional[T.DateTime] = None) -> None:
         """ Construct from filesystem """
         self._file = file
         self._timestamp = timestamp or time.now()
@@ -66,7 +67,8 @@ class File(file.BaseFile):
         return cls(models.File.FromFS(path, idm))
 
     @classmethod
-    def FromStat(cls, path: T.Path, stat: os.stat_result, timestamp: T.DateTime) -> File:
+    def FromStat(cls, path: T.Path, stat: os.stat_result,
+                 timestamp: T.DateTime) -> File:
         """ Construct from explicit stat data """
         file = models.File(device=stat.st_dev,
                            inode=stat.st_ino,
@@ -91,7 +93,8 @@ class File(file.BaseFile):
     @property
     def age(self) -> T.TimeDelta:
         self.restat()
-        return time.now() - max([self._file.mtime, self._file.atime, self._file.ctime])
+        return time.now() - max([self._file.mtime,
+                                 self._file.atime, self._file.ctime])
 
     @property
     def locked(self) -> bool:
@@ -220,7 +223,8 @@ class FilesystemWalker(BaseWalker):
         self._vaults = self._fetch_vaults(*bases)
 
     @staticmethod
-    def _walk_tree(path: T.Path, vault: Vault) -> T.Iterator[T.Tuple[Vault, File, _VaultStatusT]]:
+    def _walk_tree(
+            path: T.Path, vault: Vault) -> T.Iterator[T.Tuple[Vault, File, _VaultStatusT]]:
         # Recursively walk the tree from the given path
         for f in path.iterdir():
             # NOTE Don't walk symlinked directories: if they're symlinks
@@ -295,7 +299,8 @@ class mpistatWalker(BaseWalker):
 
         return commonprefix([bare, slashed])
 
-    def _is_match(self, encoded_path: str) -> T.Optional[T.Tuple[Vault, T.Path]]:
+    def _is_match(
+            self, encoded_path: str) -> T.Optional[T.Tuple[Vault, T.Path]]:
         """ Check that an encoded path is in one of our vaults """
         for prefix, vault in self._vaults.items():
             if encoded_path.startswith(prefix):

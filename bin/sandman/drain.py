@@ -108,7 +108,8 @@ class _Handler(Loggable):
             raise _UnknownHandlerError()
 
 
-def drain(persistence: core.persistence.base.Persistence, *, force: bool = False) -> int:
+def drain(persistence: core.persistence.base.Persistence, *,
+          force: bool = False) -> int:
     """ Drain phase """
     handler = _Handler(config.archive.handler)
     criteria = Filter(state=State.Staged(notified=True), stakeholder=Anything)

@@ -61,7 +61,7 @@ class TestIDM(unittest.TestCase):
         idm = self.mocked_ldap_idm
 
         idm._ldap.search.return_value = iter([{
-            "cn":   ["Testy McTestface"],
+            "cn": ["Testy McTestface"],
             "mail": ["test@example.com"]
         }])
 
@@ -76,9 +76,9 @@ class TestIDM(unittest.TestCase):
         self.assertIsNone(user._email)
 
         # ...until they're requested
-        self.assertEqual(user.name,  "Testy McTestface")
+        self.assertEqual(user.name, "Testy McTestface")
         self.assertEqual(user.email, "test@example.com")
-        self.assertEqual(user.name,  user._name)
+        self.assertEqual(user.name, user._name)
         self.assertEqual(user.email, user._email)
 
     def test_ldap_group(self):
@@ -86,7 +86,7 @@ class TestIDM(unittest.TestCase):
 
         def user_dn(user): return f"uid={user},{idm._config.users.dn}"
         idm._ldap.search.return_value = iter([mock_results := {
-            "owner":  map(user_dn, ["foo", "bar"]),
+            "owner": map(user_dn, ["foo", "bar"]),
             "member": map(user_dn, ["bar", "quux", "xyzzy"])
         }])
 

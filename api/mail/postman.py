@@ -41,7 +41,8 @@ class Postman(mail.base.Postman):
     def addresser(self) -> str:
         return self._config.sender
 
-    def _deliver(self, message: mail.base.Message, recipients: T.Collection[str], sender: str) -> None:
+    def _deliver(self, message: mail.base.Message,
+                 recipients: T.Collection[str], sender: str) -> None:
         config = self._config
 
         msg = EmailMessage()

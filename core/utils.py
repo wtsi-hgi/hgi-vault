@@ -81,7 +81,7 @@ class umask(T.ContextManager[int], ContextDecorator):
         return False
 
 
-_SI = ["", "k",  "M",  "G",  "T",  "P"]
+_SI = ["", "k", "M", "G", "T", "P"]
 _IEC = ["", "Ki", "Mi", "Gi", "Ti", "Pi"]
 
 

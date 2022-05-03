@@ -38,7 +38,8 @@ class Persistence(persistence.base.Persistence, Loggable):
     # Groups are not modelled explicitly, so we handle them here
     _known_groups: T.Set[int]
 
-    def __init__(self, config: config.base.Config, idm: idm.base.IdentityManager) -> None:
+    def __init__(self, config: config.base.Config,
+                 idm: idm.base.IdentityManager) -> None:
         self._pg = PostgreSQL(host=config.postgres.host,
                               port=config.postgres.port,
                               database=config.database,
@@ -143,7 +144,8 @@ class Persistence(persistence.base.Persistence, Loggable):
         """
         # Normally, we want a User collection...
         collection_type = FileCollection.User
-        if isinstance(criteria.state, State.Staged) and criteria.state.notified:
+        if isinstance(criteria.state,
+                      State.Staged) and criteria.state.notified:
             # ...but for notified, staged files, we want a StagedQueue
             collection_type = FileCollection.StagedQueue
 

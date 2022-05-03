@@ -105,7 +105,8 @@ class Sweeper(Loggable):
 
             with ExitStack() as stack:
                 # For convenience
-                def _files(state: T.Type[core.persistence.base.State], **kwargs) -> FileCollection.User:
+                def _files(
+                        state: T.Type[core.persistence.base.State], **kwargs) -> FileCollection.User:
                     """
                     Filtered file factory for the current stakeholder in
                     this context management stack with the given state
@@ -113,12 +114,13 @@ class Sweeper(Loggable):
                     state_args = {"notified": False, **kwargs}
                     criteria = Filter(state=state(
                         **state_args), stakeholder=stakeholder)
-                    return stack.enter_context(self._persistence.files(criteria))
+                    return stack.enter_context(
+                        self._persistence.files(criteria))
 
                 # Deleted and Staged files that require notification
                 attachments = {
                     "deleted": _files(State.Deleted),
-                    "staged":  _files(State.Staged)
+                    "staged": _files(State.Staged)
                 }
 
                 # Convenience aliases for e-mail constructor

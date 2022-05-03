@@ -42,7 +42,8 @@ class MockMailer(mail.base.Postman):
     def addresser(self) -> str:
         return "fake-emailer@sanger.ac.uk"
 
-    def _deliver(self, message: mail.base.Message, recipients: T.Collection[str], sender: str) -> None:
+    def _deliver(self, message: mail.base.Message,
+                 recipients: T.Collection[str], sender: str) -> None:
         with open(self.__class__.file_path, "w") as f:
             f.write(f"Subject: {message.subject}\n")
             f.write(f"To: {', '.join(recipients)}\n")

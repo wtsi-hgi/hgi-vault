@@ -106,13 +106,15 @@ class TestFileSystemWalker(unittest.TestCase):
         # The default permissions do not fly.
         # For files, ensure they are readable, writable and u=g (66x) is sufficient.
         # Parent directories should be executable and should have u=g(33x)
-        # Parent directories should also be readable, for list_dir() to work in the walk
+        # Parent directories should also be readable, for list_dir() to work in
+        # the walk
         self.file_one.chmod(0o660)
         self.file_two.chmod(0o660)
         self.file_three.chmod(0o660)
         self.parent.chmod(0o770)
         self.some.chmod(0o770)
-        # Monkey patch Vault._find_root so that it returns the directory we want
+        # Monkey patch Vault._find_root so that it returns the directory we
+        # want
         Vault._find_root = MagicMock(return_value=self.parent)
         self.vault = Vault(relative_to=self.file_one, idm=dummy_idm)
 
@@ -120,7 +122,8 @@ class TestFileSystemWalker(unittest.TestCase):
         self._tmp.cleanup()
         del self.parent
 
-    # Behavior: A walk yields the correct status for the annotatd files, along with the files
+    # Behavior: A walk yields the correct status for the annotatd files, along
+    # with the files
     @mock.patch('bin.sandman.walk.idm', new=dummy_idm)
     def test_basic_case(self):
         # vault_mock =  MagicMock(return_value = self.parent)

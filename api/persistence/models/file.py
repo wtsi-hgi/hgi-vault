@@ -60,7 +60,8 @@ class File(persistence.base.File):
                    size=stat.st_size)
 
     @classmethod
-    def FromDBRecord(cls, record: T.NamedTuple, idm: idm.base.IdentityManager) -> File:
+    def FromDBRecord(cls, record: T.NamedTuple,
+                     idm: idm.base.IdentityManager) -> File:
         """ Construct from database record """
         file = cls(device=record.device,
                    inode=record.inode,
@@ -79,7 +80,8 @@ class File(persistence.base.File):
         return file
 
     @classmethod
-    def FromDBQuery(cls, t: Transaction, file: File, idm: idm.base.IdentityManager) -> T.Optional[File]:
+    def FromDBQuery(cls, t: Transaction, file: File,
+                    idm: idm.base.IdentityManager) -> T.Optional[File]:
         """ Construct from database query, if found """
         if hasattr(file, "db_id"):
             # Don't search for something we've already found

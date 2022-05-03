@@ -39,7 +39,8 @@ _POOL_MAX = int(os.getenv("PG_POOL_MAX", "10"))
 _ExcT = T.TypeVar("_ExcT", bound=persistence.exception.BackendException)
 
 
-def _exception(heading: str, pg_exc: PGError, exc_type: T.Type[_ExcT]) -> _ExcT:
+def _exception(heading: str, pg_exc: PGError,
+               exc_type: T.Type[_ExcT]) -> _ExcT:
     message = f"{heading} {pg_exc.pgcode}"
     if pg_exc.pgerror:
         message += f"\n{pg_exc.pgerror}"
@@ -50,13 +51,15 @@ def _exception(heading: str, pg_exc: PGError, exc_type: T.Type[_ExcT]) -> _ExcT:
 @singledispatch
 def _exception_mapper(exc: PGError) -> persistence.exception.BackendException:
     # Fallback to BackendException
-    return _exception("PostgreSQL error", exc, persistence.exception.BackendException)
+    return _exception("PostgreSQL error", exc,
+                      persistence.exception.BackendException)
 
 
 @_exception_mapper.register
 def _(exc: RaiseException) -> persistence.exception.LogicException:
     # RaiseException -> LogicException
-    return _exception("PL/pgSQL exception", exc, persistence.exception.LogicException)
+    return _exception("PL/pgSQL exception", exc,
+                      persistence.exception.LogicException)
 
 
 class _BaseSession(AbstractContextManager, metaclass=ABCMeta):
@@ -98,7 +101,8 @@ class Transaction(_BaseSession):
     _pool: AbstractConnectionPool
     _autocommit: bool
 
-    def __init__(self, *, pool: AbstractConnectionPool, autocommit: bool) -> None:
+    def __init__(self, *, pool: AbstractConnectionPool,
+                 autocommit: bool) -> None:
         self._pool = pool
         self._autocommit = autocommit
 
@@ -123,7 +127,8 @@ class PostgreSQL:
     """
     _pool: AbstractConnectionPool
 
-    def __init__(self, *, database: str, user: str, password: str, host: str, port: int = 5432) -> None:
+    def __init__(self, *, database: str, user: str, password: str,
+                 host: str, port: int = 5432) -> None:
         dsn = f"dbname={database} user={user} password={password} host={host} port={port}"
         self._pool = ThreadedConnectionPool(
             _POOL_MIN, _POOL_MAX, dsn, cursor_factory=NamedTupleCursor)

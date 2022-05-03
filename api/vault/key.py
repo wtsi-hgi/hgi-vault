@@ -1,7 +1,7 @@
 """
 Copyright (c) 2020, 2021 Genome Research Limited
 
-Authors: 
+Authors:
     * Christopher Harrison <ch12@sanger.ac.uk>
     * Michael Grace <mg38@sanger.ac.uk>
 
@@ -41,7 +41,8 @@ class VaultFileKey(os.PathLike):
     _prefix: T.Optional[T.Path]  # inode prefix path, without the LSB
     _suffix: str                 # LSB and encoded basename suffix name
 
-    def __init__(self, path: T.Path, inode: T.Optional[int] = None, max_file_name_length: int = _default_max_name_length) -> None:
+    def __init__(self, path: T.Path, inode: T.Optional[int] = None,
+                 max_file_name_length: int = _default_max_name_length) -> None:
         """
         Construct the key from a path and (optional) inode
 
@@ -61,7 +62,7 @@ class VaultFileKey(os.PathLike):
             inode_hex = f"0{inode_hex}"
 
         # Chunk the inode ID into 8-bit segments
-        chunks = [inode_hex[i:i+2] for i in range(0, len(inode_hex), 2)]
+        chunks = [inode_hex[i:i + 2] for i in range(0, len(inode_hex), 2)]
 
         # inode ID, without the least significant byte, if it exists
         self._prefix = None
@@ -74,7 +75,7 @@ class VaultFileKey(os.PathLike):
         encoded_path = base64.encode(path)
         max_file_name_length -= 3
         self._suffix = chunks[-1] + self._delimiter + str(
-            T.Path(*[encoded_path[i:i+max_file_name_length]
+            T.Path(*[encoded_path[i:i + max_file_name_length]
                      for i in range(0, len(encoded_path), max_file_name_length)])
         )
 

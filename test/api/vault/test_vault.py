@@ -1,7 +1,7 @@
 """
 Copyright (c) 2020, 2021 Genome Research Limited
 
-Authors: 
+Authors:
     * Piyush Ahuja <pa11@sanger.ac.uk>
     * Michael Grace <mg38@sanger.ac.uk>
 
@@ -318,14 +318,17 @@ class TestVault(unittest.TestCase):
         # The following conditions should be checked upfront for each file and, if not satisfied, that action should fail for that file, logged appropriately:
         #     Check that the permissions of the file are at least ug+rw; 660+
         #     Check that the user and group permissions of the file are equal;66* or 77*
-        #     Check that the file's parent directory permissions are at least ug+wx. 330+
+        # Check that the file's parent directory permissions are at least
+        # ug+wx. 330+
 
-        # Default file permissions can be unsuitable for archiving, like 644 (rw-r--r--, where owner and group dont have same permissions.
+        # Default file permissions can be unsuitable for archiving, like 644
+        # (rw-r--r--, where owner and group dont have same permissions.
         self.tmp_file_a.chmod(0o660)  # rw, rw, _
         self.tmp_file_b.chmod(0o644)  # rw, r, r
         self.tmp_file_c.chmod(0o777)  # rwx, rwx, rwx
 
-        # Default parent dir permissions can be unsuitable for archiving, like 755 -  write permissions are missing.
+        # Default parent dir permissions can be unsuitable for archiving, like
+        # 755 -  write permissions are missing.
         self.child_dir_one.chmod(0o730)  # wx, wx, _
         self.parent_dir.chmod(0o777)  # rwx, rwx, rwx
 
@@ -354,7 +357,8 @@ class TestVault(unittest.TestCase):
             self._path / T.Path("parent_dir/child_dir_one/.vault/.staged")))
 
     def test_add(self):
-        # Add child_dir_one/tmp_file_b to vault and check whether hard link exists at desired location.
+        # Add child_dir_one/tmp_file_b to vault and check whether hard link
+        # exists at desired location.
         self.vault.add(Branch.Keep, self.tmp_file_a)
         inode_no = self.tmp_file_a.stat().st_ino
         vault_file_key_path = VFK(T.Path("a"), inode_no).path
@@ -389,7 +393,8 @@ class TestVault(unittest.TestCase):
         self.tmp_file_d = self.long_subdirectory / "d"
         self.tmp_file_d.touch()
 
-        # Subdirectories are made rwx for user so that os.walk is able to read into it.
+        # Subdirectories are made rwx for user so that os.walk is able to read
+        # into it.
 
         for dirpath, dirname, filenames in os.walk(self.parent_dir):
             for momo in dirname:
@@ -401,7 +406,8 @@ class TestVault(unittest.TestCase):
         self.vault.add(Branch.Limbo, self.tmp_file_d)
 
     def test_add_incorrect_parent_perms(self):
-        # Add child_dir_one/tmp_file_b to vault and check whether hard link exists at desired location.
+        # Add child_dir_one/tmp_file_b to vault and check whether hard link
+        # exists at desired location.
         self.child_dir_one.chmod(0o577)
         self.assertRaises(Exception, self.vault.add,
                           Branch.Keep, self.tmp_file_a)
@@ -487,7 +493,8 @@ class TestVault(unittest.TestCase):
                           self.vault.add, Branch.Keep, self.child_dir_one)
 
     def test_add_change_location(self):
-        # Add child_dir_one/tmp_file_b to vault and check whether hard link exists at desired location.
+        # Add child_dir_one/tmp_file_b to vault and check whether hard link
+        # exists at desired location.
         self.assertRaises(exception.NotRegularFile,
                           self.vault.add, Branch.Keep, self.child_dir_one)
 

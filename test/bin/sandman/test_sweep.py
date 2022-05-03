@@ -1,7 +1,7 @@
 """
 Copyright (c) 2021, 2022 Genome Research Limited
 
-Authors: 
+Authors:
     - Piyush Ahuja <pa11@sanger.ac.uk>
     - Michael Grace <mg38@sanger.ac.uk>
     - Sendu Bala <sb10@sanger.ac.uk>
@@ -54,7 +54,8 @@ class _DummyWalker(BaseWalker):
 
 class _DummyFile(models.File):
     @classmethod
-    def FromFS(cls, path: T.Path, idm: IdM.base.IdentityManager, ctime: datetime, atime: datetime, mtime: datetime) -> File:
+    def FromFS(cls, path: T.Path, idm: IdM.base.IdentityManager,
+               ctime: datetime, atime: datetime, mtime: datetime) -> File:
         file = models.File.FromFS(path, idm)
         file.ctime = ctime
         file.atime = atime
@@ -68,21 +69,25 @@ def after_deletion_threshold() -> datetime:
 
 def make_file_seem_old(path: T.Path) -> File:
     long_ago = after_deletion_threshold()
-    return _DummyFile.FromFS(path, idm, ctime=long_ago, mtime=long_ago, atime=long_ago)
+    return _DummyFile.FromFS(path, idm, ctime=long_ago,
+                             mtime=long_ago, atime=long_ago)
 
 
 def make_file_seem_old_but_read_recently(path: T.Path) -> File:
     long_ago = after_deletion_threshold()
-    return _DummyFile.FromFS(path, idm, ctime=long_ago, mtime=long_ago, atime=time.now())
+    return _DummyFile.FromFS(path, idm, ctime=long_ago,
+                             mtime=long_ago, atime=time.now())
 
 
 def make_file_seem_modified_long_ago(path: T.Path) -> File:
     long_ago = after_deletion_threshold()
-    return _DummyFile.FromFS(path, idm, ctime=time.now(), mtime=long_ago, atime=time.now())
+    return _DummyFile.FromFS(path, idm, ctime=time.now(),
+                             mtime=long_ago, atime=time.now())
 
 
 class _DummyUser(IdM.base.User):
-    def __init__(self, uid: int, name: T.Optional[str] = None, email: T.Optional[str] = None):
+    def __init__(self, uid: int,
+                 name: T.Optional[str] = None, email: T.Optional[str] = None):
         self._id = uid
         self._name = name
         self._email = email
@@ -104,7 +109,8 @@ class _DummyGroup(IdM.base.Group):
     _owner: IdM.base.User
     _member: IdM.base.User
 
-    def __init__(self, gid: int, owner: IdM.base.User, member: T.Optional[IdM.base.User] = None):
+    def __init__(self, gid: int, owner: IdM.base.User,
+                 member: T.Optional[IdM.base.User] = None):
         self._id = gid
         self._owner = owner
         self._member = member or owner
@@ -132,7 +138,8 @@ class _DummyPersistence(PersistenceBase.Persistence):
         self._user: IdM.base.User = _DummyUser(
             os.getuid(), name="Test User", email="testEmail@test.com")
 
-    def persist(self, file: PersistenceBase.File, state: PersistenceBase.State) -> None:
+    def persist(self, file: PersistenceBase.File,
+                state: PersistenceBase.State) -> None:
         self._files.append((file, state))
 
     @property
@@ -171,7 +178,8 @@ class _DummyPersistence(PersistenceBase.Persistence):
             def __iter__(self):
                 return iter(x[0] for x in self._files)
 
-        return _DummyFileCollection([x for x in self._files if x[1] == criteria.state])
+        return _DummyFileCollection(
+            [x for x in self._files if x[1] == criteria.state])
 
     def clean(self, *_) -> None:
         ...
@@ -229,7 +237,8 @@ class TestSweeper(unittest.TestCase):
         self.wrong_perms.chmod(0o640)
         self.parent.chmod(0o330)
         self.some.chmod(0o330)
-        # Monkey patch Vault._find_root so that it returns the directory we want
+        # Monkey patch Vault._find_root so that it returns the directory we
+        # want
         Vault._find_root = MagicMock(return_value=self.parent)
         self.vault = Vault(relative_to=self.file_one, idm=idm)
 
@@ -284,7 +293,8 @@ class TestSweeper(unittest.TestCase):
         self.assertFalse(os.path.isfile(self.file_one))
         self.assertTrue(os.path.isfile(vault_file_one.path))
 
-    # Behavior: When the source file of a vault file in Keep is deleted, Sweeper does not delete the vault file in Keep if its a dry run
+    # Behavior: When the source file of a vault file in Keep is deleted,
+    # Sweeper does not delete the vault file in Keep if its a dry run
     @mock.patch('bin.sandman.walk.idm', new=dummy_idm)
     @mock.patch('bin.vault._create_vault')
     def test_keep_corruption_case_dry_run(self, vault_mock):
@@ -308,7 +318,8 @@ class TestSweeper(unittest.TestCase):
         self.assertTrue(os.path.isfile(self.file_three))
         self.assertTrue(os.path.isfile(vault_file_three.path))
 
-    # Behavior: When the source file of a vaultfile in Keep is deleted, Sweeper deletes the vault file in Keep.
+    # Behavior: When the source file of a vaultfile in Keep is deleted,
+    # Sweeper deletes the vault file in Keep.
     @mock.patch('bin.sandman.walk.idm', new=dummy_idm)
     @mock.patch('bin.vault._create_vault')
     def test_keep_corruption_case_actual(self, vault_mock):
@@ -332,7 +343,8 @@ class TestSweeper(unittest.TestCase):
         self.assertTrue(os.path.isfile(self.file_three))
         self.assertTrue(os.path.isfile(vault_file_three.path))
 
-    # Behavior: When the source file of a vault file in Archive is deleted, Sweeper does not delete the vault file if its a dry run
+    # Behavior: When the source file of a vault file in Archive is deleted,
+    # Sweeper does not delete the vault file if its a dry run
     @mock.patch('bin.sandman.walk.idm', new=dummy_idm)
     @mock.patch('bin.vault._create_vault')
     def test_archive_corruption_case_dry_run(self, vault_mock):
@@ -358,7 +370,8 @@ class TestSweeper(unittest.TestCase):
         self.assertTrue(os.path.isfile(self.file_three))
         self.assertTrue(os.path.isfile(vault_file_three.path))
 
-    # Behavior: When the source file of a vault file in Archive is deleted, Sweeper deletes the vault file
+    # Behavior: When the source file of a vault file in Archive is deleted,
+    # Sweeper deletes the vault file
     @mock.patch('bin.sandman.walk.idm', new=dummy_idm)
     @mock.patch('bin.vault._create_vault')
     def test_archive_source_deleted(self, vault_mock):
@@ -389,7 +402,8 @@ class TestSweeper(unittest.TestCase):
     # Behavior:
     # The vault file is in Stash, but has less than one hardlink: corruption is logged.
     # The vault file is in Staged, but has more than one hardlink: there is no corruption.
-    # The vault file is in Limbo, but has more than one hardlink: corruption is logged.
+    # The vault file is in Limbo, but has more than one hardlink: corruption
+    # is logged.
     @mock.patch('bin.sandman.walk.idm', new=dummy_idm)
     @mock.patch('bin.vault._create_vault')
     def test_archive_corruption_case_actual(self, vault_mock):
@@ -409,7 +423,8 @@ class TestSweeper(unittest.TestCase):
    # Behavior: Regular, tracked, non-vault file.
    # If the file is marked for Keep: nothing is done.
    # If the file has a corresponding hardlink in Staged, its NOT a case of VaultCorruption
-   # If the file has a corresponding hardlink in Limbo, its a case of VaultCorruption and yet nothing is done.
+   # If the file has a corresponding hardlink in Limbo, its a case of
+   # VaultCorruption and yet nothing is done.
     @mock.patch('bin.sandman.walk.idm', new=dummy_idm)
     @mock.patch('bin.vault._create_vault')
     def test_tracked_file_non_archive(self, vault_mock):
@@ -431,7 +446,8 @@ class TestSweeper(unittest.TestCase):
         self.assertTrue(os.path.isfile(vault_file_three.path))
 
     # Behavior: Regular, tracked, non-vault file.
-    # If the file has a corresponding hardlink in Archive, then the source file is deleted and the archive file is moved to staged.
+    # If the file has a corresponding hardlink in Archive, then the source
+    # file is deleted and the archive file is moved to staged.
     @mock.patch('bin.sandman.walk.idm', new=dummy_idm)
     @mock.patch('bin.vault._create_vault')
     def test_tracked_file_archived(self, vault_mock):
@@ -451,7 +467,8 @@ class TestSweeper(unittest.TestCase):
         self.assertTrue(os.path.isfile(vault_file_one_staged))
 
     # Behavior: Regular, tracked, non-vault file.
-    # If the file has a corresponding hardlink in Stash, then the source file is NOT deleted and the stashed file is moved to staged.
+    # If the file has a corresponding hardlink in Stash, then the source file
+    # is NOT deleted and the stashed file is moved to staged.
     @mock.patch('bin.sandman.walk.idm', new=dummy_idm)
     @mock.patch('bin.vault._create_vault')
     def test_tracked_file_stashed(self, vault_mock):
@@ -470,7 +487,9 @@ class TestSweeper(unittest.TestCase):
         self.assertFalse(os.path.isfile(vault_file_one_stash.path))
         self.assertTrue(os.path.isfile(vault_file_one_staged))
 
-    # Behavior: When a regular, untracked, non-vault file has been there for more than the deletion threshold, the source is deleted and a hardlink created in Limbo
+    # Behavior: When a regular, untracked, non-vault file has been there for
+    # more than the deletion threshold, the source is deleted and a hardlink
+    # created in Limbo
     @mock.patch('bin.sandman.walk.idm', new=dummy_idm)
     @mock.patch('bin.vault._create_vault')
     def test_deletion_threshold_passed(self, vault_mock):
@@ -488,7 +507,9 @@ class TestSweeper(unittest.TestCase):
         # Check if the file has been added to Limbo
         self.assertTrue(os.path.isfile(vault_file_path))
 
-    # Behavior: When a regular, untracked, non-vault file has been modified more than the deletion threshold ago, but read recently, the source is not deleted and a hardlink is not created in Limbo
+    # Behavior: When a regular, untracked, non-vault file has been modified
+    # more than the deletion threshold ago, but read recently, the source is
+    # not deleted and a hardlink is not created in Limbo
     @mock.patch('bin.sandman.walk.idm', new=dummy_idm)
     @mock.patch('bin.vault._create_vault')
     def test_deletion_threshold_not_passed_for_access(self, vault_mock):
@@ -507,11 +528,17 @@ class TestSweeper(unittest.TestCase):
         # Check if the file has been added to Limbo
         self.assertFalse(os.path.isfile(vault_file_path))
 
-    # Behavior: When a regular, untracked, non-vault file has been modified more than the deletion threshold ago, but created recently, the source is not deleted and a hardlink is not created in Limbo
+    # Behavior: When a regular, untracked, non-vault file has been modified
+    # more than the deletion threshold ago, but created recently, the source
+    # is not deleted and a hardlink is not created in Limbo
     @mock.patch('bin.sandman.walk.idm', new=dummy_idm)
     @mock.patch('bin.vault._create_vault')
     def test_deletion_threshold_not_passed_for_creation(self, vault_mock):
-        walk = [(self.vault, make_file_seem_modified_long_ago(self.file_one), None)]
+        walk = [
+            (self.vault,
+             make_file_seem_modified_long_ago(
+                 self.file_one),
+                None)]
         dummy_walker = _DummyWalker(walk)
         dummy_persistence = MagicMock()
 
@@ -525,7 +552,8 @@ class TestSweeper(unittest.TestCase):
         # Check if the file has been added to Limbo
         self.assertFalse(os.path.isfile(vault_file_path))
 
-    # Behavior: When a Limbo file has been there for more than the limbo threshold, it is deleted
+    # Behavior: When a Limbo file has been there for more than the limbo
+    # threshold, it is deleted
     @mock.patch('bin.sandman.walk.idm', new=dummy_idm)
     @mock.patch('bin.vault._create_vault')
     def test_limbo_deletion_threshold_passed(self, vault_mock):
@@ -541,7 +569,8 @@ class TestSweeper(unittest.TestCase):
         self.assertFalse(os.path.isfile(self.file_one))
         self.assertFalse(os.path.isfile(vault_file_one.path))
 
-    # Behavior: When a Limbo file was modifed more than the limbo threshold ago, but read recently, it is not deleted
+    # Behavior: When a Limbo file was modifed more than the limbo threshold
+    # ago, but read recently, it is not deleted
     @mock.patch('bin.sandman.walk.idm', new=dummy_idm)
     @mock.patch('bin.vault._create_vault')
     def test_limbo_deletion_threshold_not_passed_for_access(self, vault_mock):
@@ -557,7 +586,8 @@ class TestSweeper(unittest.TestCase):
         self.assertFalse(os.path.isfile(self.file_one))
         self.assertTrue(os.path.isfile(vault_file_one.path))
 
-    # Behavior: When a Limbo file has been there for less than the limbo threshold, it is not deleted
+    # Behavior: When a Limbo file has been there for less than the limbo
+    # threshold, it is not deleted
     @mock.patch('bin.sandman.walk.idm', new=dummy_idm)
     @mock.patch('bin.vault._create_vault')
     def test_limbo_deletion_threshold_not_passed(self, vault_mock):
@@ -622,5 +652,6 @@ class TestSweeper(unittest.TestCase):
         self.assertEquals(len(filepath_line_nums), 1)
 
         # That should be at the bottom of all the warnings
-        for _line_num in _search_file(MockMailer.file_path, "Your files will be DELETED"):
+        for _line_num in _search_file(
+                MockMailer.file_path, "Your files will be DELETED"):
             self.assertLess(_line_num, filepath_line_nums[0])

@@ -1,7 +1,7 @@
 """
 Copyright (c) 2020, 2022 Genome Research Limited
 
-Authors: 
+Authors:
     - Christopher Harrison <ch12@sanger.ac.uk>
     - Michael Grace <mg38@sanger.ac.uk>
 
@@ -81,7 +81,8 @@ class _BaseFile:
     size: int
 
 
-class _BaseFileCollection(T.Collection[_BaseFile], T.ContextManager, metaclass=ABCMeta):
+class _BaseFileCollection(
+        T.Collection[_BaseFile], T.ContextManager, metaclass=ABCMeta):
     """ Abstract base class for collections of files """
     _persistence: _BasePersistence
     _filter: Filter
@@ -89,7 +90,8 @@ class _BaseFileCollection(T.Collection[_BaseFile], T.ContextManager, metaclass=A
     _contents: T.List[_BaseFile]
     _accumulator: T.Any
 
-    def __init__(self, persistence: _BasePersistence, criteria: Filter) -> None:
+    def __init__(self, persistence: _BasePersistence,
+                 criteria: Filter) -> None:
         self._persistence = persistence
         self._filter = criteria
         self._contents = []
@@ -137,7 +139,8 @@ class _BaseFileCollection(T.Collection[_BaseFile], T.ContextManager, metaclass=A
 
 class _BasePersistence(metaclass=ABCMeta):
     @abstractmethod
-    def __init__(self, config: config.base.Config, idm: idm.base.IdentityManager) -> None:
+    def __init__(self, config: config.base.Config,
+                 idm: idm.base.IdentityManager) -> None:
         """ Construct from configuration and injected IdM """
 
     @abstractmethod

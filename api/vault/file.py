@@ -37,7 +37,8 @@ class VaultFile(core.vault.base.VaultFile):
     """ HGI vault file implementation """
     _key: VaultFileKey  # Vault key of external file
 
-    def __init__(self, vault: BaseHGIVault, branch: Branch, path: T.Path) -> None:
+    def __init__(self, vault: BaseHGIVault, branch: Branch,
+                 path: T.Path) -> None:
         self.vault = vault
         self.branch = branch
         log = vault.log
@@ -128,7 +129,8 @@ class VaultFile(core.vault.base.VaultFile):
             raise VaultExc.IncorrectVault(
                 f"{path} does not belong to the vault in {root}")
 
-    def _preexisting(self, branch: Branch, key: VaultFileKey) -> T.Optional[VaultFileKey]:
+    def _preexisting(self, branch: Branch,
+                     key: VaultFileKey) -> T.Optional[VaultFileKey]:
         """
         Return an pre-existing key, if one exists, in the given branch
 

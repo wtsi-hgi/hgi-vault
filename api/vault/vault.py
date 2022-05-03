@@ -1,7 +1,7 @@
 """
 Copyright (c) 2020, 2021 Genome Research Limited
 
-Authors: 
+Authors:
     * Christopher Harrison <ch12@sanger.ac.uk>
     * Michael Grace <mg38@sanger.ac.uk>
 
@@ -44,7 +44,8 @@ class Vault(BaseHGIVault):
     # Injected dependencies
     _idm: IdM.IdentityManager
 
-    def __init__(self, relative_to: T.Path, *, idm: IdM.IdentityManager, autocreate: bool = True) -> None:
+    def __init__(self, relative_to: T.Path, *,
+                 idm: IdM.IdentityManager, autocreate: bool = True) -> None:
         """
         Constructor
 

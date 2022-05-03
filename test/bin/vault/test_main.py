@@ -1,7 +1,7 @@
 """
 Copyright (c) 2021 Genome Research Limited
 
-Authors: 
+Authors:
 * Piyush Ahuja <pa11@sanger.ac.uk>
 * Michael Grace <mg38@sanger.ac.uk>
 
@@ -132,7 +132,8 @@ class TestMain(unittest.TestCase):
             self.assertEqual(files, [filepath])
         self._tmp.cleanup()
 
-    @mock.patch("builtins.open", new_callable=mock_open, read_data='/file1\n/file2')
+    @mock.patch("builtins.open", new_callable=mock_open,
+                read_data='/file1\n/file2')
     @mock.patch('bin.vault.untrack')
     @mock.patch('bin.vault.add')
     def test_keep_fofn(self, mock_add, mock_remove, mock_file):
@@ -218,14 +219,16 @@ class TestMain(unittest.TestCase):
 
     @mock.patch('bin.vault.untrack')
     @mock.patch('bin.vault.view')
-    def test_archive_view_staged_relative_default(self, mock_view, mock_remove):
+    def test_archive_view_staged_relative_default(
+            self, mock_view, mock_remove):
         main(["__init__", "archive", "--view-staged"])
         mock_view.assert_called_with(Branch.Staged, ViewContext.All, False)
         mock_remove.assert_not_called()
 
     @mock.patch('bin.vault.untrack')
     @mock.patch('bin.vault.view')
-    def test_archive_view_staged_absolute_default(self, mock_view, mock_remove):
+    def test_archive_view_staged_absolute_default(
+            self, mock_view, mock_remove):
         main(["__init__", "archive", "--view-staged", "--absolute"])
         mock_view.assert_called_with(Branch.Staged, ViewContext.All, True)
         mock_remove.assert_not_called()
@@ -280,7 +283,8 @@ class TestMain(unittest.TestCase):
             Branch.Archive, [T.Path("/file1"), T.Path("/file2")])
         mock_remove.assert_not_called()
 
-    @mock.patch("builtins.open", new_callable=mock_open, read_data='/file1\n/file2')
+    @mock.patch("builtins.open", new_callable=mock_open,
+                read_data='/file1\n/file2')
     @mock.patch('bin.vault.untrack')
     @mock.patch('bin.vault.add')
     def test_archive_fofn(self, mock_add, mock_remove, mock_file):
@@ -292,7 +296,8 @@ class TestMain(unittest.TestCase):
         self.assertEqual(branch, Branch.Archive)
         mock_remove.assert_not_called()
 
-    @mock.patch("builtins.open", new_callable=mock_open, read_data='/file1\n/file2')
+    @mock.patch("builtins.open", new_callable=mock_open,
+                read_data='/file1\n/file2')
     @mock.patch('bin.vault.untrack')
     @mock.patch('bin.vault.add')
     def test_archive_stash_fofn(self, mock_add, mock_remove, mock_file):
@@ -326,7 +331,8 @@ class TestMain(unittest.TestCase):
         mock_recover.assert_called_with(None)
         mock_untrack.assert_not_called()
 
-    @mock.patch("builtins.open", new_callable=mock_open, read_data='/file1\n/file2\n')
+    @mock.patch("builtins.open", new_callable=mock_open,
+                read_data='/file1\n/file2\n')
     @mock.patch('bin.vault.untrack')
     @mock.patch('bin.vault.recover')
     def test_recover_fofn(self, mock_recover, mock_remove, mock_file):
@@ -341,7 +347,8 @@ class TestMain(unittest.TestCase):
         main(["__init__", "untrack", "/file1", "/file2"])
         mock_untrack.assert_called_with([T.Path("/file1"), T.Path("/file2")])
 
-    @mock.patch("builtins.open", new_callable=mock_open, read_data='/file1\n/file2\n')
+    @mock.patch("builtins.open", new_callable=mock_open,
+                read_data='/file1\n/file2\n')
     @mock.patch('bin.vault.untrack')
     def test_untrack_fofn(self, mock_untrack, mock_file):
         main(["__init__", "untrack", "--fofn", "mock_file"])

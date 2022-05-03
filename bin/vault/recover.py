@@ -52,7 +52,8 @@ def relativise(path: T.Path, working_directory: T.Path) -> T.Path:
     return T.Path(relpath(path, working_directory))
 
 
-def derelativise(path: T.Path, working_directory: T.Path, vault_root: T.Path) -> T.Path:
+def derelativise(path: T.Path, working_directory: T.Path,
+                 vault_root: T.Path) -> T.Path:
     """
     Takes a canonicalises Vault path, relative to some directory under
     the Vault root, and converts it back to a "full" Vault path
@@ -75,7 +76,8 @@ def derelativise(path: T.Path, working_directory: T.Path, vault_root: T.Path) ->
     return T.Path(relpath(full_path, vault_root))
 
 
-def move_with_path_safety_checks(full_source_path: T.Path, full_dest_path: T.Path) -> None:
+def move_with_path_safety_checks(
+        full_source_path: T.Path, full_dest_path: T.Path) -> None:
     """
     Method that creates a hardlink at destination, with the latest
     mtime, and the hardlink from source, with checks that the source and

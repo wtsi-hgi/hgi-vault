@@ -45,7 +45,8 @@ class _LazyLDAPIdentity(metaclass=ABCMeta):
 
     @classmethod
     @abstractmethod
-    def from_dn(cls, ldap_idm: LDAPIdentityManager, dn: str) -> _LazyLDAPIdentity:
+    def from_dn(cls, ldap_idm: LDAPIdentityManager,
+                dn: str) -> _LazyLDAPIdentity:
         """ Construct the identity object from a DN """
 
     @staticmethod

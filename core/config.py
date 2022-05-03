@@ -97,7 +97,8 @@ class _BaseConfig(metaclass=ABCMeta):
 
         # We create a (shallow) copy for sub-branches, to avoid
         # downstream changes to the contents
-        return type(self)(contents.copy()) if isinstance(contents, dict) else contents
+        return type(self)(contents.copy()) if isinstance(
+            contents, dict) else contents
 
     def __dir__(self) -> T.List[str]:
         # Convenience method for REPL use

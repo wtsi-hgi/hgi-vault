@@ -93,7 +93,8 @@ def hardlinks(path: T.Path) -> int:
     return path.stat().st_nlink
 
 
-def touch(path: T.Path, atime: T.Optional[T.DateTime] = None, mtime: T.Optional[T.DateTime] = None) -> None:
+def touch(path: T.Path, atime: T.Optional[T.DateTime]
+          = None, mtime: T.Optional[T.DateTime] = None) -> None:
     """
     Update the access and/or modification time of a given file
 

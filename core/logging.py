@@ -37,7 +37,8 @@ class Level(Enum):
     Critical = logging.CRITICAL
 
 
-def _equal_stream_handlers(lhs: logging.StreamHandler, rhs: logging.StreamHandler) -> bool:
+def _equal_stream_handlers(lhs: logging.StreamHandler,
+                           rhs: logging.StreamHandler) -> bool:
     """
     Check two stream handlers (n.b., file handlers are stream handlers)
     are equal, by virtue of having the same stream name, level and
@@ -78,7 +79,8 @@ class _LoggableMixin:
         parent = self
 
         class _wrapper:
-            def __call__(self, message: str, level: Level = Level.Info) -> None:
+            def __call__(self, message: str,
+                         level: Level = Level.Info) -> None:
                 """ Log a message at an optional level """
                 parent.logger.log(level.value, message)
 
@@ -107,19 +109,23 @@ class _LoggableMixin:
                 """ Iterator of StreamHandlers on the logger """
                 yield from filter(lambda h: isinstance(h, logging.StreamHandler), parent.logger.handlers)
 
-            def _to_stream(self, handler: logging.StreamHandler, formatter: T.Optional[logging.Formatter] = None, level: T.Optional[Level] = None) -> None:
+            def _to_stream(self, handler: logging.StreamHandler,
+                           formatter: T.Optional[logging.Formatter] = None, level: T.Optional[Level] = None) -> None:
                 """ Add a new stream handler to the logger """
                 handler.setFormatter(formatter or parent._formatter)
                 handler.setLevel((level or parent._level).value)
 
-                if not any(_equal_stream_handlers(handler, stream) for stream in self._streams):
+                if not any(_equal_stream_handlers(handler, stream)
+                           for stream in self._streams):
                     parent.logger.addHandler(handler)
 
-            def to_tty(self, formatter: T.Optional[logging.Formatter] = None, level: T.Optional[Level] = None) -> None:
+            def to_tty(self, formatter: T.Optional[logging.Formatter]
+                       = None, level: T.Optional[Level] = None) -> None:
                 # Convenience alias
                 self._to_stream(logging.StreamHandler(), formatter, level)
 
-            def to_file(self, filename: T.Path, formatter: T.Optional[logging.Formatter] = None, level: T.Optional[Level] = None) -> None:
+            def to_file(self, filename: T.Path,
+                        formatter: T.Optional[logging.Formatter] = None, level: T.Optional[Level] = None) -> None:
                 # Convenience alias
                 self._to_stream(logging.FileHandler(
                     filename), formatter, level)
@@ -135,7 +141,8 @@ def _set_exception_handler(loggable: T.Type[_LoggableMixin]) -> None:
 
     @param   loggable  Loggable mixin class
     """
-    def _log_uncaught_exception(exc_type: T.Type[Exception], exc_val: Exception, traceback: TracebackType) -> None:
+    def _log_uncaught_exception(
+            exc_type: T.Type[Exception], exc_val: Exception, traceback: TracebackType) -> None:
         if issubclass(exc_type, KeyboardInterrupt):
             sys.__excepthook__(exc_type, exc_val, traceback)
 

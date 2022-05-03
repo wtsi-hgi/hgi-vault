@@ -47,7 +47,8 @@ _EntryT = T.Dict[str, T.List[T.Any]]
 class _BaseLDAP(metaclass=ABCMeta):
     """ Quick-and-dirty abstract base class for LDAP searching """
     @abstractmethod
-    def search(self, dn: str, query: str, scope: Scope = Scope.SubTree) -> T.Iterator[_EntryT]:
+    def search(self, dn: str, query: str,
+               scope: Scope = Scope.SubTree) -> T.Iterator[_EntryT]:
         """
         Search the base DN at the given scope with the specified query
         and return the results, or raise NoResultsFound if no matches
@@ -61,9 +62,9 @@ class _BaseLDAP(metaclass=ABCMeta):
 
 
 _scope_map = {
-    Scope.Base:     ldap3.BASE,
+    Scope.Base: ldap3.BASE,
     Scope.OneLevel: ldap3.LEVEL,
-    Scope.SubTree:  ldap3.SUBTREE
+    Scope.SubTree: ldap3.SUBTREE
 }
 
 
@@ -78,7 +79,8 @@ class LDAP(_BaseLDAP):
                                             read_only=True,
                                             lazy=True)
 
-    def search(self, dn: str, query: str, scope: Scope = Scope.SubTree) -> T.Iterator[_EntryT]:
+    def search(self, dn: str, query: str,
+               scope: Scope = Scope.SubTree) -> T.Iterator[_EntryT]:
         with self._connection as ldap:
             if not ldap.search(search_base=dn,
                                search_filter=query,

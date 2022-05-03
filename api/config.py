@@ -88,44 +88,44 @@ class _Setting:
 _schema = {
     "identity": {
         "ldap": {
-            "host":          _Setting(),
-            "port":          _Setting(cast=int, default=389)},
+            "host": _Setting(),
+            "port": _Setting(cast=int, default=389)},
         "users": {
-            "dn":            _Setting(),
+            "dn": _Setting(),
             "attributes": {
-                "uid":       _Setting(),
-                "name":      _Setting(default="cn"),
-                "email":     _Setting(default="mail")}},
+                "uid": _Setting(),
+                "name": _Setting(default="cn"),
+                "email": _Setting(default="mail")}},
         "groups": {
-            "dn":            _Setting(),
+            "dn": _Setting(),
             "attributes": {
-                "gid":       _Setting(),
-                "owners":    _Setting(default="owner"),
-                "members":   _Setting(default="member")}}},
+                "gid": _Setting(),
+                "owners": _Setting(default="owner"),
+                "members": _Setting(default="member")}}},
 
     "persistence": {
         "postgres": {
-            "host":          _Setting(),
-            "port":          _Setting(cast=int, default=5432)},
-        "database":          _Setting(),
-        "user":              _Setting(),
-        "password":          _Setting()},
+            "host": _Setting(),
+            "port": _Setting(cast=int, default=5432)},
+        "database": _Setting(),
+        "user": _Setting(),
+        "password": _Setting()},
 
     "email": {
         "smtp": {
-            "host":          _Setting(),
-            "port":          _Setting(cast=int, default=25),
-            "tls":           _Setting(cast=bool, default=False)},
-        "sender":            _Setting()},
+            "host": _Setting(),
+            "port": _Setting(cast=int, default=25),
+            "tls": _Setting(cast=bool, default=False)},
+        "sender": _Setting()},
 
     "deletion": {
-        "threshold":         _Setting(cast=_Days),
-        "limbo":             _Setting(cast=_Days),
-        "warnings":          _Setting(cast=_ListOf(_HoursLessThanThreeMonths), default=[])},
+        "threshold": _Setting(cast=_Days),
+        "limbo": _Setting(cast=_Days),
+        "warnings": _Setting(cast=_ListOf(_HoursLessThanThreeMonths), default=[])},
 
     "archive": {
-        "threshold":         _Setting(cast=int),
-        "handler":           _Setting(cast=T.Path)}}
+        "threshold": _Setting(cast=int),
+        "handler": _Setting(cast=T.Path)}}
 
 
 def _validate(data: T.Dict, schema: T.Dict) -> bool:
