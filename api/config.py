@@ -136,7 +136,7 @@ def _validate(data: T.Dict, schema: T.Dict) -> bool:
     for key, setting in schema.items():
         if isinstance(setting, dict):
             # Descend the tree when we encounter a sub-schema
-            if not key in data:
+            if key not in data:
                 data[key] = {}
 
             if not _validate(data[key], schema[key]):

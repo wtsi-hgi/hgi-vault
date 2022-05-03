@@ -21,11 +21,11 @@ You should have received a copy of the GNU General Public License along
 with this program. If not, see https://www.gnu.org/licenses/
 """
 
-## IMPORTANT ###########################################
-##                                                    ##
-##  Search for "DELETION WARNING" for sensitive code  ##
-##                                                    ##
-########################################################
+# IMPORTANT ##########################################
+#                                                    #
+#  Search for "DELETION WARNING" for sensitive code  #
+#                                                    #
+######################################################
 
 
 from contextlib import ExitStack
@@ -175,7 +175,7 @@ class Sweeper(Loggable):
         """
         raise NotImplementedError(f"Unknown status for {file}: {repr(status)}")
 
-    ## File Handler Implementations ####################################
+    # File Handler Implementations ###################################
 
     @_handler.register
     def _(self, status: VaultExc.PhysicalVaultFile, vault, file):

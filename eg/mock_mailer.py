@@ -18,19 +18,16 @@ You should have received a copy of the GNU General Public License along
 with this program. If not, see https://www.gnu.org/licenses/
 """
 
-"""
-If you are working with Sandman, you can
-save sending emails by temporarily replacing
-the postman in the sweeper with this class.
-It writes any "emails" to /tmp/mail
-"""
-
-
-
-
 from pathlib import Path
 from core import mail, typing as T
+
+# If you are working with Sandman, you can save sending emails by temporarily
+# replacing the postman in the sweeper with this class. It writes any "emails"
+# to /tmp/mail
+
+
 class MockMailer(mail.base.Postman):
+
     """
     Provides a class for "sending" emails
     without actually sending them

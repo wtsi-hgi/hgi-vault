@@ -42,7 +42,7 @@ class File(persistence.base.File):
     owner: idm.base.User
     group: idm.base.Group
 
-    ## Alternative Constructors ########################################
+    # Alternative Constructors ########################################
 
     @classmethod
     def FromFS(cls, path: T.Path, idm: idm.base.IdentityManager) -> File:
@@ -98,7 +98,7 @@ class File(persistence.base.File):
 
         return cls.FromDBRecord(record, idm)
 
-    ## Methods #########################################################
+    # Methods #########################################################
 
     def __eq__(self, other: File) -> bool:
         """ Equality predicate """

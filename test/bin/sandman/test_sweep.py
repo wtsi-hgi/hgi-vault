@@ -409,7 +409,8 @@ class TestSweeper(unittest.TestCase):
     def test_archive_corruption_case_actual(self, vault_mock):
         vault_file_one = self.vault.add(Branch.Staged, self.file_one)
         vault_file_two = self.vault.add(Branch.Limbo, self.file_two)
-        walk = [(self.vault, File.FromFS(vault_file_one.path), VaultExc.PhysicalVaultFile("File is in Staged and can have to hardlinks if the file was archived with the stash option")),
+        walk = [(self.vault, File.FromFS(vault_file_one.path),
+                VaultExc.PhysicalVaultFile("File is in Staged and can have to hardlinks if the file was archived with the stash option")),
                 (self.vault, File.FromFS(vault_file_two.path), VaultExc.PhysicalVaultFile("File is in Limbo and has two hardlinks"))]
         dummy_walker = _DummyWalker(walk)
         dummy_persistence = MagicMock()
@@ -420,11 +421,11 @@ class TestSweeper(unittest.TestCase):
         self.assertTrue(os.path.isfile(self.file_two))
         self.assertTrue(os.path.isfile(vault_file_two.path))
 
-   # Behavior: Regular, tracked, non-vault file.
-   # If the file is marked for Keep: nothing is done.
-   # If the file has a corresponding hardlink in Staged, its NOT a case of VaultCorruption
-   # If the file has a corresponding hardlink in Limbo, its a case of
-   # VaultCorruption and yet nothing is done.
+    # Behavior: Regular, tracked, non-vault file.
+    # If the file is marked for Keep: nothing is done.
+    # If the file has a corresponding hardlink in Staged, its NOT a case of VaultCorruption
+    # If the file has a corresponding hardlink in Limbo, its a case of
+    # VaultCorruption and yet nothing is done.
     @mock.patch('bin.sandman.walk.idm', new=dummy_idm)
     @mock.patch('bin.vault._create_vault')
     def test_tracked_file_non_archive(self, vault_mock):

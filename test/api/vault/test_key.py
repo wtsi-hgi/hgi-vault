@@ -27,7 +27,11 @@ from .utils import VFK, VFK_k
 _DUMMY = T.Path("foo/bar/quux")
 _B64_DUMMY = base64.encode(_DUMMY)
 
-_DUMMY_LONG = T.Path("this/path/is/going/to/be/much/much/much/much/much/much/much/much/much/much/much/much/much/much/much/much/much/much/much/much/much/much/much/much/much/much/much/much/much/much/much/much/much/much/much/much/much/much/much/much/much/much/much/much/longer/than/two/hundred/and/fifty/five/characters")
+_DUMMY_LONG = T.Path('this/path/is/going/to/be/much/much/much/much/much/much/'
+                     'much/much/much/much/much/much/much/much/much/much/much/much/much/much/much'
+                     '/much/much/much/much/much/much/much/much/much/much/much/much/much/much/'
+                     'much/much/much/much/much/much/much/much/much/longer/than/two/hundred/and/'
+                     'fifty/five/characters')
 _B64_DUMMY_LONG = base64.encode(_DUMMY_LONG)
 # Assuming test is run on a filesystem (such as Linux) where NAME_MAX = 255.
 # If NAME_MAX != 255, these tests for long and really long relative paths
@@ -35,7 +39,13 @@ _B64_DUMMY_LONG = base64.encode(_DUMMY_LONG)
 _B64_DUMMY_LONG_FIRST_PART = _B64_DUMMY_LONG[0:252]
 _B64_DUMMY_LONG_SECOND_PART = _B64_DUMMY_LONG[252:]
 
-_DUMMY_LONGEST = T.Path("this/path/is/going/to/be/much/much/much/much/much/much/much/much/much/much/much/much/much/much/much/much/much/much/much/much/much/much/much/much/much/much/much/much/much/much/much/much/much/much/much/much/much/much/much/much/much/much/much/much/much/much/much/much/much/much/much/much/much/much/much/much/much/much/much/much/much/much/much/much/much/much/much/much/much/much/much/much/much/much/much/much/much/much/much/much/much/much/longer/than/two/hundred/and/fifty/five/characters")
+_DUMMY_LONGEST = T.Path('this/path/is/going/to/be/much/much/much/much/much/much'
+                        '/much/much/much/much/much/much/much/much/much/much/much/much/much/much/'
+                        'much/much/much/much/much/much/much/much/much/much/much/much/much/much/much'
+                        '/much/much/much/much/much/much/much/much/much/much/much/much/much/much/'
+                        'much/much/much/much/much/much/much/much/much/much/much/much/much/much/much'
+                        '/much/much/much/much/much/much/much/much/much/much/much/much/much/much/much'
+                        '/much/much/much/longer/than/two/hundred/and/fifty/five/characters')
 
 # Assuming test is run on a filesystem (such as Linux) where NAME_MAX = 255.
 # If NAME_MAX != 255, these tests for long and really long relative paths

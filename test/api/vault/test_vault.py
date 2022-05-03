@@ -386,7 +386,11 @@ class TestVault(unittest.TestCase):
                         +- c
         """
         # File with really long relative path
-        dummy_long = T.Path("this/path/is/going/to/be/much/much/much/much/much/much/much/much/much/much/much/much/much/much/much/much/much/much/much/much/much/much/much/much/much/much/much/much/much/much/much/much/much/much/much/much/much/much/much/much/much/much/much/much/longer/than/two/hundred/and/fifty/five/characters")
+        dummy_long = T.Path('this/path/is/going/to/be/much/much/much/much/much'
+                            '/much/much/much/much/much/much/much/much/much/much/much/much/much'
+                            '/much/much/much/much/much/much/much/much/much/much/much/much/much'
+                            '/much/much/much/much/much/much/much/much/much/much/much/much/much'
+                            '/longer/than/two/hundred/and/fifty/five/characters')
         # child_dir_one is the root of our vault
         self.long_subdirectory = self.child_dir_one / dummy_long
         self.long_subdirectory.mkdir(parents=True, exist_ok=True)
