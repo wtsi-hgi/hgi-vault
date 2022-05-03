@@ -22,9 +22,7 @@ import argparse
 from core import typing as T
 from bin.vault.usage import parse_args
 import unittest
-
 import os
-os.environ["VAULTRC"] = "eg/.vaultrc"
 
 
 class TestUsage(unittest.TestCase):

@@ -39,9 +39,7 @@ from unittest.mock import MagicMock
 from unittest import mock
 import unittest
 from tempfile import TemporaryDirectory
-
 import os
-os.environ["VAULTRC"] = "eg/.vaultrc"
 
 
 class _DummyWalker(BaseWalker):

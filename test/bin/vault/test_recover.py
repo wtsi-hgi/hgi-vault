@@ -29,7 +29,6 @@ from core import typing as T
 from unittest import mock
 import unittest
 import os
-os.environ["VAULTRC"] = "eg/.vaultrc"
 
 
 class TestVaultRelativeToWorkDirRelative(unittest.TestCase):

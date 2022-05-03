@@ -28,7 +28,6 @@ from unittest.mock import call, mock_open
 
 from tempfile import TemporaryDirectory
 import os
-os.environ["VAULTRC"] = "eg/.vaultrc"
 
 
 class TestMain(unittest.TestCase):
