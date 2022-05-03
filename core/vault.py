@@ -64,6 +64,7 @@ class _BaseBranch(Enum):
     """ Base vault branch/namespace enumeration """
     # It would be nice if this could also be a subclass of os.PathLike,
     # but because both that and Enum do metaclass trickery, we can't :(
+
     def __bool__(self) -> bool:
         # Always return truthy (see _BaseVault.__contains__)
         return True
@@ -80,13 +81,15 @@ class _BaseBranch(Enum):
 @dataclass(init=False)
 class _VaultFile:
     """ Base properties """
-    vault:_BaseVault
-    branch:_BaseBranch
+    vault: _BaseVault
+    branch: _BaseBranch
+
 
 class _BaseVaultFile(PathLike, _VaultFile, metaclass=ABCMeta):
     """ Abstract base class for files stored in the vault """
     @abstractmethod
-    def __init__(self, vault:_BaseVault, branch:_BaseBranch, path:T.Path) -> None:
+    def __init__(self, vault: _BaseVault, branch: _BaseBranch,
+                 path: T.Path) -> None:
         """ Initialise the dataclass values """
 
     @property
@@ -121,18 +124,19 @@ class _BaseVaultFile(PathLike, _VaultFile, metaclass=ABCMeta):
 _VFT = T.TypeVar("_VFT", bound=_BaseVaultFile)  # "Vault File Type"
 _BranchT = T.TypeVar("_BranchT", bound=_BaseBranch)
 
+
 class _BaseVault(T.Container[_VFT], metaclass=ABCMeta):
     """ Abstract base class for vault implementations """
-    _branch_enum:T.ClassVar[T.Type[_BranchT]]
-    _file_type:T.ClassVar[T.Type[_VFT]]
-    _vault:T.ClassVar[T.Path]
+    _branch_enum: T.ClassVar[T.Type[_BranchT]]
+    _file_type: T.ClassVar[T.Type[_VFT]]
+    _vault: T.ClassVar[T.Path]
 
-    _root:T.Path
+    _root: T.Path
 
-    ## Abstract methods
+    # Abstract methods
 
     @abstractmethod
-    def add(self, branch:_BranchT, path:T.Path) -> _VFT:
+    def add(self, branch: _BranchT, path: T.Path) -> _VFT:
         """
         Add the given file to the specified vault branch
 
@@ -142,7 +146,7 @@ class _BaseVault(T.Container[_VFT], metaclass=ABCMeta):
         """
 
     @abstractmethod
-    def remove(self, branch:_BranchT, path:T.Path) -> None:
+    def remove(self, branch: _BranchT, path: T.Path) -> None:
         """
         Remove the given file from the specified vault branch
 
@@ -151,7 +155,7 @@ class _BaseVault(T.Container[_VFT], metaclass=ABCMeta):
         """
 
     @abstractmethod
-    def list(self, branch:_BranchT) -> T.Iterator[T.Path]:
+    def list(self, branch: _BranchT) -> T.Iterator[T.Path]:
         """
         Return an iterator of files that exist in the given vault branch
         by their extra-vault paths (hence T.Path, rather than _VFT)
@@ -162,18 +166,19 @@ class _BaseVault(T.Container[_VFT], metaclass=ABCMeta):
         @return  Iterator of paths
         """
 
-    ## Properties
+    # Properties
 
     @property
     def root(self) -> T.Path:
         return self._root
 
     @root.setter
-    def root(self, path:T.Path) -> None:
+    def root(self, path: T.Path) -> None:
         """ Set the root vault """
         try:
             root = self._root
-            raise exception.RootIsImmutable(f"The vault root is already set to {root}")
+            raise exception.RootIsImmutable(
+                f"The vault root is already set to {root}")
         except AttributeError:
             pass
 
@@ -187,13 +192,13 @@ class _BaseVault(T.Container[_VFT], metaclass=ABCMeta):
         """ Return the vault location """
         return self._root / self._vault
 
-    ## Standard Methods
+    # Standard Methods
 
-    def __eq__(self, other:_BaseVault) -> bool:
+    def __eq__(self, other: _BaseVault) -> bool:
         """ Equality predicate """
         return isinstance(other, type(self)) and self.root == other.root
 
-    def __contains__(self, path:T.Path) -> bool:
+    def __contains__(self, path: T.Path) -> bool:
         """ Check whether the given path is contained in the vault """
         # NOTE This is why _BaseBranch is always truthy
         # NOTE Technically, path should be of type _VFT, but using Path
@@ -203,7 +208,7 @@ class _BaseVault(T.Container[_VFT], metaclass=ABCMeta):
     def __hash__(self) -> int:
         return hash(self.root)
 
-    def file(self, branch:_BranchT, path:T.Path) -> _VFT:
+    def file(self, branch: _BranchT, path: T.Path) -> _VFT:
         """
         Return the vault file given by the specified branch and path;
         this will be required for .add and .remove, but probably won't
@@ -215,7 +220,7 @@ class _BaseVault(T.Container[_VFT], metaclass=ABCMeta):
         """
         return self._file_type(self, branch, path)
 
-    def branch(self, path:T.Path) -> T.Optional[_BranchT]:
+    def branch(self, path: T.Path) -> T.Optional[_BranchT]:
         """
         Return the branch in which the given file is found, or None if
         the file is not contained in the vault
@@ -238,6 +243,6 @@ class _BaseVault(T.Container[_VFT], metaclass=ABCMeta):
 
 class base(T.SimpleNamespace):
     """ Namespace of base classes to make importing easier """
-    Branch    = _BaseBranch
+    Branch = _BaseBranch
     VaultFile = _BaseVaultFile
-    Vault     = _BaseVault
+    Vault = _BaseVault

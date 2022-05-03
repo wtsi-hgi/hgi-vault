@@ -1,7 +1,7 @@
 """
 Copyright (c) 2021 Genome Research Limited
 
-Authors: 
+Authors:
 * Piyush Ahuja <pa11@sanger.ac.uk>
 * Michael Grace <mg38@sanger.ac.uk>
 
@@ -19,20 +19,16 @@ You should have received a copy of the GNU General Public License along
 with this program. If not, see https://www.gnu.org/licenses/
 """
 
-import os
-os.environ["VAULTRC"] = "eg/.vaultrc"
-import unittest
-from unittest import mock
-
-from core import typing as T
-from tempfile import TemporaryDirectory
-from api.vault import Branch, Vault
-from api.vault.key import VaultFileKey as VFK
-from bin.vault.recover import relativise, derelativise, move_with_path_safety_checks, exception
-from bin.vault import ViewContext, recover, view
 from bin.common import idm
-
-
+from bin.vault import ViewContext, recover, view
+from bin.vault.recover import relativise, derelativise, move_with_path_safety_checks, exception
+from api.vault.key import VaultFileKey as VFK
+from api.vault import Branch, Vault
+from tempfile import TemporaryDirectory
+from core import typing as T
+from unittest import mock
+import unittest
+import os
 
 
 class TestVaultRelativeToWorkDirRelative(unittest.TestCase):
@@ -54,7 +50,6 @@ class TestVaultRelativeToWorkDirRelative(unittest.TestCase):
         work_dir_rel = relativise(vault_relative_path, work_dir)
         self.assertEqual(expected, work_dir_rel)
 
-
     def test_sibling_to_work_dir(self):
 
         work_dir = T.Path("this/is/my/path")
@@ -75,7 +70,6 @@ class TestWorkDirRelativeToVaultRelative(unittest.TestCase):
         expected = T.Path("some/path/file1")
         self.assertEqual(expected, vault_relative_path)
 
-
     def test_sibling_to_work_dir(self):
 
         work_dir = T.Path("this/is/my/path")
@@ -87,8 +81,8 @@ class TestWorkDirRelativeToVaultRelative(unittest.TestCase):
 
 
 class TestMovWithPathSafetyChecks(unittest.TestCase):
-    _tmp:TemporaryDirectory
-    _path:T.Path
+    _tmp: TemporaryDirectory
+    _path: T.Path
 
     def setUp(self) -> None:
         self._tmp = TemporaryDirectory()
@@ -96,7 +90,6 @@ class TestMovWithPathSafetyChecks(unittest.TestCase):
 
         tmp_file = path / "foo"
         tmp_file.touch()
-
 
     def tearDown(self) -> None:
         self._tmp.cleanup()
@@ -113,19 +106,20 @@ class TestMovWithPathSafetyChecks(unittest.TestCase):
     def test_source_does_not_exist(self):
         full_source_path = self._path / "new"
         full_dest_path = self._path / "quux"
-        self.assertRaises(exception.NoSourceFound, move_with_path_safety_checks, full_source_path, full_dest_path)
+        self.assertRaises(exception.NoSourceFound,
+                          move_with_path_safety_checks, full_source_path, full_dest_path)
 
     def test_destination_does_not_exist(self):
         full_source_path = self._path / "foo"
         full_dest_path = self._path / "new" / "quux"
-        self.assertRaises(exception.NoParentForDestination, move_with_path_safety_checks, full_source_path, full_dest_path)
+        self.assertRaises(exception.NoParentForDestination,
+                          move_with_path_safety_checks, full_source_path, full_dest_path)
 
 
 class TestRecover(unittest.TestCase):
 
-    _tmp:TemporaryDirectory
-    _path:T.Path
-
+    _tmp: TemporaryDirectory
+    _path: T.Path
 
     def setUp(self) -> None:
         """
@@ -142,7 +136,7 @@ class TestRecover(unittest.TestCase):
         self.parent = path = T.Path(self._tmp.name).resolve() / "parent"
         self.some = path / "some"
         self.some.mkdir(parents=True, exist_ok=True)
-        self.file_one = path /  "file1"
+        self.file_one = path / "file1"
         self.file_two = path / self.some / "file2"
         self.file_three = path / self.some / "file3"
         self.file_one.touch()
@@ -157,9 +151,9 @@ class TestRecover(unittest.TestCase):
         self.file_three.chmod(0o660)
         self.parent.chmod(0o330)
         self.some.chmod(0o330)
-        Vault._find_root = mock.MagicMock(return_value = self.parent)
+        Vault._find_root = mock.MagicMock(return_value=self.parent)
         # Make the desired vault.
-        self.vault = Vault(relative_to = self.file_one, idm = idm)
+        self.vault = Vault(relative_to=self.file_one, idm=idm)
 
     def tearDown(self) -> None:
         self._tmp.cleanup()
@@ -224,8 +218,8 @@ class TestRecover(unittest.TestCase):
 
 class TestView(unittest.TestCase):
 
-    _tmp:TemporaryDirectory
-    parent:T.Path
+    _tmp: TemporaryDirectory
+    parent: T.Path
 
     def setUp(self) -> None:
         """
@@ -242,7 +236,7 @@ class TestView(unittest.TestCase):
         self.parent = path = T.Path(self._tmp.name).resolve() / "parent"
         self.some = path / "some"
         self.some.mkdir(parents=True, exist_ok=True)
-        self.file_one = path /  "file1"
+        self.file_one = path / "file1"
         self.file_two = path / self.some / "file2"
         self.file_three = path / self.some / "file3"
         self.file_one.touch()
@@ -259,8 +253,8 @@ class TestView(unittest.TestCase):
         self.parent.chmod(0o330)
         self.some.chmod(0o330)
 
-        Vault._find_root = mock.MagicMock(return_value = self.parent)
-        self.vault = Vault(relative_to = self.file_one, idm = idm)
+        Vault._find_root = mock.MagicMock(return_value=self.parent)
+        self.vault = Vault(relative_to=self.file_one, idm=idm)
 
     def tearDown(self) -> None:
         self._tmp.cleanup()

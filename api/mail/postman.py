@@ -30,10 +30,10 @@ _SMTP_TIMEOUT = int(os.getenv("SMTP_TIMEOUT", "1"))
 
 class Postman(mail.base.Postman):
     """ MUA implementation """
-    _config:config.base.Config
-    _smtp:T.Type[smtplib.SMTP]
+    _config: config.base.Config
+    _smtp: T.Type[smtplib.SMTP]
 
-    def __init__(self, config:config.base.Config) -> None:
+    def __init__(self, config: config.base.Config) -> None:
         self._config = config
         self._smtp = smtplib.SMTP_SSL if config.smtp.tls else smtplib.SMTP
 
@@ -41,7 +41,8 @@ class Postman(mail.base.Postman):
     def addresser(self) -> str:
         return self._config.sender
 
-    def _deliver(self, message:mail.base.Message, recipients:T.Collection[str], sender:str) -> None:
+    def _deliver(self, message: mail.base.Message,
+                 recipients: T.Collection[str], sender: str) -> None:
         config = self._config
 
         msg = EmailMessage()

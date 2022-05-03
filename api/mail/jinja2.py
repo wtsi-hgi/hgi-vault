@@ -22,7 +22,7 @@ from jinja2 import Environment
 from core import typing as T, utils
 
 
-def render(template:str, context:T.Any) -> str:
+def render(template: str, context: T.Any) -> str:
     """
     Render the Jinja2 template with the given context
 

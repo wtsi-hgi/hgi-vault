@@ -32,7 +32,8 @@ class exception(T.SimpleNamespace):
 @dataclass(init=False, unsafe_hash=True)
 class _Identity:
     """ Base class for identities """
-    _id:int
+    _id: int
+
 
 class _User(_Identity, metaclass=ABCMeta):
     """ Abstract base class for user identities """
@@ -49,6 +50,7 @@ class _User(_Identity, metaclass=ABCMeta):
     @abstractmethod
     def email(self) -> T.Optional[str]:
         """ Return the user's e-mail address """
+
 
 class _Group(_Identity, metaclass=ABCMeta):
     """ Abstract base class for group identities """
@@ -75,11 +77,11 @@ class _Group(_Identity, metaclass=ABCMeta):
 class _IdentityManager(metaclass=ABCMeta):
     """ Abstract base class for identity management interface """
     @abstractmethod
-    def __init__(self, cfg:config.base.Config) -> None:
+    def __init__(self, cfg: config.base.Config) -> None:
         """ Construct from configuration """
 
     @abstractmethod
-    def user(self, *, uid:int) -> _User:
+    def user(self, *, uid: int) -> _User:
         """
         Return the user identity given by the specified ID
 
@@ -88,7 +90,7 @@ class _IdentityManager(metaclass=ABCMeta):
         """
 
     @abstractmethod
-    def group(self, *, gid:int) -> _Group:
+    def group(self, *, gid: int) -> _Group:
         """
         Return the group identity given by the specified ID
 
@@ -100,5 +102,5 @@ class _IdentityManager(metaclass=ABCMeta):
 class base(T.SimpleNamespace):
     """ Namespace of base classes to make importing easier """
     IdentityManager = _IdentityManager
-    User            = _User
-    Group           = _Group
+    User = _User
+    Group = _Group

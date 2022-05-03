@@ -25,15 +25,16 @@ from core.persistence import GroupSummary
 
 class TestGroupSummary(unittest.TestCase):
     def test_aggregation(self):
-        GS = lambda path, count, size: GroupSummary(T.Path(path), count, size)
+        def GS(path, count, size): return GroupSummary(
+            T.Path(path), count, size)
 
         (_, accumulator), *cases = [
             # Test Case                       Running accumulator
-            (GS("/foo/bar/quux",     1, 1),   GS("/foo/bar/quux", 1,  1)),
-            (GS("/foo/bar/quux/baz", 1, 2),   GS("/foo/bar/quux", 2,  3)),
-            (GS("/foo/bar/baz",      1, 3),   GS("/foo/bar",      3,  6)),
-            (GS("/foo/bar",          1, 4),   GS("/foo/bar",      4, 10)),
-            (GS("/xyzzy",            1, 5),   GS("/",             5, 15))
+            (GS("/foo/bar/quux", 1, 1), GS("/foo/bar/quux", 1, 1)),
+            (GS("/foo/bar/quux/baz", 1, 2), GS("/foo/bar/quux", 2, 3)),
+            (GS("/foo/bar/baz", 1, 3), GS("/foo/bar", 3, 6)),
+            (GS("/foo/bar", 1, 4), GS("/foo/bar", 4, 10)),
+            (GS("/xyzzy", 1, 5), GS("/", 5, 15))
         ]
 
         for this, check in cases:

@@ -19,12 +19,15 @@ with this program. If not, see https://www.gnu.org/licenses/
 
 from datetime import datetime, timedelta, timezone
 
-now     = lambda: datetime.now(timezone.utc)
-epoch   = lambda ts: datetime.fromtimestamp(ts, timezone.utc)
-to_utc  = lambda dt: dt.astimezone(timezone.utc)
-timestamp = lambda dt: int(to_utc(dt).timestamp())
 
-delta   = timedelta
-seconds = lambda d: d.total_seconds()
+def now(): return datetime.now(timezone.utc)
+def epoch(ts): return datetime.fromtimestamp(ts, timezone.utc)
+def to_utc(dt): return dt.astimezone(timezone.utc)
+def timestamp(dt): return int(to_utc(dt).timestamp())
+
+
+delta = timedelta
+def seconds(d): return d.total_seconds()
+
 
 ISO8601 = "%Y-%m-%dT%H:%M:%SZ%z"

@@ -37,8 +37,8 @@ class DummyConfig(base.Config):
 
 
 class TestUtils(unittest.TestCase):
-    _tmp:TemporaryDirectory
-    _cfg:T.Path
+    _tmp: TemporaryDirectory
+    _cfg: T.Path
 
     def setUp(self):
         self._tmp = tmp = TemporaryDirectory()
@@ -55,10 +55,13 @@ class TestUtils(unittest.TestCase):
         cfg = self._cfg
 
         self.assertEqual(utils.path("TEST_CONFIG"), cfg)
-        self.assertRaises(exception.ConfigurationNotFound, utils.path, "NO_SUCH_ENVVAR")
+        self.assertRaises(exception.ConfigurationNotFound,
+                          utils.path, "NO_SUCH_ENVVAR")
         self.assertEqual(utils.path("NO_SUCH_ENVVAR", str(cfg)), cfg)
-        self.assertRaises(exception.ConfigurationNotFound, utils.path, "NO_SUCH_ENVVAR", "no/such/path")
-        self.assertEqual(utils.path("NO_SUCH_ENVVAR", "no/such/path", str(cfg)), cfg)
+        self.assertRaises(exception.ConfigurationNotFound,
+                          utils.path, "NO_SUCH_ENVVAR", "no/such/path")
+        self.assertEqual(utils.path("NO_SUCH_ENVVAR",
+                         "no/such/path", str(cfg)), cfg)
 
 
 class TestBaseConfig(unittest.TestCase):

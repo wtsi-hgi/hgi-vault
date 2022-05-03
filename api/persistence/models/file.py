@@ -31,55 +31,57 @@ from api.persistence.postgres import Transaction
 @dataclass(eq=False, order=False)
 class File(persistence.base.File):
     """ File metadata """
-    db_id:int = field(init=False, repr=False)
+    db_id: int = field(init=False, repr=False)
 
-    device:int
-    inode:int
-    key:T.Optional[T.Path]
-    mtime:T.DateTime
+    device: int
+    inode: int
+    key: T.Optional[T.Path]
+    mtime: T.DateTime
     atime: T.DateTime
     ctime: T.DateTime
-    owner:idm.base.User
-    group:idm.base.Group
+    owner: idm.base.User
+    group: idm.base.Group
 
-    ## Alternative Constructors ########################################
+    # Alternative Constructors ########################################
 
     @classmethod
-    def FromFS(cls, path:T.Path, idm:idm.base.IdentityManager) -> File:
+    def FromFS(cls, path: T.Path, idm: idm.base.IdentityManager) -> File:
         """ Construct from filesystem """
         stat = path.stat()
-        return cls(device = stat.st_dev,
-                   inode  = stat.st_ino,
-                   path   = path,
-                   key    = None,
-                   mtime  = time.epoch(stat.st_mtime),
-                   atime  = time.epoch(stat.st_atime),
-                   ctime  = time.epoch(stat.st_ctime),
-                   owner  = idm.user(uid=stat.st_uid),
-                   group  = idm.group(gid=stat.st_gid),
-                   size   = stat.st_size)
+        return cls(device=stat.st_dev,
+                   inode=stat.st_ino,
+                   path=path,
+                   key=None,
+                   mtime=time.epoch(stat.st_mtime),
+                   atime=time.epoch(stat.st_atime),
+                   ctime=time.epoch(stat.st_ctime),
+                   owner=idm.user(uid=stat.st_uid),
+                   group=idm.group(gid=stat.st_gid),
+                   size=stat.st_size)
 
     @classmethod
-    def FromDBRecord(cls, record:T.NamedTuple, idm:idm.base.IdentityManager) -> File:
+    def FromDBRecord(cls, record: T.NamedTuple,
+                     idm: idm.base.IdentityManager) -> File:
         """ Construct from database record """
-        file = cls(device = record.device,
-                   inode  = record.inode,
-                   path   = T.Path(record.path),
-                   key    = T.Path(record.key) if record.key is not None else None,
-                   mtime  = time.to_utc(record.mtime),
+        file = cls(device=record.device,
+                   inode=record.inode,
+                   path=T.Path(record.path),
+                   key=T.Path(record.key) if record.key is not None else None,
+                   mtime=time.to_utc(record.mtime),
                    # The db only records mtime, so we set a and c time to mtime
                    # for now.
-                   atime  = time.to_utc(record.mtime),
-                   ctime  = time.to_utc(record.mtime),
-                   owner  = idm.user(uid=record.owner),
-                   group  = idm.group(gid=record.group_id),
-                   size   = record.size)
+                   atime=time.to_utc(record.mtime),
+                   ctime=time.to_utc(record.mtime),
+                   owner=idm.user(uid=record.owner),
+                   group=idm.group(gid=record.group_id),
+                   size=record.size)
 
         file.db_id = record.id
         return file
 
     @classmethod
-    def FromDBQuery(cls, t:Transaction, file:File, idm:idm.base.IdentityManager) -> T.Optional[File]:
+    def FromDBQuery(cls, t: Transaction, file: File,
+                    idm: idm.base.IdentityManager) -> T.Optional[File]:
         """ Construct from database query, if found """
         if hasattr(file, "db_id"):
             # Don't search for something we've already found
@@ -96,22 +98,22 @@ class File(persistence.base.File):
 
         return cls.FromDBRecord(record, idm)
 
-    ## Methods #########################################################
+    # Methods #########################################################
 
-    def __eq__(self, other:File) -> bool:
+    def __eq__(self, other: File) -> bool:
         """ Equality predicate """
         # We don't care if the vault keys don't match
         # *** need test for this needing atime check as well
         return self.device == other.device \
-           and self.inode  == other.inode \
-           and self.path   == other.path \
-           and self.mtime  == other.mtime \
-           and self.atime  == other.atime \
-           and self.owner  == other.owner \
-           and self.group  == other.group \
-           and self.size   == other.size
+            and self.inode == other.inode \
+            and self.path == other.path \
+            and self.mtime == other.mtime \
+            and self.atime == other.atime \
+            and self.owner == other.owner \
+            and self.group == other.group \
+            and self.size == other.size
 
-    def persist(self, t:Transaction) -> File:
+    def persist(self, t: Transaction) -> File:
         """ Persist to the database """
         # NOTE This depends on the group record being created first
         assert not hasattr(self, "db_id")
@@ -134,7 +136,7 @@ class File(persistence.base.File):
         self.db_id = t.fetchone().id
         return self
 
-    def purge(self, t:Transaction) -> None:
+    def purge(self, t: Transaction) -> None:
         """ Purge from the database """
         assert hasattr(self, "db_id")
         t.execute("delete from files where id = %s;", (self.db_id,))

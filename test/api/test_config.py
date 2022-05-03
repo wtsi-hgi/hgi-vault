@@ -69,9 +69,10 @@ _MISSING_DELETION_LIMBO = _EXAMPLE_CONFIG_TEXT.replace(
     "limbo: 14",
     "")
 
+
 class TestConfig(unittest.TestCase):
-    _tmp:NamedTemporaryFile
-    temp_config:T.Path
+    _tmp: NamedTemporaryFile
+    temp_config: T.Path
 
     def setUp(self) -> None:
         self._tmp = NamedTemporaryFile()
@@ -89,17 +90,20 @@ class TestConfig(unittest.TestCase):
         self.assertEqual(config.identity.ldap.host, "ldap.example.com")
         self.assertEqual(config.identity.ldap.port, 389)
 
-        self.assertEqual(config.identity.users.dn, "ou=users,dc=example,dc=com")
+        self.assertEqual(config.identity.users.dn,
+                         "ou=users,dc=example,dc=com")
         self.assertEqual(config.identity.users.attributes.uid, "uidNumber")
         self.assertEqual(config.identity.users.attributes.name, "cn")
         self.assertEqual(config.identity.users.attributes.email, "mail")
 
-        self.assertEqual(config.identity.groups.dn, "ou=groups,dc=example,dc=com")
+        self.assertEqual(config.identity.groups.dn,
+                         "ou=groups,dc=example,dc=com")
         self.assertEqual(config.identity.groups.attributes.gid, "gidNumber")
         self.assertEqual(config.identity.groups.attributes.owners, "owner")
         self.assertEqual(config.identity.groups.attributes.members, "member")
 
-        self.assertEqual(config.persistence.postgres.host, "postgres.example.com")
+        self.assertEqual(config.persistence.postgres.host,
+                         "postgres.example.com")
         self.assertEqual(config.persistence.postgres.port, 5432)
 
         self.assertEqual(config.persistence.database, "sandman")
@@ -111,7 +115,8 @@ class TestConfig(unittest.TestCase):
         self.assertEqual(config.email.sender, "vault@example.com")
 
         self.assertEqual(config.deletion.threshold, time.delta(days=90))
-        self.assertEqual(config.deletion.warnings, [time.delta(days=10), time.delta(days=3), time.delta(days=1)])
+        self.assertEqual(config.deletion.warnings, [time.delta(
+            days=10), time.delta(days=3), time.delta(days=1)])
         self.assertEqual(config.deletion.limbo, time.delta(days=14))
 
         self.assertEqual(config.archive.threshold, 1000)
@@ -121,10 +126,12 @@ class TestConfig(unittest.TestCase):
         self.assertIsInstance(Config(_EXAMPLE_CONFIG), Config)
 
         self.temp_config.write_text(_NOT_A_CONFIG)
-        self.assertRaises(config.exception.InvalidConfiguration, Config._build, self.temp_config)
+        self.assertRaises(config.exception.InvalidConfiguration,
+                          Config._build, self.temp_config)
 
         self.temp_config.write_text(_BAD_YAML)
-        self.assertRaises(config.exception.InvalidConfiguration, Config._build, self.temp_config)
+        self.assertRaises(config.exception.InvalidConfiguration,
+                          Config._build, self.temp_config)
 
     def test_validator(self) -> None:
         self.assertTrue(Config(_EXAMPLE_CONFIG)._is_valid)
@@ -133,13 +140,16 @@ class TestConfig(unittest.TestCase):
         self.assertTrue(Config(self.temp_config)._is_valid)
 
         self.temp_config.write_text(_SCALAR_LIST_CONFIG)
-        self.assertRaises(config.exception.InvalidSemantics, Config, self.temp_config)
+        self.assertRaises(config.exception.InvalidSemantics,
+                          Config, self.temp_config)
 
         self.temp_config.write_text(_INCORRECT_TYPE_CONFIG)
-        self.assertRaises(config.exception.InvalidSemantics, Config, self.temp_config)
+        self.assertRaises(config.exception.InvalidSemantics,
+                          Config, self.temp_config)
 
         self.temp_config.write_text(_MISSING_KEY_CONFIG)
-        self.assertRaises(config.exception.InvalidSemantics, Config, self.temp_config)
+        self.assertRaises(config.exception.InvalidSemantics,
+                          Config, self.temp_config)
 
         self.temp_config.write_text(_MISSING_OPTIONAL_CONFIG)
         self.assertTrue((c := Config(self.temp_config))._is_valid)

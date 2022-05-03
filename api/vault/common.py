@@ -27,11 +27,11 @@ from core import logging, typing as T
 
 class Branch(core.vault.base.Branch):
     """ HGI vault branches """
-    Keep    = T.Path("keep")
+    Keep = T.Path("keep")
     Archive = T.Path("archive")
-    Staged  = T.Path(".staged")
-    Limbo   = T.Path(".limbo")
-    Stash   = T.Path(".stash")
+    Staged = T.Path(".staged")
+    Limbo = T.Path(".limbo")
+    Stash = T.Path(".stash")
 
 
 class BaseHGIVault(core.vault.base.Vault, logging.base.LoggableMixin):
@@ -42,10 +42,10 @@ class BaseHGIVault(core.vault.base.Vault, logging.base.LoggableMixin):
     # dependencies
 
     _branch_enum = Branch
-    _vault       = T.Path(".vault")
+    _vault = T.Path(".vault")
 
     # Class-level logging configuration
-    _level     = logging.levels.default
+    _level = logging.levels.default
     _formatter = logging.formats.with_username
 
     @property

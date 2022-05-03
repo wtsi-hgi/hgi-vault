@@ -35,9 +35,10 @@ VaultExc = core.vault.exception
 
 class VaultFile(core.vault.base.VaultFile):
     """ HGI vault file implementation """
-    _key:VaultFileKey  # Vault key of external file
+    _key: VaultFileKey  # Vault key of external file
 
-    def __init__(self, vault:BaseHGIVault, branch:Branch, path:T.Path) -> None:
+    def __init__(self, vault: BaseHGIVault, branch: Branch,
+                 path: T.Path) -> None:
         self.vault = vault
         self.branch = branch
         log = vault.log
@@ -53,7 +54,8 @@ class VaultFile(core.vault.base.VaultFile):
 
         inode = file.inode_id(path)
         path = self._relative_path(path)
-        self._key = expected_key = VaultFileKey(path, inode, max_file_name_length)
+        self._key = expected_key = VaultFileKey(
+            path, inode, max_file_name_length)
 
         # Check for corresponding keys in the vault, automatically
         # update if the branch or path differ in that alternate and log
@@ -63,20 +65,23 @@ class VaultFile(core.vault.base.VaultFile):
             # bother checking for that, because it's effectively a noop
             if alternate_key := self._preexisting(check, expected_key):
                 if already_found:
-                    raise VaultExc.VaultCorruption(f"The vault in {vault.root} contains duplicates of {path} in the {already_found} branch")
+                    raise VaultExc.VaultCorruption(
+                        f"The vault in {vault.root} contains duplicates of {path} in the {already_found} branch")
                 already_found = check
 
                 self._key = alternate_key
 
                 if check != branch:
                     # Branch differs from expectation
-                    log.info(f"{path} was found in the {check} branch, rather than {branch}")
+                    log.info(
+                        f"{path} was found in the {check} branch, rather than {branch}")
                     self.branch = check
 
                 if alternate_key.source != path:
                     # Path differs from expectation
                     # (i.e., source was moved or renamed)
-                    log.info(f"{path} was found in the vault as {alternate_key.source}")
+                    log.info(
+                        f"{path} was found in the vault as {alternate_key.source}")
 
         # If a key already exists in the vault, then it must have:
         # * At least two hardlinks, when in the Keep or Archive branch
@@ -90,13 +95,14 @@ class VaultFile(core.vault.base.VaultFile):
 
             if not staged and not limboed and single_hardlink:
                 # NOTE This is not physically possible
-                raise VaultExc.VaultCorruption(f"The vault in {vault.root} contains {self.source}, but this no longer exists outside the vault")
-          
+                raise VaultExc.VaultCorruption(
+                    f"The vault in {vault.root} contains {self.source}, but this no longer exists outside the vault")
+
             if limboed and not single_hardlink:
-                raise VaultExc.VaultCorruption(f"{self.source} is soft deleted in the vault in {vault.root}, but also exists outside the vault")
+                raise VaultExc.VaultCorruption(
+                    f"{self.source} is soft deleted in the vault in {vault.root}, but also exists outside the vault")
 
-
-    def _relative_path(self, path:T.Path) -> T.Path:
+    def _relative_path(self, path: T.Path) -> T.Path:
         """
         Return the specified path relative to the vault's root
         directory. If the path is outside the root, then raise an
@@ -106,22 +112,25 @@ class VaultFile(core.vault.base.VaultFile):
         @param   path  Path
         @return  Path relative to vault root
         """
-        path  = path.resolve()
-        root  = self.vault.root
+        path = path.resolve()
+        root = self.vault.root
         vault = self.vault.location
 
         try:
             _ = path.relative_to(vault)
-            raise VaultExc.PhysicalVaultFile(f"{path} is physically contained in the vault in {root}")
+            raise VaultExc.PhysicalVaultFile(
+                f"{path} is physically contained in the vault in {root}")
         except ValueError:
             pass
 
         try:
             return path.relative_to(root)
         except ValueError:
-            raise VaultExc.IncorrectVault(f"{path} does not belong to the vault in {root}")
+            raise VaultExc.IncorrectVault(
+                f"{path} does not belong to the vault in {root}")
 
-    def _preexisting(self, branch:Branch, key:VaultFileKey) -> T.Optional[VaultFileKey]:
+    def _preexisting(self, branch: Branch,
+                     key: VaultFileKey) -> T.Optional[VaultFileKey]:
         """
         Return an pre-existing key, if one exists, in the given branch
 
@@ -146,7 +155,8 @@ class VaultFile(core.vault.base.VaultFile):
 
         if len(others) != 0:
             # If the glob finds multiple matches, that's bad!
-            raise VaultExc.VaultCorruption(f"The vault in {self.vault.root} contains duplicates of {key.path} in the {branch} branch")
+            raise VaultExc.VaultCorruption(
+                f"The vault in {self.vault.root} contains duplicates of {key.path} in the {branch} branch")
 
         alternate = T.Path(alt_suffix)
         if key_base is not None:
@@ -182,19 +192,22 @@ class VaultFile(core.vault.base.VaultFile):
         source_mode = source.stat().st_mode
         ugrw = stat.S_IRUSR | stat.S_IWUSR | stat.S_IRGRP | stat.S_IWGRP
         if source_mode & ugrw != ugrw:
-            log.info(f"{source} is not read-writable by both its owner and group")
+            log.info(
+                f"{source} is not read-writable by both its owner and group")
             return False
 
         user_perms = (source_mode & stat.S_IRWXU) >> 3
         group_perms = source_mode & stat.S_IRWXG
         if user_perms != group_perms:
-            log.info(f"The owner and group permissions do not match for {source}")
+            log.info(
+                f"The owner and group permissions do not match for {source}")
             return False
 
         parent_mode = source.parent.stat().st_mode
         ugwx = stat.S_IWUSR | stat.S_IXUSR | stat.S_IWGRP | stat.S_IXGRP
         if parent_mode & ugwx != ugwx:
-            log.info(f"The parent directory of {source} is not writable or executable for both its owner and group")
+            log.info(
+                f"The parent directory of {source} is not writable or executable for both its owner and group")
             return False
 
         if source.stat().st_uid == 0:
@@ -220,7 +233,8 @@ class VaultFile(core.vault.base.VaultFile):
         owner = source.stat().st_uid
 
         if os.getuid() not in [*self.vault.owners, owner]:
-            log.info(f"The current user is not the owner of {source} nor a group owner")
+            log.info(
+                f"The current user is not the owner of {source} nor a group owner")
             return False
 
         return self.can_add

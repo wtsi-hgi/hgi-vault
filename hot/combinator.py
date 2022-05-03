@@ -39,7 +39,8 @@ _ArgT = T.TypeVar("_ArgT")
 _RetT = T.TypeVar("_RetT")
 _HotCode = T.Callable[..., _RetT]  # FIXME Callable[_ArgT, _RetT] doesn't parse
 
-def _run(fn:_HotCode) -> _HotCode:
+
+def _run(fn: _HotCode) -> _HotCode:
     name = f"{fn.__module__}.{fn.__name__}"
 
     def _wrapper(*args, **kwargs) -> _RetT:
@@ -50,7 +51,8 @@ def _run(fn:_HotCode) -> _HotCode:
 
     return _wrapper
 
-def agreed(*fn:_HotCode, quorum:int = _QUORUM_SIZE) -> _HotCode:
+
+def agreed(*fn: _HotCode, quorum: int = _QUORUM_SIZE) -> _HotCode:
     """
     Return a function that runs the argument functions and checks that
     they all agree, in terms of return value; otherwise, raise a
@@ -61,13 +63,16 @@ def agreed(*fn:_HotCode, quorum:int = _QUORUM_SIZE) -> _HotCode:
     @return  Consensus function
     """
     if quorum < 2:
-        raise exception.CorruptQuorum("The quorum must have more than one member")
+        raise exception.CorruptQuorum(
+            "The quorum must have more than one member")
 
     if len(fn) < quorum:
-        raise exception.QuorumTooFew(f"Not enough functions to combine; expected {quorum}, got {len(fn)}")
+        raise exception.QuorumTooFew(
+            f"Not enough functions to combine; expected {quorum}, got {len(fn)}")
 
     if len(set(fn)) < len(fn):
-        raise exception.CorruptQuorum("The quorum is made up of non-unique functions")
+        raise exception.CorruptQuorum(
+            "The quorum is made up of non-unique functions")
 
     def _wrapper(*args, **kwargs) -> _RetT:
         head, *tail = fn
@@ -78,7 +83,8 @@ def agreed(*fn:_HotCode, quorum:int = _QUORUM_SIZE) -> _HotCode:
         for f in tail:
             if _run(f)(*args, **kwargs) != result:
                 f_id = f"{f.__module__}.{f.__name__}"
-                raise exception.NoConsensusReached(f"{f_id} does not agree with {head_id}")
+                raise exception.NoConsensusReached(
+                    f"{f_id} does not agree with {head_id}")
 
         return result
 

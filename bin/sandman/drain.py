@@ -35,14 +35,18 @@ Filter = core.persistence.Filter
 class _StagingQueueEmpty(Exception):
     """ Raised when the staging queue is empty """
 
+
 class _StagingQueueUnderThreshold(Exception):
     """ Raised when the staging queue has yet to cross its threshold size """
+
 
 class _HandlerBusy(Exception):
     """ Raised when the downstream handler is busy """
 
+
 class _DownstreamFull(Exception):
     """ Raised when the downstream handler reports it's out of capacity """
+
 
 class _UnknownHandlerError(Exception):
     """ Raised when the downstream handler breaks apropos of nothing """
@@ -53,14 +57,15 @@ _preflight_exception = {
     2: _DownstreamFull
 }
 
+
 class _Handler(Loggable):
     """ Downstream handler """
-    _handler:T.Path
+    _handler: T.Path
 
-    def __init__(self, handler:T.Path) -> None:
+    def __init__(self, handler: T.Path) -> None:
         self._handler = handler.resolve()
 
-    def preflight(self, capacity:int) -> None:
+    def preflight(self, capacity: int) -> None:
         """
         Run the handler preflight-check with the given required capacity
 
@@ -74,22 +79,24 @@ class _Handler(Loggable):
                            capture_output=True, check=True)
 
         except subprocess.CalledProcessError as response:
-            raise _preflight_exception.get(response.returncode, _UnknownHandlerError)()
+            raise _preflight_exception.get(
+                response.returncode, _UnknownHandlerError)()
 
-    def consume(self, files:T.Iterator[T.Path]) -> None:
+    def consume(self, files: T.Iterator[T.Path]) -> None:
         """
         Drain the files, NULL-delimited, through the handler's stdin
 
         @param   files                 File queue
         @raises  _UnknownHandlerError  Handler did not accept the queue
         """
-        log     = self.log
+        log = self.log
         handler = subprocess.Popen(self._handler, stdin=PIPE,
-                                                  stdout=DEVNULL,
-                                                  stderr=DEVNULL)
+                                   stdout=DEVNULL,
+                                   stderr=DEVNULL)
         for file in files:
             if not is_regular(file):
-                log.error("Skipping: {file} is not a regular file or does not exist")
+                log.error(
+                    "Skipping: {file} is not a regular file or does not exist")
                 continue
 
             log.info(f"Draining: {file}")
@@ -101,7 +108,8 @@ class _Handler(Loggable):
             raise _UnknownHandlerError()
 
 
-def drain(persistence:core.persistence.base.Persistence, *, force:bool = False) -> int:
+def drain(persistence: core.persistence.base.Persistence, *,
+          force: bool = False) -> int:
     """ Drain phase """
     handler = _Handler(config.archive.handler)
     criteria = Filter(state=State.Staged(notified=True), stakeholder=Anything)
@@ -116,15 +124,18 @@ def drain(persistence:core.persistence.base.Persistence, *, force:bool = False) 
                 raise _StagingQueueEmpty()
 
             if count < config.archive.threshold and not force:
-                raise _StagingQueueUnderThreshold(f"Only {count} files to archive; use --force-drain to ignore the threshold")
+                raise _StagingQueueUnderThreshold(
+                    f"Only {count} files to archive; use --force-drain to ignore the threshold")
 
             required_capacity = staging_queue.accumulator
-            log.info(f"Checking downstream handler is ready for {human_size(required_capacity)}B...")
+            log.info(
+                f"Checking downstream handler is ready for {human_size(required_capacity)}B...")
             handler.preflight(required_capacity)
 
             log.info("Handler is ready; beginning drain...")
             handler.consume(f.key for f in staging_queue)
-            log.info(f"Successfully drained {count} files into the downstream handler")
+            log.info(
+                f"Successfully drained {count} files into the downstream handler")
 
     except _StagingQueueEmpty:
         log.info("Staging queue is empty")
@@ -136,11 +147,13 @@ def drain(persistence:core.persistence.base.Persistence, *, force:bool = False) 
         log.warning("The downstream handler is busy; try again later...")
 
     except _DownstreamFull:
-        log.error("The downstream handler is reporting it is out of capacity and cannot proceed")
+        log.error(
+            "The downstream handler is reporting it is out of capacity and cannot proceed")
         return 1
 
     except _UnknownHandlerError:
-        log.critical("The downstream handler failed unexpectedly; please check its logs for details...")
+        log.critical(
+            "The downstream handler failed unexpectedly; please check its logs for details...")
         return 1
 
     return 0

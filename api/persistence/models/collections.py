@@ -23,6 +23,7 @@ from .file import File
 
 _UserAccumulatorT = T.Dict[idm.base.Group, persistence.GroupSummary]
 
+
 class _User(persistence.base.FileCollection):
     """
     File collection/accumulator for user-specific files
@@ -34,21 +35,21 @@ class _User(persistence.base.FileCollection):
     The accumulator partitions by group and aggregates the count, common
     path prefix and size of the container's files
     """
-    _accumulator:_UserAccumulatorT
+    _accumulator: _UserAccumulatorT
 
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
         self._accumulator = {}
 
-    def _accumulate(self, file:File) -> None:
+    def _accumulate(self, file: File) -> None:
         # Group files by group and aggregate count, path and size
         assert file.path is not None
-        acc  = self._accumulator
-        key  = file.group
+        acc = self._accumulator
+        key = file.group
         zero = persistence.GroupSummary(path=file.path, count=0, size=0)
 
         acc[key] = acc.get(key, zero) \
-                 + persistence.GroupSummary(path=file.path, count=1, size=file.size)
+            + persistence.GroupSummary(path=file.path, count=1, size=file.size)
 
 
 class _StagedQueue(persistence.base.FileCollection):
@@ -57,17 +58,17 @@ class _StagedQueue(persistence.base.FileCollection):
 
     The accumulator simply aggregates the total file size
     """
-    _accumulator:int
+    _accumulator: int
 
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
         self._accumulator = 0
 
-    def _accumulate(self, file:File) -> None:
+    def _accumulate(self, file: File) -> None:
         self._accumulator += file.size
 
 
 class FileCollection(T.SimpleNamespace):
     """ Namespace of collections to make importing easier """
-    User        = _User
+    User = _User
     StagedQueue = _StagedQueue

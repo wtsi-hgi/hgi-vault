@@ -1,7 +1,7 @@
 """
 Copyright (c) 2020, 2022 Genome Research Limited
 
-Authors: 
+Authors:
     - Christopher Harrison <ch12@sanger.ac.uk>
     - Michael Grace <mg38@sanger.ac.uk>
 
@@ -44,14 +44,14 @@ class GroupSummary:
     # summary; this is probably slower, but it's easier to maintain.
     # Also, we'd need a custom "commonpath" aggregation function in the
     # schema, which would be non-trivial to write!
-    path:T.Path  # Common path prefix
-    count:int    # Count of files
-    size:int     # Total size of files (bytes)
+    path: T.Path  # Common path prefix
+    count: int    # Count of files
+    size: int     # Total size of files (bytes)
 
-    def __add__(self, other:GroupSummary) -> GroupSummary:
-        return GroupSummary(path  = T.Path(os.path.commonpath([self.path, other.path])),
-                            count = self.count + other.count,
-                            size  = self.size  + other.size)
+    def __add__(self, other: GroupSummary) -> GroupSummary:
+        return GroupSummary(path=T.Path(os.path.commonpath([self.path, other.path])),
+                            count=self.count + other.count,
+                            size=self.size + other.size)
 
 
 class Anything:
@@ -64,14 +64,14 @@ class Filter:
     # NOTE The parameters of the "state" object define the state search
     # criteria; the "Anything" sentinel can be used as a wildcard, both
     # in the state parameters and as the stakeholder (default)
-    state:_BaseState
-    stakeholder:T.Union[idm.base.User, T.Type[Anything]] = Anything
+    state: _BaseState
+    stakeholder: T.Union[idm.base.User, T.Type[Anything]] = Anything
 
 
 @dataclass
 class _BaseState:
     """ Base class for file states """
-    notified:T.Union[bool, T.Type[Anything]]
+    notified: T.Union[bool, T.Type[Anything]]
 
 
 @dataclass
@@ -81,15 +81,17 @@ class _BaseFile:
     size: int
 
 
-class _BaseFileCollection(T.Collection[_BaseFile], T.ContextManager, metaclass=ABCMeta):
+class _BaseFileCollection(
+        T.Collection[_BaseFile], T.ContextManager, metaclass=ABCMeta):
     """ Abstract base class for collections of files """
-    _persistence:_BasePersistence
-    _filter:Filter
+    _persistence: _BasePersistence
+    _filter: Filter
 
-    _contents:T.List[_BaseFile]
-    _accumulator:T.Any
+    _contents: T.List[_BaseFile]
+    _accumulator: T.Any
 
-    def __init__(self, persistence:_BasePersistence, criteria:Filter) -> None:
+    def __init__(self, persistence: _BasePersistence,
+                 criteria: Filter) -> None:
         self._persistence = persistence
         self._filter = criteria
         self._contents = []
@@ -97,7 +99,7 @@ class _BaseFileCollection(T.Collection[_BaseFile], T.ContextManager, metaclass=A
     def __len__(self) -> int:
         return len(self._contents)
 
-    def __contains__(self, file:_BaseFile) -> bool:
+    def __contains__(self, file: _BaseFile) -> bool:
         return file in self._contents
 
     def __iter__(self) -> T.Iterator[_BaseFile]:
@@ -110,7 +112,7 @@ class _BaseFileCollection(T.Collection[_BaseFile], T.ContextManager, metaclass=A
 
         return False
 
-    def __iadd__(self, file:_BaseFile) -> _BaseFileCollection:
+    def __iadd__(self, file: _BaseFile) -> _BaseFileCollection:
         """ Overload += to append new files """
         self._contents.append(file)
         self._accumulate(file)
@@ -127,7 +129,7 @@ class _BaseFileCollection(T.Collection[_BaseFile], T.ContextManager, metaclass=A
         return self._accumulator
 
     @abstractmethod
-    def _accumulate(self, file:_BaseFile) -> None:
+    def _accumulate(self, file: _BaseFile) -> None:
         """
         Add a file into any accumulators
 
@@ -137,11 +139,12 @@ class _BaseFileCollection(T.Collection[_BaseFile], T.ContextManager, metaclass=A
 
 class _BasePersistence(metaclass=ABCMeta):
     @abstractmethod
-    def __init__(self, config:config.base.Config, idm:idm.base.IdentityManager) -> None:
+    def __init__(self, config: config.base.Config,
+                 idm: idm.base.IdentityManager) -> None:
         """ Construct from configuration and injected IdM """
 
     @abstractmethod
-    def persist(self, file:_BaseFile, state:_BaseState) -> None:
+    def persist(self, file: _BaseFile, state: _BaseState) -> None:
         """
         Persist a file with its respective state
 
@@ -155,7 +158,7 @@ class _BasePersistence(metaclass=ABCMeta):
         """ Return an iterator of persisted file stakeholders """
 
     @abstractmethod
-    def files(self, criteria:Filter) -> _BaseFileCollection:
+    def files(self, criteria: Filter) -> _BaseFileCollection:
         """
         Get the persisted files by state and their optional stakeholder
 
@@ -164,7 +167,7 @@ class _BasePersistence(metaclass=ABCMeta):
         """
 
     @abstractmethod
-    def clean(self, files:_BaseFileCollection) -> None:
+    def clean(self, files: _BaseFileCollection) -> None:
         """
         Clean up persisted files
 
@@ -174,7 +177,7 @@ class _BasePersistence(metaclass=ABCMeta):
 
 class base(T.SimpleNamespace):
     """ Namespace of base classes to make importing easier """
-    File           = _BaseFile
+    File = _BaseFile
     FileCollection = _BaseFileCollection
-    State          = _BaseState
-    Persistence    = _BasePersistence
+    State = _BaseState
+    Persistence = _BasePersistence

@@ -26,15 +26,17 @@ from core.vault import base, exception
 
 _DUMMY_VAULT = T.Path("dummy")
 
+
 class DummyBranch(base.Branch):
     Foo = T.Path("foo")
     Bar = T.Path("bar")
 
+
 class DummyVaultFile(base.VaultFile):
     def __init__(self, vault, branch, path):
-        self.vault  = vault
+        self.vault = vault
         self.branch = branch
-        self._path  = path
+        self._path = path
 
     @property
     def path(self):
@@ -52,10 +54,11 @@ class DummyVaultFile(base.VaultFile):
     def can_remove(self):
         pass
 
+
 class DummyVault(base.Vault):
-    _file_type   = DummyVaultFile
+    _file_type = DummyVaultFile
     _branch_enum = DummyBranch
-    _vault       = _DUMMY_VAULT
+    _vault = _DUMMY_VAULT
 
     def add(self, branch, path):
         pass

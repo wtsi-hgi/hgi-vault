@@ -22,9 +22,10 @@ from core.logging import base, utils, levels, formats
 
 class Loggable(base.LoggableMixin):
     # Default/base loggable mixin
-    _logger    = "vault"
-    _level     = levels.default
+    _logger = "vault"
+    _level = levels.default
     _formatter = formats.default
+
 
 utils.to_tty(Loggable)
 utils.set_exception_handler(Loggable)

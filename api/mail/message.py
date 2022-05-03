@@ -31,10 +31,11 @@ from . import jinja2
 
 class GZippedFOFN(mail.base.Attachment):
     """ Attachment representing a gzipped FOFN """
-    def __init__(self, filename:str, files:T.Collection[T.Path]) -> None:
-        self.filename  = filename
+
+    def __init__(self, filename: str, files: T.Collection[T.Path]) -> None:
+        self.filename = filename
         self.mime_type = "application/gzip"
-        self.data      = io.BytesIO()
+        self.data = io.BytesIO()
 
         # Write gzipped data (\n-delimited paths) to buffer
         with GzipFile(fileobj=self.data, mode="wb") as gzip:
@@ -48,17 +49,20 @@ class GZippedFOFN(mail.base.Attachment):
 
 class _BaseTemplatedMessage(mail.base.Message, metaclass=ABCMeta):
     """ Abstract base mixin class for templated messages """
-    _subject:T.ClassVar[str]
-    _template:T.ClassVar[str]
+    _subject: T.ClassVar[str]
+    _template: T.ClassVar[str]
 
     @abstractmethod
-    def _render(self, context:T.Any) -> str:
+    def _render(self, context: T.Any) -> str:
         """ Render the template with the given context """
+
 
 class _Jinja2Message(_BaseTemplatedMessage):
     """ Jinja2 templating mixin implementation """
-    def _render(self, context:T.Any) -> str:
+
+    def _render(self, context: T.Any) -> str:
         return jinja2.render(self._template, context)
+
 
 class _Message(_Jinja2Message):
     """
@@ -66,12 +70,13 @@ class _Message(_Jinja2Message):
     for templating; implementations just need to define the subject and
     template, at a minimum.
     """
-    def __init__(self, context:T.Any) -> None:
-        self.attachments = []
-        self.subject     = self._subject
-        self.body        = self._render(context)
 
-    def __iadd__(self, attachment:mail.base.Attachment) -> _Message:
+    def __init__(self, context: T.Any) -> None:
+        self.attachments = []
+        self.subject = self._subject
+        self.body = self._render(context)
+
+    def __iadd__(self, attachment: mail.base.Attachment) -> _Message:
         """ Add the attachment to the message """
         self.attachments.append(attachment)
         return self
@@ -80,16 +85,19 @@ class _Message(_Jinja2Message):
 _GroupSummariesT = T.Dict[idm.base.Group, persistence.GroupSummary]
 _WarnedSummariesT = T.Collection[T.Tuple[T.TimeDelta, _GroupSummariesT]]
 
+
 class NotificationEMail(_Message):
     """ Notification e-mail """
-    _subject  = "Action Required: HGI Vault Summary"
+    _subject = "Action Required: HGI Vault Summary"
     _template = resource.read_text("api.mail", "notification.j2")
 
-    def __init__(self, stakeholder:idm.base.User, deleted:_GroupSummariesT, staged:_GroupSummariesT, warned:_WarnedSummariesT) -> None:
+    def __init__(self, stakeholder: idm.base.User, deleted: _GroupSummariesT,
+                 staged: _GroupSummariesT, warned: _WarnedSummariesT) -> None:
         super().__init__(NotificationEMail.Context(stakeholder, deleted, staged, warned))
 
     @staticmethod
-    def Context(stakeholder:idm.base.User, deleted:_GroupSummariesT, staged:_GroupSummariesT, warned:_WarnedSummariesT) -> T.Dict:
+    def Context(stakeholder: idm.base.User, deleted: _GroupSummariesT,
+                staged: _GroupSummariesT, warned: _WarnedSummariesT) -> T.Dict:
         """
         Helper method to create the context that the notification
         template expects
@@ -101,7 +109,7 @@ class NotificationEMail(_Message):
         @return  Template context
         """
         # Convert group summaries into the expected context form
-        def _group_context(summaries:_GroupSummariesT) -> T.Dict:
+        def _group_context(summaries: _GroupSummariesT) -> T.Dict:
             return {
                 group.name: asdict(summary)
                 for group, summary in summaries.items()
@@ -109,11 +117,11 @@ class NotificationEMail(_Message):
 
         return {
             "stakeholder": stakeholder.name,
-            "deleted":     _group_context(deleted),
-            "staged":      _group_context(staged),
+            "deleted": _group_context(deleted),
+            "staged": _group_context(staged),
             "warned": [
                 {
-                    "tminus":  time.seconds(tminus),
+                    "tminus": time.seconds(tminus),
                     "summary": _group_context(summary)
                 }
                 for tminus, summary in warned

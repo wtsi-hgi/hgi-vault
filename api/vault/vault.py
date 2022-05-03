@@ -1,7 +1,7 @@
 """
 Copyright (c) 2020, 2021 Genome Research Limited
 
-Authors: 
+Authors:
     * Christopher Harrison <ch12@sanger.ac.uk>
     * Michael Grace <mg38@sanger.ac.uk>
 
@@ -36,14 +36,16 @@ from .key import VaultFileKey
 _PERMS = stat.S_ISGID | stat.S_IRWXU | stat.S_IRWXG
 _UMASK = stat.S_IRWXO
 
+
 class Vault(BaseHGIVault):
     """ HGI vault implementation """
     _file_type = VaultFile
 
     # Injected dependencies
-    _idm:IdM.IdentityManager
+    _idm: IdM.IdentityManager
 
-    def __init__(self, relative_to:T.Path, *, idm:IdM.IdentityManager, autocreate:bool = True) -> None:
+    def __init__(self, relative_to: T.Path, *,
+                 idm: IdM.IdentityManager, autocreate: bool = True) -> None:
         """
         Constructor
 
@@ -78,7 +80,8 @@ class Vault(BaseHGIVault):
 
                     self.log.info(f"Vault created in {root}")
                 except FileExistsError:
-                    raise VaultExc.VaultConflict(f"Cannot create a vault in {root}; user file already exists")
+                    raise VaultExc.VaultConflict(
+                        f"Cannot create a vault in {root}; user file already exists")
 
             # The vault must exist at this point, so persist log to disk
             (log_file := self.location / ".audit").touch()
@@ -89,12 +92,14 @@ class Vault(BaseHGIVault):
                 if not (bpath := self.location / branch).is_dir():
                     try:
                         bpath.mkdir(_PERMS)
-                        self.log.info(f"{branch} branch created in the vault in {root}")
+                        self.log.info(
+                            f"{branch} branch created in the vault in {root}")
                     except FileExistsError:
-                        raise VaultExc.VaultConflict(f"Cannot create a {branch} branch in the vault in {root}; user file already exists")
+                        raise VaultExc.VaultConflict(
+                            f"Cannot create a {branch} branch in the vault in {root}; user file already exists")
 
     @staticmethod
-    def _find_root(relative_to:T.Path) -> T.Path:
+    def _find_root(relative_to: T.Path) -> T.Path:
         """
         The vault's location is the root of the homogroupic subtree that
         contains relative_to; that's where we start and traverse up
@@ -117,7 +122,7 @@ class Vault(BaseHGIVault):
 
         return (user.uid for user in group.owners)
 
-    def add(self, branch:Branch, path:T.Path) -> VaultFile:
+    def add(self, branch: Branch, path: T.Path) -> VaultFile:
         log = self.log
 
         if (to_add := self.file(branch, path)).exists:
@@ -132,40 +137,45 @@ class Vault(BaseHGIVault):
                 to_add = self.add(branch, path)
 
             else:
-                log.info(f"{path} is already in the {branch} branch of the vault in {self.root}")
+                log.info(
+                    f"{path} is already in the {branch} branch of the vault in {self.root}")
 
         else:
             # File is not in the vault
             if not to_add.can_add:
-                raise VaultExc.PermissionDenied(f"Cannot add {path} to the vault in {self.root}")
+                raise VaultExc.PermissionDenied(
+                    f"Cannot add {path} to the vault in {self.root}")
 
             with umask(_UMASK):
                 to_add.path.parent.mkdir(_PERMS, parents=True, exist_ok=True)
                 to_add.source.link_to(to_add.path)
 
-            log.info(f"{to_add.source} added to the {to_add.branch} branch of the vault in {self.root}")
+            log.info(
+                f"{to_add.source} added to the {to_add.branch} branch of the vault in {self.root}")
 
         return to_add
 
-    def remove(self, branch:Branch, path:T.Path) -> None:
+    def remove(self, branch: Branch, path: T.Path) -> None:
         # NOTE We are not interested in the branch
         log = self.log
 
         if not (to_remove := self.file(branch, path)).can_remove:
             # NOTE This exception is raised whether the file is in the
             # vault or not (i.e., so not to reveal that information)
-            raise VaultExc.PermissionDenied(f"Cannot remove {path} from the vault in {self.root}")
+            raise VaultExc.PermissionDenied(
+                f"Cannot remove {path} from the vault in {self.root}")
 
         if to_remove.exists:
             # NOTE to_remove.branch and to_remove.source might not match
             # branch and path, respectively
             file.delete(to_remove.path)
-            log.info(f"{to_remove.source} has been removed from the {to_remove.branch} branch of the vault in {self.root}")
+            log.info(
+                f"{to_remove.source} has been removed from the {to_remove.branch} branch of the vault in {self.root}")
 
         else:
             log.info(f"{to_remove.source} is not in the vault in {self.root}")
 
-    def list(self, branch:Branch) -> T.Iterator[T.Tuple[T.Path, T.Path]]:
+    def list(self, branch: Branch) -> T.Iterator[T.Tuple[T.Path, T.Path]]:
         # NOTE The order in which the listing is generated is
         # unspecified (I suspect it will be by inode ID); it is up to
         # downstream to modify this, as required
@@ -173,7 +183,7 @@ class Vault(BaseHGIVault):
 
         return (
             (self.root / VaultFileKey.Reconstruct(T.Path(dirname, file).relative_to(bpath)).source,
-            T.Path(dirname, file))
+             T.Path(dirname, file))
             for dirname, _, files in os.walk(bpath)
             for file in files
         )
