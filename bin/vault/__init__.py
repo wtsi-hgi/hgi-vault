@@ -1,5 +1,5 @@
 """
-Copyright (c) 2020, 2021 Genome Research Limited
+Copyright (c) 2020, 2021, 2022 Genome Research Limited
 
 Authors:
 * Christopher Harrison <ch12@sanger.ac.uk>
@@ -32,17 +32,18 @@ from api.vault import Branch, Vault
 from api.vault.key import VaultFileKey
 from bin.common import idm, config
 from core import file, time, typing as T
+from core.idm import base as IDMBase
 
 from . import usage
 from .recover import move_with_path_safety_checks, relativise, derelativise, exception as RecoverExc
 
 
-def _create_vault(relative_to: T.Path) -> Vault:
+def _create_vault(relative_to: T.Path, idm: IDMBase.IdentityManager = idm) -> Vault:
     # Defensively create a vault with the common IdM
     try:
-        return Vault(relative_to, idm=idm)
+        return Vault(relative_to, idm=idm, min_owners=config.min_group_owners)
 
-    except core.vault.exception.VaultConflict as e:
+    except (core.vault.exception.VaultConflict, core.vault.exception.MinimumNumberOfOwnersNotMet) as e:
         # Non-managed file(s) exists where the vault should be
         log.critical(e)
         sys.exit(1)
@@ -54,7 +55,7 @@ class ViewContext(Enum):
     Mine = "mine"
 
 
-def view(branch: Branch, view_mode: ViewContext, absolute: bool) -> None:
+def view(branch: Branch, view_mode: ViewContext, absolute: bool, idm: IDMBase.IdentityManager = idm) -> None:
     """ List the contents of the given branch
 
     :param branch: Which Vault branch we're going to look at
@@ -65,7 +66,7 @@ def view(branch: Branch, view_mode: ViewContext, absolute: bool) -> None:
     :param absolute: - Whether to view absolute paths or not
     """
     cwd = file.cwd()
-    vault = _create_vault(cwd)
+    vault = _create_vault(cwd, idm)
     count = 0
     for path, _limbo_file in vault.list(branch):
         relative_path = relativise(path, cwd)

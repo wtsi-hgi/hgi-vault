@@ -1,7 +1,9 @@
 """
-Copyright (c) 2020 Genome Research Limited
+Copyright (c) 2020, 2022 Genome Research Limited
 
-Author: Christopher Harrison <ch12@sanger.ac.uk>
+Authors:
+    - Christopher Harrison <ch12@sanger.ac.uk>
+    - Michael Grace <mg38@sanger.ac.uk>
 
 This program is free software: you can redistribute it and/or modify it
 under the terms of the GNU General Public License as published by the
@@ -29,8 +31,9 @@ from os.path import commonprefix
 from api.logging import Loggable
 from api.persistence import models
 from api.vault import Vault, Branch
-from bin.common import idm
+from bin.common import idm, config
 from core import file, time, typing as T
+from core.idm import base as IDMBase
 from core.utils import base64
 from core.vault import exception as VaultExc
 
@@ -153,7 +156,7 @@ class BaseWalker(Loggable, metaclass=ABCMeta):
         """
 
     @staticmethod
-    def _fetch_vaults(*paths: T.Path) -> T.Set[Vault]:
+    def _fetch_vaults(*paths: T.Path, idm: IDMBase.IdentityManager = idm) -> T.Set[Vault]:
         """
         Return the Vaults covered by the given paths
 
@@ -167,7 +170,7 @@ class BaseWalker(Loggable, metaclass=ABCMeta):
             given += 1
 
             try:
-                if (vault := Vault(path, idm=idm, autocreate=False)).root != path:
+                if (vault := Vault(path, idm=idm, autocreate=False, min_owners=config.min_group_owners)).root != path:
                     # Safety feature: Only allow Vault root directories
                     raise InvalidVaultBases(
                         f"The Vault at {path} is rooted at {vault.root}; the Vault root directory must be provided")
@@ -177,6 +180,10 @@ class BaseWalker(Loggable, metaclass=ABCMeta):
             except (VaultExc.VaultConflict, VaultExc.NoSuchVault) as e:
                 # Safety feature: Don't allow non-Vault controlled paths
                 raise InvalidVaultBases(f"No Vault at {path}: {e}")
+
+            except VaultExc.MinimumNumberOfOwnersNotMet as e:
+                # Safety feature: Don't allow projects that don't meet min. number of owners
+                raise InvalidVaultBases(e)
 
         if len(vaults) == 0:
             # Safety feature: Require at least one Vault directory
@@ -212,7 +219,7 @@ class FilesystemWalker(BaseWalker):
     """ Walk the filesystem directly: Expensive, but accurate """
     _vaults: T.Set[Vault]
 
-    def __init__(self, *bases: T.Path) -> None:
+    def __init__(self, *bases: T.Path, idm: IDMBase.IdentityManager = idm) -> None:
         """
         Constructor: Set the base paths from which to start the walk.
         Note that any paths that are not directories, don't exist, or
@@ -220,7 +227,7 @@ class FilesystemWalker(BaseWalker):
 
         @param  bases  Base paths
         """
-        self._vaults = self._fetch_vaults(*bases)
+        self._vaults = self._fetch_vaults(*bases, idm=idm)
 
     @staticmethod
     def _walk_tree(

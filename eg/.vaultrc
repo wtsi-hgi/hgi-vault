@@ -90,3 +90,8 @@ deletion:
 archive:
   threshold: 1000
   handler: /path/to/executable
+
+# min_group_owners defines how many owners must be defined
+# in a LDAP group before we can create a Vault/run sandman
+# on a project owned by that group
+min_group_owners: 3

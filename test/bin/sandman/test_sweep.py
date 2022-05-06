@@ -21,25 +21,30 @@ with this program. If not, see https://www.gnu.org/licenses/
 """
 
 from __future__ import annotations
-from datetime import datetime
-from api.persistence import models
-from eg.mock_mailer import MockMailer
-from bin.common import idm, config
-from bin.sandman.walk import BaseWalker, File
-from bin.sandman.sweep import Sweeper
-from api.vault.key import VaultFileKey as VFK
-from api.vault.file import VaultFile
-from api.vault import Branch, Vault
-from api.config import Config
-from core.persistence import base as PersistenceBase, Filter as PersistenceFilter, GroupSummary
-import core.file
-from core.vault import exception as VaultExc
-from core import typing as T, idm as IdM, time, file
-from unittest.mock import MagicMock
-from unittest import mock
-import unittest
-from tempfile import TemporaryDirectory
+
 import os
+import unittest
+from datetime import datetime
+from tempfile import TemporaryDirectory
+from test.common import DummyGroup, DummyIDM, DummyUser
+from unittest import mock
+from unittest.mock import MagicMock
+
+import core.file
+from api.persistence import models
+from api.vault import Branch, Vault
+from api.vault.key import VaultFileKey as VFK
+from bin.common import config, idm
+from bin.sandman.sweep import Sweeper
+from bin.sandman.walk import BaseWalker, File
+from core import idm as IdM
+from core import time
+from core import typing as T
+from core.persistence import Filter as PersistenceFilter
+from core.persistence import GroupSummary
+from core.persistence import base as PersistenceBase
+from core.vault import exception as VaultExc
+from eg.mock_mailer import MockMailer
 
 
 class _DummyWalker(BaseWalker):
@@ -83,49 +88,6 @@ def make_file_seem_modified_long_ago(path: T.Path) -> File:
                              mtime=long_ago, atime=time.now())
 
 
-class _DummyUser(IdM.base.User):
-    def __init__(self, uid: int,
-                 name: T.Optional[str] = None, email: T.Optional[str] = None):
-        self._id = uid
-        self._name = name
-        self._email = email
-
-    @property
-    def name(self):
-        if self._name:
-            return self._name
-        raise NameError
-
-    @property
-    def email(self):
-        if self._email:
-            return self._email
-        raise NameError
-
-
-class _DummyGroup(IdM.base.Group):
-    _owner: IdM.base.User
-    _member: IdM.base.User
-
-    def __init__(self, gid: int, owner: IdM.base.User,
-                 member: T.Optional[IdM.base.User] = None):
-        self._id = gid
-        self._owner = owner
-        self._member = member or owner
-
-    @property
-    def name(self):
-        return f"group-{self._owner.name}"
-
-    @property
-    def owners(self):
-        return iter([self._owner])
-
-    @property
-    def members(self):
-        yield self._member
-
-
 _FileState = T.Tuple[PersistenceBase.File, PersistenceBase.State]
 
 
@@ -133,7 +95,7 @@ class _DummyPersistence(PersistenceBase.Persistence):
 
     def __init__(self, *_) -> None:
         self._files: T.List[_FileState] = []
-        self._user: IdM.base.User = _DummyUser(
+        self._user: IdM.base.User = DummyUser(
             os.getuid(), name="Test User", email="testEmail@test.com")
 
     def persist(self, file: PersistenceBase.File,
@@ -161,7 +123,7 @@ class _DummyPersistence(PersistenceBase.Persistence):
             @property
             def accumulator(self) -> T.Dict[IdM.base.Group, GroupSummary]:
                 acc: T.Dict[IdM.base.Group, GroupSummary] = {}
-                key = _DummyGroup(os.getgid(), user)
+                key = DummyGroup(os.getgid(), owner=user)
                 for file, _ in self._files:
                     acc[key] = acc.get(key, GroupSummary(path=file.path, count=0, size=0)) \
                         + GroupSummary(path=file.path, count=1, size=file.size)
@@ -183,20 +145,7 @@ class _DummyPersistence(PersistenceBase.Persistence):
         ...
 
 
-class _DummyIdM(IdM.base.IdentityManager):
-    _user: _DummyUser
-
-    def __init__(self, dummy_uid):
-        self._user = _DummyUser(dummy_uid)
-
-    def user(self, uid):
-        pass
-
-    def group(self, gid):
-        return _DummyGroup(gid, self._user)
-
-
-dummy_idm = _DummyIdM(1)
+dummy_idm = DummyIDM(config)
 
 
 class TestSweeper(unittest.TestCase):
@@ -238,7 +187,7 @@ class TestSweeper(unittest.TestCase):
         # Monkey patch Vault._find_root so that it returns the directory we
         # want
         Vault._find_root = MagicMock(return_value=self.parent)
-        self.vault = Vault(relative_to=self.file_one, idm=idm)
+        self.vault = Vault(relative_to=self.file_one, idm=dummy_idm)
 
     def tearDown(self) -> None:
         self._tmp.cleanup()

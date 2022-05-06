@@ -1,9 +1,10 @@
 """
-Copyright (c) 2020, 2021 Genome Research Limited
+Copyright (c) 2020, 2021, 2022 Genome Research Limited
 
 Authors:
 * Christopher Harrison <ch12@sanger.ac.uk>
 * Piyush Ahuja <pa11@sanger.ac.uk>
+* Michael Grace <mg38@sanger.ac.uk>
 
 This program is free software: you can redistribute it and/or modify it
 under the terms of the GNU General Public License as published by the
@@ -125,7 +126,10 @@ _schema = {
 
     "archive": {
         "threshold": _Setting(cast=int),
-        "handler": _Setting(cast=T.Path)}}
+        "handler": _Setting(cast=T.Path)
+    },
+    "min_group_owners": _Setting(cast=int, default=3)
+}
 
 
 def _validate(data: T.Dict, schema: T.Dict) -> bool:
