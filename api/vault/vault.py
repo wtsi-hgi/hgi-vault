@@ -1,5 +1,5 @@
 """
-Copyright (c) 2020, 2021 Genome Research Limited
+Copyright (c) 2020, 2021, 2022 Genome Research Limited
 
 Authors:
     * Christopher Harrison <ch12@sanger.ac.uk>
@@ -45,7 +45,8 @@ class Vault(BaseHGIVault):
     _idm: IdM.IdentityManager
 
     def __init__(self, relative_to: T.Path, *,
-                 idm: IdM.IdentityManager, autocreate: bool = True) -> None:
+                 idm: IdM.IdentityManager, autocreate: bool = True,
+                 min_owners: int = 3) -> None:
         """
         Constructor
 
@@ -64,6 +65,14 @@ class Vault(BaseHGIVault):
         self.log.to_tty()
 
         with umask(_UMASK):
+            _grp = self._idm.group(gid=self.group)
+            if (_num_owners := len(list(_grp.owners))) < min_owners:
+                # this check is done here so that it is checked
+                # both when a vault attempts to be generated, and when
+                # sandman fetches the existing vault
+                raise VaultExc.MinimumNumberOfOwnersNotMet(
+                    f"Group {_grp.name} for {self.root} only has {_num_owners} owners - {min_owners} required")
+
             if not self.location.is_dir():
                 # Fail if we're not autocreating
                 if not autocreate:

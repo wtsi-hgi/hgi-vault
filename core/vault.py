@@ -59,6 +59,10 @@ class exception(T.SimpleNamespace):
     class NoSuchVault(Exception):
         """ Raised whenever a vault doesn't exist where it's expected """
 
+    class MinimumNumberOfOwnersNotMet(Exception):
+        """Raised when an attempt to create a vault is made on a project
+        that doesn't meet the required minimum number of owners"""
+
 
 class _BaseBranch(Enum):
     """ Base vault branch/namespace enumeration """

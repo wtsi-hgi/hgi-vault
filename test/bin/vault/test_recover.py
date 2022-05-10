@@ -1,5 +1,5 @@
 """
-Copyright (c) 2021 Genome Research Limited
+Copyright (c) 2021, 2022 Genome Research Limited
 
 Authors:
 * Piyush Ahuja <pa11@sanger.ac.uk>
@@ -19,16 +19,18 @@ You should have received a copy of the GNU General Public License along
 with this program. If not, see https://www.gnu.org/licenses/
 """
 
-from bin.common import idm
-from bin.vault import ViewContext, recover, view
-from bin.vault.recover import relativise, derelativise, move_with_path_safety_checks, exception
-from api.vault.key import VaultFileKey as VFK
-from api.vault import Branch, Vault
-from tempfile import TemporaryDirectory
-from core import typing as T
-from unittest import mock
-import unittest
 import os
+import unittest
+from tempfile import TemporaryDirectory
+from test.common import DummyIDM
+from unittest import mock
+
+from api.vault import Branch, Vault
+from bin.common import config
+from bin.vault import ViewContext, recover, view
+from bin.vault.recover import (derelativise, exception,
+                               move_with_path_safety_checks, relativise)
+from core import typing as T
 
 
 class TestVaultRelativeToWorkDirRelative(unittest.TestCase):
@@ -153,7 +155,10 @@ class TestRecover(unittest.TestCase):
         self.some.chmod(0o330)
         Vault._find_root = mock.MagicMock(return_value=self.parent)
         # Make the desired vault.
-        self.vault = Vault(relative_to=self.file_one, idm=idm)
+
+        _dummy_idm = DummyIDM(config)
+
+        self.vault = Vault(relative_to=self.file_one, idm=_dummy_idm)
 
     def tearDown(self) -> None:
         self._tmp.cleanup()
@@ -253,8 +258,10 @@ class TestView(unittest.TestCase):
         self.parent.chmod(0o330)
         self.some.chmod(0o330)
 
+        self._dummy_idm = DummyIDM(config)
+
         Vault._find_root = mock.MagicMock(return_value=self.parent)
-        self.vault = Vault(relative_to=self.file_one, idm=idm)
+        self.vault = Vault(relative_to=self.file_one, idm=self._dummy_idm)
 
     def tearDown(self) -> None:
         self._tmp.cleanup()
@@ -269,4 +276,4 @@ class TestView(unittest.TestCase):
         self.vault.add(Branch.Limbo, self.file_three)
 
         cwd_mock.return_value = self.parent / "some"
-        view(Branch.Limbo, ViewContext.All, False)
+        view(Branch.Limbo, ViewContext.All, False, idm=self._dummy_idm)

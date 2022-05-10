@@ -1,5 +1,5 @@
 """
-Copyright (c) 2020, 2021 Genome Research Limited
+Copyright (c) 2020, 2021, 2022 Genome Research Limited
 
 Authors:
     * Piyush Ahuja <pa11@sanger.ac.uk>
@@ -24,62 +24,17 @@ import shutil
 import stat
 import unittest
 from tempfile import TemporaryDirectory
+from test.common import DummyIDM
 from unittest.mock import MagicMock
 
-from core import typing as T, idm as IdM
+from api.vault import Branch, Vault
+from api.vault.file import VaultExc, VaultFile
+from bin.common import config
+from core import typing as T
 from core.vault import exception
-from api.vault import Vault, Branch
-from api.vault.file import VaultFile
+
 from .mock_file import MockOtherUserOwnedVaultFile, MockRootOwnedVaultFile
 from .utils import VFK
-
-
-class _DummyUser(IdM.base.User):
-    def __init__(self, uid):
-        self._id = uid
-
-    @property
-    def name(self):
-        raise NotImplementedError
-
-    @property
-    def email(self):
-        raise NotImplementedError
-
-
-class _DummyGroup(IdM.base.Group):
-    _owner: _DummyUser
-    _member: _DummyUser
-
-    def __init__(self, gid, owner, member=None):
-        self._id = gid
-        self._owner = owner
-        self._member = member or owner
-
-    @property
-    def name(self):
-        raise NotImplementedError
-
-    @property
-    def owners(self):
-        return iter([self._owner])
-
-    @property
-    def members(self):
-        yield self._member
-
-
-class _DummyIdM(IdM.base.IdentityManager):
-    _user: _DummyUser
-
-    def __init__(self, dummy_uid):
-        self._user = _DummyUser(dummy_uid)
-
-    def user(self, uid):
-        pass
-
-    def group(self, gid):
-        return _DummyGroup(gid, self._user)
 
 # TODO Test Vault and VaultFile
 # * Vault root setting
@@ -88,7 +43,6 @@ class _DummyIdM(IdM.base.IdentityManager):
 
 
 class TestVaultFile(unittest.TestCase):
-    idm_user_one = _DummyIdM(1)
 
     def setUp(self) -> None:
         """
@@ -108,6 +62,8 @@ class TestVaultFile(unittest.TestCase):
                     +- child_dir_two
                         +- c
         """
+        _dummy_idm = DummyIDM(config)
+
         self._tmp = TemporaryDirectory()
         self._path = path = T.Path(self._tmp.name).resolve()
         # Form a directory hierarchy
@@ -141,7 +97,7 @@ class TestVaultFile(unittest.TestCase):
         Vault._find_root = MagicMock(
             return_value=self._path / T.Path("parent_dir/child_dir_one"))
         self.vault = Vault(relative_to=self._path /
-                           T.Path("parent_dir/child_dir_one/a"), idm=self.idm_user_one)
+                           T.Path("parent_dir/child_dir_one/a"), idm=_dummy_idm)
 
     def test_constructor(self):
 
@@ -281,7 +237,6 @@ class TestVault(unittest.TestCase):
     # user_two = _DummyUser(2)
     # group_one = _DummyGroup(1, user_one)
     # group_two = _DummyGroup(2, user_two)
-    idm_user_one = _DummyIdM(1)
 
     def setUp(self) -> None:
         """
@@ -298,6 +253,9 @@ class TestVault(unittest.TestCase):
                     +- child_dir_two
                         +- c
         """
+
+        _dummy_idm = DummyIDM(config)
+
         self._tmp = TemporaryDirectory()
         self._path = path = T.Path(self._tmp.name).resolve()
 
@@ -335,7 +293,7 @@ class TestVault(unittest.TestCase):
         Vault._find_root = MagicMock(
             return_value=self._path / T.Path("parent_dir/child_dir_one"))
         self.vault = Vault(relative_to=self._path /
-                           T.Path("parent_dir/child_dir_one/a"), idm=self.idm_user_one)
+                           T.Path("parent_dir/child_dir_one/a"), idm=_dummy_idm)
 
     def tearDown(self) -> None:
         self._tmp.cleanup()
@@ -549,6 +507,39 @@ class TestVault(unittest.TestCase):
     # VaultConflict if a file exists at .vault, .vault/{keep, archive, staged, .audit} locations (339-340, 354-356)
     # Root finding (364-369)
     # if (group := self._idm.group(gid=self.group)) is None (380)
+
+
+class TestCreatingVault(unittest.TestCase):
+
+    def setUp(self) -> None:
+        self._tmp = TemporaryDirectory()
+        self._path = T.Path(self._tmp.name).resolve()
+        self._path.chmod(0o770)
+        Vault._find_root = lambda *_: self._path
+
+    def tearDown(self) -> None:
+        self._tmp.cleanup()
+
+    def test_create_vault_not_enough_group_owners(self):
+        self.assertRaises(
+            VaultExc.MinimumNumberOfOwnersNotMet,
+            Vault, relative_to=self._path, idm=DummyIDM(
+                config, num_grp_owners=int(config.min_group_owners) - 1
+            )
+        )
+
+    def test_create_vault_enough_group_owners(self):
+        # shouldn't raise exception
+
+        # Minumum Required
+        Vault(relative_to=self._path, idm=DummyIDM(
+            config, num_grp_owners=int(config.min_group_owners)
+        ))
+
+        # More than Required
+        Vault(relative_to=self._path, idm=DummyIDM(
+            config, num_grp_owners=int(config.min_group_owners) + 1
+        ))
 
 
 if __name__ == "__main__":
