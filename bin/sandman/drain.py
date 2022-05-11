@@ -26,11 +26,12 @@ from api.persistence.models import State
 from core import typing as T
 from core.file import is_regular
 from core.utils import human_size
-from bin.common import config
+from bin.common import Executable, generate_config
 
 Anything = core.persistence.Anything
 Filter = core.persistence.Filter
 
+config, _ = generate_config(Executable.SANDMAN)
 
 class _StagingQueueEmpty(Exception):
     """ Raised when the staging queue is empty """

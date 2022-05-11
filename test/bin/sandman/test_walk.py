@@ -25,11 +25,12 @@ from test.common import DummyIDM
 from unittest.mock import MagicMock
 
 from api.vault import Branch, Vault
-from bin.common import config
+from bin.common import Executable, generate_config
 from bin.sandman.walk import FilesystemWalker, InvalidVaultBases
 from core import typing as T
 from core.vault import exception as VaultExc
 
+config, _ = generate_config(Executable.SANDMAN)
 
 class TestFileSystemWalker(unittest.TestCase):
 

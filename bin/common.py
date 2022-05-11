@@ -46,8 +46,15 @@ class Executable(enum.Enum):
     SANDMAN = enum.auto()
 
 
+_configs: T.Dict[Executable, Config] = {}
+
+
 def generate_config(
         executable: Executable) -> T.Tuple[Config, IdentityManager]:
+
+    if (_cfg := _configs.get(executable)):
+        return _cfg, IdentityManager(_cfg.identity)
+
     try:
         if 'unittest' in sys.modules:
             os.environ["VAULTRC"] = "eg/.vaultrc"
@@ -73,7 +80,8 @@ def generate_config(
         else:
             raise Executable.InvalidExecutable
 
-        return _cfg, IdentityManager(_cfg)
+        _configs[executable] = _cfg
+        return _cfg, IdentityManager(_cfg.identity)
 
     except (ConfigException.ConfigurationNotFound,
             ConfigException.InvalidConfiguration) as e:

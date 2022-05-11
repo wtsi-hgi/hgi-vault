@@ -38,7 +38,7 @@ from api.logging import Loggable
 from api.mail import Postman, NotificationEMail, GZippedFOFN
 from api.persistence.models import FileCollection, State
 from api.vault import Vault, Branch, VaultFile
-from bin.common import config
+from bin.common import Executable, generate_config
 from core import time, typing as T
 from core.file import hardlinks, touch
 from core.vault import exception as VaultExc
@@ -48,6 +48,7 @@ from . import walk
 
 Filter = core.persistence.Filter
 
+config, _ = generate_config(Executable.SANDMAN)
 
 # Hot code implementations
 _hot = agreed(*(m.can_delete for m in (ch12, an12, gn5, pa11)))

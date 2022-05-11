@@ -21,13 +21,14 @@ import sys
 
 from api.logging import log
 from api.persistence import Persistence
-from bin.common import config, idm
+from bin.common import generate_config, Executable
 from core import typing as T
 from . import usage
 from .walk import InvalidVaultBases, FilesystemWalker, mpistatWalker
 from .sweep import Sweeper
 from .drain import drain
 
+config, idm = generate_config(Executable.SANDMAN)
 
 def main(argv: T.List[str] = sys.argv) -> None:
     args = usage.parse_args(argv[1:])

@@ -34,7 +34,7 @@ import core.file
 from api.persistence import models
 from api.vault import Branch, Vault
 from api.vault.key import VaultFileKey as VFK
-from bin.common import config, idm
+from bin.common import Executable, generate_config
 from bin.sandman.sweep import Sweeper
 from bin.sandman.walk import BaseWalker, File
 from core import idm as IdM
@@ -46,6 +46,7 @@ from core.persistence import base as PersistenceBase
 from core.vault import exception as VaultExc
 from eg.mock_mailer import MockMailer
 
+config, idm = generate_config(Executable.SANDMAN)
 
 class _DummyWalker(BaseWalker):
     def __init__(self, walk):
