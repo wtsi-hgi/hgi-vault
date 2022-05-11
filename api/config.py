@@ -32,17 +32,24 @@ from core import config, time, typing as T
 class _YAMLConfig(config.base.Config, metaclass=ABCMeta):
     """ Abstract base class for building configuration from YAML """
     @staticmethod
-    def _build(source: T.Path) -> T.Dict:
-        with source.open() as stream:
-            try:
-                if not isinstance(parsed := yaml.safe_load(stream), dict):
-                    raise config.exception.InvalidConfiguration(
-                        f"Configuration in {source.name} is not a mapping")
-                return parsed
+    def _build(*sources: T.Path) -> T.Dict[T.Any, T.Any]:
+        _config: T.Dict[T.Any, T.Any] = {}
+        
+        for source in sources:
+            with source.open() as stream:
+                try:
+                    if not isinstance(parsed := yaml.safe_load(stream), dict):
+                        parsed: T.Dict[T.Any, T.Any]
+                        raise config.exception.InvalidConfiguration(
+                            f"Configuration in {source.name} is not a mapping")
+        
+                    _config.update(parsed)
 
-            except yaml.YAMLError:
-                raise config.exception.InvalidConfiguration(
-                    f"Could not parse {source.name}")
+                except yaml.YAMLError:
+                    raise config.exception.InvalidConfiguration(
+                        f"Could not parse {source.name}")
+
+        return _config
 
 
 # Convenience type constructors for days and hours (less than a month)

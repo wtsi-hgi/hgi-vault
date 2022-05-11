@@ -1,7 +1,9 @@
 """
-Copyright (c) 2020 Genome Research Limited
+Copyright (c) 2020, 2022 Genome Research Limited
 
-Author: Christopher Harrison <ch12@sanger.ac.uk>
+Authors:
+    - Christopher Harrison <ch12@sanger.ac.uk>
+    - Michael Grace <mg38@sanger.ac.uk>
 
 This program is free software: you can redistribute it and/or modify it
 under the terms of the GNU General Public License as published by the
@@ -17,13 +19,16 @@ You should have received a copy of the GNU General Public License along
 with this program. If not, see https://www.gnu.org/licenses/
 """
 
-import sys
+import enum
 import os
+import sys
 
-from core import config, typing as T
 from api.config import Config
 from api.idm import IdentityManager
 from api.logging import log
+from core import typing as T
+from core.config import exception as ConfigException
+from core.config import utils
 
 
 # Executable versioning
@@ -32,21 +37,45 @@ class version(T.SimpleNamespace):
     sandman = "0.0.7"
 
 
-# Common configuration
-try:
-    if 'unittest' in sys.modules:
-        os.environ["VAULTRC"] = "eg/.vaultrc"
+class Executable(enum.Enum):
 
-    _cfg_path = config.utils.path("VAULTRC", T.Path(
-        "~/.vaultrc"), T.Path("/etc/vaultrc"))
-    config = Config(_cfg_path)
-except (config.exception.ConfigurationNotFound,
-        config.exception.InvalidConfiguration) as e:
-    log.critical(e)
-    sys.exit(1)
+    class InvalidExecutable(Exception):
+        ...
+
+    VAULT = enum.auto()
+    SANDMAN = enum.auto()
 
 
-# Common identity manager
-# NOTE This is mutable global state...which is not cool, but "should be
-# fine"™ provided we maintain serial execution
-idm = IdentityManager(config.identity)
+def generate_config(
+        executable: Executable) -> T.Tuple[Config, IdentityManager]:
+    try:
+        if 'unittest' in sys.modules:
+            os.environ["VAULTRC"] = "eg/.vaultrc"
+
+        _cfg_path = utils.path("VAULTRC", T.Path(
+            "~/.vaultrc"), T.Path("/etc/vaultrc"))
+
+        # Vault Only Config
+        if executable == Executable.VAULT:
+            _cfg = Config(_cfg_path)
+
+        # Sandman Config (includes Vault Config)
+        elif executable == Executable.SANDMAN:
+            _cfg = Config(
+                _cfg_path,
+                utils.path(
+                    "SANDMANRC",
+                    T.Path("~/.sandmanrc"),
+                    T.Path("/etc/sandmanrc")
+                )
+            )
+
+        else:
+            raise Executable.InvalidExecutable
+
+        return _cfg, IdentityManager(_cfg)
+
+    except (ConfigException.ConfigurationNotFound,
+            ConfigException.InvalidConfiguration) as e:
+        log.critical(e)
+        sys.exit(1)
