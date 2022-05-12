@@ -26,12 +26,13 @@ from test.common import DummyIDM
 from unittest import mock
 
 from api.vault import Branch, Vault
-from bin.common import config
+from bin.common import generate_config, Executable
 from bin.vault import ViewContext, recover, view
 from bin.vault.recover import (derelativise, exception,
                                move_with_path_safety_checks, relativise)
 from core import typing as T
 
+config, _ = generate_config(Executable.VAULT)
 
 class TestVaultRelativeToWorkDirRelative(unittest.TestCase):
     """

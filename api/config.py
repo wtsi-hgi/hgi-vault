@@ -22,6 +22,7 @@ with this program. If not, see https://www.gnu.org/licenses/
 
 from abc import ABCMeta
 from dataclasses import dataclass
+import enum
 from functools import cached_property
 
 import yaml
@@ -32,17 +33,24 @@ from core import config, time, typing as T
 class _YAMLConfig(config.base.Config, metaclass=ABCMeta):
     """ Abstract base class for building configuration from YAML """
     @staticmethod
-    def _build(source: T.Path) -> T.Dict:
-        with source.open() as stream:
-            try:
-                if not isinstance(parsed := yaml.safe_load(stream), dict):
-                    raise config.exception.InvalidConfiguration(
-                        f"Configuration in {source.name} is not a mapping")
-                return parsed
+    def _build(*sources: T.Path) -> T.Dict[T.Any, T.Any]:
+        _config: T.Dict[T.Any, T.Any] = {}
 
-            except yaml.YAMLError:
-                raise config.exception.InvalidConfiguration(
-                    f"Could not parse {source.name}")
+        for source in sources:
+            with source.open() as stream:
+                try:
+                    if not isinstance(parsed := yaml.safe_load(stream), dict):
+                        parsed: T.Dict[T.Any, T.Any]
+                        raise config.exception.InvalidConfiguration(
+                            f"Configuration in {source.name} is not a mapping")
+
+                    _config.update(parsed)
+
+                except yaml.YAMLError:
+                    raise config.exception.InvalidConfiguration(
+                        f"Could not parse {source.name}")
+
+        return _config
 
 
 # Convenience type constructors for days and hours (less than a month)
@@ -86,49 +94,67 @@ class _Setting:
         return not isinstance(self.cast, _ListOf)
 
 
-_schema = {
-    "identity": {
-        "ldap": {
-            "host": _Setting(),
-            "port": _Setting(cast=int, default=389)},
-        "users": {
-            "dn": _Setting(),
-            "attributes": {
-                "uid": _Setting(),
-                "name": _Setting(default="cn"),
-                "email": _Setting(default="mail")}},
-        "groups": {
-            "dn": _Setting(),
-            "attributes": {
-                "gid": _Setting(),
-                "owners": _Setting(default="owner"),
-                "members": _Setting(default="member")}}},
+class ExecutableNamespace(T.SimpleNamespace):
+    class InvalidExecutable(Exception):
+        """raised when a config is attempted to be generated
+        without a valid executable"""
 
-    "persistence": {
-        "postgres": {
-            "host": _Setting(),
-            "port": _Setting(cast=int, default=5432)},
-        "database": _Setting(),
-        "user": _Setting(),
-        "password": _Setting()},
+    class Executable(enum.Enum):
 
-    "email": {
-        "smtp": {
-            "host": _Setting(),
-            "port": _Setting(cast=int, default=25),
-            "tls": _Setting(cast=bool, default=False)},
-        "sender": _Setting()},
+        VAULT = enum.auto()
+        SANDMAN = enum.auto()
 
-    "deletion": {
-        "threshold": _Setting(cast=_Days),
-        "limbo": _Setting(cast=_Days),
-        "warnings": _Setting(cast=_ListOf(_HoursLessThanThreeMonths), default=[])},
 
-    "archive": {
-        "threshold": _Setting(cast=int),
-        "handler": _Setting(cast=T.Path)
+Executable = ExecutableNamespace.Executable
+
+_schema: T.Dict[Executable, T.Any] = {
+    Executable.VAULT: {
+        "identity": {
+            "ldap": {
+                "host": _Setting(),
+                "port": _Setting(cast=int, default=389)},
+            "users": {
+                "dn": _Setting(),
+                "attributes": {
+                    "uid": _Setting(),
+                    "name": _Setting(default="cn"),
+                    "email": _Setting(default="mail")}},
+            "groups": {
+                "dn": _Setting(),
+                "attributes": {
+                    "gid": _Setting(),
+                    "owners": _Setting(default="owner"),
+                    "members": _Setting(default="member")}}},
+
+        "deletion": {
+            "threshold": _Setting(cast=_Days),
+            "limbo": _Setting(cast=_Days),
+            "warnings": _Setting(cast=_ListOf(_HoursLessThanThreeMonths), default=[])},
+
+
+        "min_group_owners": _Setting(cast=int, default=3)
     },
-    "min_group_owners": _Setting(cast=int, default=3)
+    Executable.SANDMAN: {
+        "persistence": {
+            "postgres": {
+                "host": _Setting(),
+                "port": _Setting(cast=int, default=5432)},
+            "database": _Setting(),
+            "user": _Setting(),
+            "password": _Setting()},
+
+        "email": {
+            "smtp": {
+                "host": _Setting(),
+                "port": _Setting(cast=int, default=25),
+                "tls": _Setting(cast=bool, default=False)},
+            "sender": _Setting()},
+
+        "archive": {
+            "threshold": _Setting(cast=int),
+            "handler": _Setting(cast=T.Path)
+        },
+    }
 }
 
 
@@ -172,6 +198,17 @@ def _validate(data: T.Dict, schema: T.Dict) -> bool:
 
 
 class Config(_YAMLConfig):
+
+    def __init__(self, *sources: T.Any, executables: T.Set[Executable]):
+        self._executables = executables
+        super().__init__(*sources)
+
     @cached_property
     def _is_valid(self):
-        return _validate(self._contents, _schema)
+        return all(_validate(self._contents, _schema[executable]) for executable in self._executables)
+
+    @property
+    def _extra_attr(self):
+        return {
+            "executables": self._executables
+        }

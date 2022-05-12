@@ -27,15 +27,18 @@ import sys
 
 import core.vault
 
+from api.config import Executable
 from api.logging import log
 from api.vault import Branch, Vault
 from api.vault.key import VaultFileKey
-from bin.common import idm, config
+from bin.common import generate_config
 from core import file, time, typing as T
 from core.idm import base as IDMBase
 
 from . import usage
 from .recover import move_with_path_safety_checks, relativise, derelativise, exception as RecoverExc
+
+config, idm = generate_config(Executable.VAULT)
 
 
 def _create_vault(relative_to: T.Path, idm: IDMBase.IdentityManager = idm) -> Vault:

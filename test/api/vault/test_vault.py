@@ -29,7 +29,7 @@ from unittest.mock import MagicMock
 
 from api.vault import Branch, Vault
 from api.vault.file import VaultExc, VaultFile
-from bin.common import config
+from bin.common import Executable, generate_config
 from core import typing as T
 from core.vault import exception
 
@@ -41,6 +41,7 @@ from .utils import VFK
 # * Vault and branch creation
 # * Vault owners
 
+config, _ = generate_config(Executable.VAULT)
 
 class TestVaultFile(unittest.TestCase):
 

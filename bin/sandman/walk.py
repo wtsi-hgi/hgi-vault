@@ -28,15 +28,17 @@ import stat
 from abc import ABCMeta, abstractmethod
 from os.path import commonprefix
 
+from api.config import Executable
 from api.logging import Loggable
 from api.persistence import models
 from api.vault import Vault, Branch
-from bin.common import idm, config
+from bin.common import generate_config
 from core import file, time, typing as T
 from core.idm import base as IDMBase
 from core.utils import base64
 from core.vault import exception as VaultExc
 
+config, idm = generate_config(Executable.SANDMAN)
 
 # Automatic re-stat period (default: 36 hours)
 _RESTAT_AFTER = time.delta(hours=int(os.getenv("RESTAT_AFTER", "36")))
