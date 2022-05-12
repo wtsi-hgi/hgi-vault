@@ -31,7 +31,7 @@ from api.idm.ldap import NoResultsFound
 
 # NOTE This ties our tests to the example configuration
 _EXAMPLE_CONFIG = Config(T.Path("eg/.vaultrc"),
-                         executables=(Executable.VAULT,)).identity
+                         executables={Executable.VAULT}).identity
 
 
 def _DUMMY_PWUID(uid):

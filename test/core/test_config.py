@@ -31,23 +31,6 @@ from core.config import base, exception, utils
 
 class DummyConfig(base.Config):
 
-    @singledispatchmethod
-    def __init__(self, *source: T.Path):
-        self._contents = self._build(*source)
-        if not self._is_valid:
-            raise exception.InvalidSemantics("Configuration did not validate")
-
-    @__init__.register(dict)
-    def _(self, source: NodeT) -> None:
-        """ Build the configuration node from explicit contents """
-        self._contents = source
-
-    @__init__.register
-    def _(self, source: None) -> None:
-        """ Forbid null-configuration """
-        raise exception.InvalidConfiguration(
-            "Cannot build configuration from nothing")
-
     @staticmethod
     def _build(source):
         return {"foo": "bar"}

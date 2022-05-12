@@ -195,6 +195,16 @@ def _validate(data: T.Dict, schema: T.Dict) -> bool:
 
 class Config(_YAMLConfig):
 
+    def __init__(self, *sources: T.Any, executables: T.Set[Executable]):
+        self._executables = executables
+        super().__init__(*sources)
+
     @cached_property
     def _is_valid(self):
         return all(_validate(self._contents, _schema[executable]) for executable in self._executables)
+
+    @property
+    def _extra_attr(self):
+        return {
+            "executables": self._executables
+        }

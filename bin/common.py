@@ -19,7 +19,6 @@ You should have received a copy of the GNU General Public License along
 with this program. If not, see https://www.gnu.org/licenses/
 """
 
-import enum
 import os
 import sys
 
@@ -56,7 +55,7 @@ def generate_config(
 
         # Vault Only Config
         if executable == Executable.VAULT:
-            _cfg = Config(_cfg_path, executables=(executable,))
+            _cfg = Config(_cfg_path, executables={executable})
 
         # Sandman Config (includes Vault Config)
         elif executable == Executable.SANDMAN:
@@ -67,7 +66,7 @@ def generate_config(
                     T.Path("~/.sandmanrc"),
                     T.Path("/etc/sandmanrc")
                 ),
-                executables=(Executable.SANDMAN, Executable.VAULT)
+                executables={Executable.SANDMAN, Executable.VAULT}
             )
 
         else:

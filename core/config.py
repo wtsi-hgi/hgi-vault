@@ -76,10 +76,9 @@ class _BaseConfig(metaclass=ABCMeta):
     _contents: NodeT
 
     @singledispatchmethod
-    def __init__(self, *source: T.Any, executables: T.Tuple[Executable]) -> None:
+    def __init__(self, *source: T.Any) -> None:
         """ Build the configuration node from source """
         self._contents = self._build(*source)
-        self._executables = executables
         if not self._is_valid:
             raise exception.InvalidSemantics("Configuration did not validate")
 
@@ -102,7 +101,7 @@ class _BaseConfig(metaclass=ABCMeta):
 
         # We create a (shallow) copy for sub-branches, to avoid
         # downstream changes to the contents
-        return type(self)(contents.copy()) if isinstance(
+        return type(self)(contents.copy(), **self._extra_attr) if isinstance(
             contents, dict) else contents
 
     def __dir__(self) -> T.List[str]:
@@ -123,6 +122,10 @@ class _BaseConfig(metaclass=ABCMeta):
     @abstractmethod
     def _is_valid(self) -> bool:
         """ Are the contents valid? """
+
+    @property
+    def _extra_attr(self) -> T.Dict[str, T.Any]:
+        return {}
 
 
 class base(T.SimpleNamespace):
