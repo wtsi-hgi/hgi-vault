@@ -56,12 +56,6 @@ def generate_config(
         _cfg_path = utils.path("VAULTRC", T.Path(
             "~/.vaultrc"), T.Path("/etc/vaultrc"))
 
-        try:
-            os.environ["BADVAULTRC"]
-            raise Exception(_cfg_path)
-        except KeyError:
-            pass
-
         # Vault Only Config
         if executable == Executable.VAULT:
             _cfg = Config(_cfg_path, executables={executable})
