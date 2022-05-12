@@ -20,7 +20,6 @@ with this program. If not, see https://www.gnu.org/licenses/
 from __future__ import annotations
 
 import os
-from functools import singledispatchmethod
 import unittest
 from unittest.mock import PropertyMock, patch
 from tempfile import TemporaryDirectory

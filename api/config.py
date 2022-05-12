@@ -97,7 +97,8 @@ class _Setting:
 class Executable(enum.Enum):
 
     class InvalidExecutable(Exception):
-        ...
+        """raised when a config is attempted to be generated
+        without a valid executable"""
 
     VAULT = enum.auto()
     SANDMAN = enum.auto()
