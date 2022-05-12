@@ -94,15 +94,18 @@ class _Setting:
         return not isinstance(self.cast, _ListOf)
 
 
-class Executable(enum.Enum):
-
+class ExecutableNamespace(T.SimpleNamespace):
     class InvalidExecutable(Exception):
         """raised when a config is attempted to be generated
         without a valid executable"""
 
-    VAULT = enum.auto()
-    SANDMAN = enum.auto()
+    class Executable(enum.Enum):
 
+        VAULT = enum.auto()
+        SANDMAN = enum.auto()
+
+
+Executable = ExecutableNamespace.Executable
 
 _schema: T.Dict[Executable, T.Any] = {
     Executable.VAULT: {
