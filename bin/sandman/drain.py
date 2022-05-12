@@ -21,17 +21,19 @@ import subprocess
 from subprocess import PIPE, DEVNULL
 
 import core.persistence
+from api.config import Executable
 from api.logging import Loggable, log
 from api.persistence.models import State
 from core import typing as T
 from core.file import is_regular
 from core.utils import human_size
-from bin.common import Executable, generate_config
+from bin.common import generate_config
 
 Anything = core.persistence.Anything
 Filter = core.persistence.Filter
 
 config, _ = generate_config(Executable.SANDMAN)
+
 
 class _StagingQueueEmpty(Exception):
     """ Raised when the staging queue is empty """

@@ -23,10 +23,11 @@ from email.message import EmailMessage
 
 from core import typing as T, idm as IdM, mail
 import api
-from api.config import Config
+from api.config import Config, Executable
 from api.mail import Postman
 
-_EXAMPLE_CONFIG = Config(T.Path("eg/.vaultrc")).email
+_EXAMPLE_CONFIG = Config(T.Path("eg/.vaultrc"), T.Path("eg/.sandmanrc"),
+                         executables=(Executable.SANDMAN, Executable.VAULT)).email
 
 # New line is appended automatically by EmailMessage if the body does not contain one.
 # To make tests pass, we add it to our dummy

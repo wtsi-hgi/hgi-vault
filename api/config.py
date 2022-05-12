@@ -22,6 +22,7 @@ with this program. If not, see https://www.gnu.org/licenses/
 
 from abc import ABCMeta
 from dataclasses import dataclass
+import enum
 from functools import cached_property
 
 import yaml
@@ -34,7 +35,7 @@ class _YAMLConfig(config.base.Config, metaclass=ABCMeta):
     @staticmethod
     def _build(*sources: T.Path) -> T.Dict[T.Any, T.Any]:
         _config: T.Dict[T.Any, T.Any] = {}
-        
+
         for source in sources:
             with source.open() as stream:
                 try:
@@ -42,7 +43,7 @@ class _YAMLConfig(config.base.Config, metaclass=ABCMeta):
                         parsed: T.Dict[T.Any, T.Any]
                         raise config.exception.InvalidConfiguration(
                             f"Configuration in {source.name} is not a mapping")
-        
+
                     _config.update(parsed)
 
                 except yaml.YAMLError:
@@ -93,49 +94,63 @@ class _Setting:
         return not isinstance(self.cast, _ListOf)
 
 
-_schema = {
-    "identity": {
-        "ldap": {
-            "host": _Setting(),
-            "port": _Setting(cast=int, default=389)},
-        "users": {
-            "dn": _Setting(),
-            "attributes": {
-                "uid": _Setting(),
-                "name": _Setting(default="cn"),
-                "email": _Setting(default="mail")}},
-        "groups": {
-            "dn": _Setting(),
-            "attributes": {
-                "gid": _Setting(),
-                "owners": _Setting(default="owner"),
-                "members": _Setting(default="member")}}},
+class Executable(enum.Enum):
 
-    "persistence": {
-        "postgres": {
-            "host": _Setting(),
-            "port": _Setting(cast=int, default=5432)},
-        "database": _Setting(),
-        "user": _Setting(),
-        "password": _Setting()},
+    class InvalidExecutable(Exception):
+        ...
 
-    "email": {
-        "smtp": {
-            "host": _Setting(),
-            "port": _Setting(cast=int, default=25),
-            "tls": _Setting(cast=bool, default=False)},
-        "sender": _Setting()},
+    VAULT = enum.auto()
+    SANDMAN = enum.auto()
 
-    "deletion": {
-        "threshold": _Setting(cast=_Days),
-        "limbo": _Setting(cast=_Days),
-        "warnings": _Setting(cast=_ListOf(_HoursLessThanThreeMonths), default=[])},
 
-    "archive": {
-        "threshold": _Setting(cast=int),
-        "handler": _Setting(cast=T.Path)
+_schema: T.Dict[Executable, T.Any] = {
+    Executable.VAULT: {
+        "identity": {
+            "ldap": {
+                "host": _Setting(),
+                "port": _Setting(cast=int, default=389)},
+            "users": {
+                "dn": _Setting(),
+                "attributes": {
+                    "uid": _Setting(),
+                    "name": _Setting(default="cn"),
+                    "email": _Setting(default="mail")}},
+            "groups": {
+                "dn": _Setting(),
+                "attributes": {
+                    "gid": _Setting(),
+                    "owners": _Setting(default="owner"),
+                    "members": _Setting(default="member")}}},
+
+        "deletion": {
+            "threshold": _Setting(cast=_Days),
+            "limbo": _Setting(cast=_Days),
+            "warnings": _Setting(cast=_ListOf(_HoursLessThanThreeMonths), default=[])},
+
+
+        "min_group_owners": _Setting(cast=int, default=3)
     },
-    "min_group_owners": _Setting(cast=int, default=3)
+    Executable.SANDMAN: {
+        "persistence": {
+            "postgres": {
+                "host": _Setting(),
+                "port": _Setting(cast=int, default=5432)},
+            "database": _Setting(),
+            "user": _Setting(),
+            "password": _Setting()},
+
+        "email": {
+            "smtp": {
+                "host": _Setting(),
+                "port": _Setting(cast=int, default=25),
+                "tls": _Setting(cast=bool, default=False)},
+            "sender": _Setting()},
+
+        "archive": {
+            "threshold": _Setting(cast=int),
+            "handler": _Setting(cast=T.Path)
+        },
+    }
 }
 
 
@@ -179,6 +194,7 @@ def _validate(data: T.Dict, schema: T.Dict) -> bool:
 
 
 class Config(_YAMLConfig):
+
     @cached_property
     def _is_valid(self):
-        return _validate(self._contents, _schema)
+        return all(_validate(self._contents, _schema[executable]) for executable in self._executables)

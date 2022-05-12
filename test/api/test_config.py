@@ -24,11 +24,14 @@ import unittest
 from tempfile import NamedTemporaryFile
 
 from core import config, time, typing as T
-from api.config import Config
+from api.config import Config, Executable
 
 
 _EXAMPLE_CONFIG = T.Path("eg/.vaultrc")
 _EXAMPLE_CONFIG_TEXT = _EXAMPLE_CONFIG.read_text()
+
+_EXAMPLE_SANDMAN_CONFIG = T.Path("eg/.sandmanrc")
+_EXAMPLE_CONFIG_TEXT += "\n" + _EXAMPLE_SANDMAN_CONFIG.read_text()
 
 _NOT_A_CONFIG = "This is an example"
 
@@ -85,7 +88,8 @@ class TestConfig(unittest.TestCase):
     def test_example_config(self) -> None:
         # NOTE This is coupled to eg/.vaultrc
         # Any changes there must be reflected in these tests
-        config = Config(_EXAMPLE_CONFIG)
+        config = Config(_EXAMPLE_CONFIG, _EXAMPLE_SANDMAN_CONFIG,
+                        executables=(Executable.SANDMAN, Executable.VAULT))
 
         self.assertEqual(config.identity.ldap.host, "ldap.example.com")
         self.assertEqual(config.identity.ldap.port, 389)
@@ -123,7 +127,8 @@ class TestConfig(unittest.TestCase):
         self.assertEqual(config.archive.handler, T.Path("/path/to/executable"))
 
     def test_builder(self) -> None:
-        self.assertIsInstance(Config(_EXAMPLE_CONFIG), Config)
+        self.assertIsInstance(
+            Config(_EXAMPLE_CONFIG, _EXAMPLE_SANDMAN_CONFIG, executables=(Executable.SANDMAN, Executable.VAULT)), Config)
 
         self.temp_config.write_text(_NOT_A_CONFIG)
         self.assertRaises(config.exception.InvalidConfiguration,
@@ -134,28 +139,37 @@ class TestConfig(unittest.TestCase):
                           Config._build, self.temp_config)
 
     def test_validator(self) -> None:
-        self.assertTrue(Config(_EXAMPLE_CONFIG)._is_valid)
+        self.assertTrue(
+            Config(_EXAMPLE_CONFIG, _EXAMPLE_SANDMAN_CONFIG, executables=(Executable.SANDMAN, Executable.VAULT))._is_valid)
 
         self.temp_config.write_text(_ADDED_INFO_CONFIG)
-        self.assertTrue(Config(self.temp_config)._is_valid)
+        self.assertTrue(
+            Config(self.temp_config, executables=(Executable.SANDMAN, Executable.VAULT))._is_valid)
 
         self.temp_config.write_text(_SCALAR_LIST_CONFIG)
         self.assertRaises(config.exception.InvalidSemantics,
-                          Config, self.temp_config)
+                          Config, self.temp_config, executables=(Executable.SANDMAN, Executable.VAULT))
 
         self.temp_config.write_text(_INCORRECT_TYPE_CONFIG)
         self.assertRaises(config.exception.InvalidSemantics,
-                          Config, self.temp_config)
+                          Config, self.temp_config, executables=(Executable.SANDMAN, Executable.VAULT))
 
         self.temp_config.write_text(_MISSING_KEY_CONFIG)
         self.assertRaises(config.exception.InvalidSemantics,
-                          Config, self.temp_config)
+                          Config, self.temp_config, executables=(Executable.SANDMAN, Executable.VAULT))
 
         self.temp_config.write_text(_MISSING_OPTIONAL_CONFIG)
-        self.assertTrue((c := Config(self.temp_config))._is_valid)
+        self.assertTrue(
+            (c := Config(self.temp_config, executables=(Executable.SANDMAN, Executable.VAULT)))._is_valid)
         self.assertEqual(c.email.smtp.port, 25)
 
         self.temp_config.write_text(_MISSING_DELETION_LIMBO)
+
+        self.assertTrue(
+            Config(_EXAMPLE_CONFIG, executables=(Executable.VAULT,))._is_valid)
+
+        self.assertTrue(
+            Config(_EXAMPLE_SANDMAN_CONFIG, executables=(Executable.SANDMAN,))._is_valid)
 
 
 if __name__ == "__main__":

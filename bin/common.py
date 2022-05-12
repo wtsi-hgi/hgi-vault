@@ -23,7 +23,7 @@ import enum
 import os
 import sys
 
-from api.config import Config
+from api.config import Config, Executable
 from api.idm import IdentityManager
 from api.logging import log
 from core import typing as T
@@ -35,15 +35,6 @@ from core.config import utils
 class version(T.SimpleNamespace):
     vault = "0.0.9"
     sandman = "0.0.7"
-
-
-class Executable(enum.Enum):
-
-    class InvalidExecutable(Exception):
-        ...
-
-    VAULT = enum.auto()
-    SANDMAN = enum.auto()
 
 
 _configs: T.Dict[Executable, Config] = {}
@@ -58,13 +49,14 @@ def generate_config(
     try:
         if 'unittest' in sys.modules:
             os.environ["VAULTRC"] = "eg/.vaultrc"
+            os.environ["SANDMANRC"] = "eg/.sandmanrc"
 
         _cfg_path = utils.path("VAULTRC", T.Path(
             "~/.vaultrc"), T.Path("/etc/vaultrc"))
 
         # Vault Only Config
         if executable == Executable.VAULT:
-            _cfg = Config(_cfg_path)
+            _cfg = Config(_cfg_path, executables=(executable,))
 
         # Sandman Config (includes Vault Config)
         elif executable == Executable.SANDMAN:
@@ -74,7 +66,8 @@ def generate_config(
                     "SANDMANRC",
                     T.Path("~/.sandmanrc"),
                     T.Path("/etc/sandmanrc")
-                )
+                ),
+                executables=(Executable.SANDMAN, Executable.VAULT)
             )
 
         else:

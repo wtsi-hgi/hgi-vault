@@ -58,8 +58,9 @@ def _path(env: str, *paths: T.Path) -> T.Path:
 
     for from_file in paths:
         if (cfg := T.Path(from_file).expanduser()).is_file():
-            
-            with open(cfg): pass
+
+            with open(cfg):
+                pass
 
             return cfg.resolve()
 
@@ -75,9 +76,10 @@ class _BaseConfig(metaclass=ABCMeta):
     _contents: NodeT
 
     @singledispatchmethod
-    def __init__(self, *source: T.Any) -> None:
+    def __init__(self, *source: T.Any, executables: T.Tuple[Executable]) -> None:
         """ Build the configuration node from source """
         self._contents = self._build(*source)
+        self._executables = executables
         if not self._is_valid:
             raise exception.InvalidSemantics("Configuration did not validate")
 

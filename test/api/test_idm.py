@@ -24,13 +24,14 @@ from unittest.mock import patch
 
 import core.idm
 from core import typing as T
-from api.config import Config
+from api.config import Config, Executable
 from api.idm.idm import LDAPIdentityManager, LDAPUser, LDAPGroup
 from api.idm.ldap import NoResultsFound
 
 
 # NOTE This ties our tests to the example configuration
-_EXAMPLE_CONFIG = Config(T.Path("eg/.vaultrc")).identity
+_EXAMPLE_CONFIG = Config(T.Path("eg/.vaultrc"),
+                         executables=(Executable.VAULT,)).identity
 
 
 def _DUMMY_PWUID(uid):

@@ -28,10 +28,11 @@ import stat
 from abc import ABCMeta, abstractmethod
 from os.path import commonprefix
 
+from api.config import Executable
 from api.logging import Loggable
 from api.persistence import models
 from api.vault import Vault, Branch
-from bin.common import Executable, generate_config
+from bin.common import generate_config
 from core import file, time, typing as T
 from core.idm import base as IDMBase
 from core.utils import base64
