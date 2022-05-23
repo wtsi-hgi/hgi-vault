@@ -21,27 +21,30 @@ You should have received a copy of the GNU General Public License along
 with this program. If not, see https://www.gnu.org/licenses/
 """
 
-from enum import Enum
 import os
 import sys
+from enum import Enum
 
 import core.vault
-
 from api.config import Executable
 from api.logging import log
 from api.vault import Branch, Vault
 from api.vault.key import VaultFileKey
 from bin.common import generate_config
-from core import file, time, typing as T
+from core import file, time
+from core import typing as T
 from core.idm import base as IDMBase
 
 from . import usage
-from .recover import move_with_path_safety_checks, relativise, derelativise, exception as RecoverExc
+from .recover import derelativise
+from .recover import exception as RecoverExc
+from .recover import move_with_path_safety_checks, relativise
 
 config, idm = generate_config(Executable.VAULT)
 
 
-def _create_vault(relative_to: T.Path, idm: IDMBase.IdentityManager = idm) -> Vault:
+def _create_vault(relative_to: T.Path,
+                  idm: IDMBase.IdentityManager = idm) -> Vault:
     # Defensively create a vault with the common IdM
     try:
         return Vault(relative_to, idm=idm, min_owners=config.min_group_owners)
@@ -58,7 +61,8 @@ class ViewContext(Enum):
     Mine = "mine"
 
 
-def view(branch: Branch, view_mode: ViewContext, absolute: bool, idm: IDMBase.IdentityManager = idm) -> None:
+def view(branch: Branch, view_mode: ViewContext, absolute: bool,
+         idm: IDMBase.IdentityManager = idm) -> None:
     """ List the contents of the given branch
 
     :param branch: Which Vault branch we're going to look at

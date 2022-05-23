@@ -21,8 +21,8 @@ from __future__ import annotations
 
 import os
 import unittest
-from unittest.mock import PropertyMock, patch
 from tempfile import TemporaryDirectory
+from unittest.mock import PropertyMock, patch
 
 from core import typing as T
 from core.config import base, exception, utils

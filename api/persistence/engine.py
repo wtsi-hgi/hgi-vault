@@ -1,7 +1,9 @@
 """
-Copyright (c) 2020 Genome Research Limited
+Copyright (c) 2020, 2022 Genome Research Limited
 
-Author: Christopher Harrison <ch12@sanger.ac.uk>
+Authors:
+    - Christopher Harrison <ch12@sanger.ac.uk>
+    - Michael Grace <mg38@sanger.ac.uk>
 
 This program is free software: you can redistribute it and/or modify it
 under the terms of the GNU General Public License as published by the
@@ -17,17 +19,21 @@ You should have received a copy of the GNU General Public License along
 with this program. If not, see https://www.gnu.org/licenses/
 """
 
-from functools import singledispatchmethod
 import importlib.resources as resource
+from functools import singledispatchmethod
 
 from api.logging import Loggable
-from core import config, idm, persistence, typing as T
-from .models import File, State, FileCollection
-from .postgres import PostgreSQL, Transaction
+from api.persistence.common import SQLSnippet
+from api.persistence.models.collections import StateCollection
+from core import config, idm, persistence
+from core import typing as T
 
+from .models import File, FileCollection, State
+from .postgres import PostgreSQL, Transaction
 
 _StateT = T.Union[State.Deleted, State.Staged, State.Warned]
 _FileCollectionT = T.Union[FileCollection.User, FileCollection.StagedQueue]
+_Anything = persistence.Anything
 
 
 class Persistence(persistence.base.Persistence, Loggable):
@@ -134,6 +140,64 @@ class Persistence(persistence.base.Persistence, Loggable):
         with self._pg.transaction() as t:
             t.execute("select stakeholder from stakeholders;")
             yield from (self._idm.user(uid=user.stakeholder) for user in t)
+
+    @staticmethod
+    def states_sql(criteria: persistence.Filter) -> SQLSnippet:
+        """Generate SQL for getting states from the DB
+        based on the given filters
+        
+        @param  criteria    Filter object for query
+        @return SQLSnippet  The query (str) and params (tuple)"""
+        filters: T.List[str] = []
+        params: T.List[T.Any] = []
+
+        if criteria.file != _Anything:
+            filters.append("files.path = %s")
+            params.append(str(criteria.file.path))
+
+        if criteria.state != _Anything:
+            filters.append("status.state = %s")
+            params.append(criteria.state.db_type)
+
+            if criteria.state.notified != _Anything:
+                filters.append("""status.id in (
+                        select distinct status
+                        from notifications
+                        )
+                    """)
+
+        _filter_str = ""
+        if len(filters) != 0:
+            _filter_str = f"where {' and '.join(filters)}"
+
+        return f"""
+                select status.* from warnings
+                inner join status
+                on warnings.status = status.id
+                inner join files
+                on status.file = files.id
+                {_filter_str}
+            """, tuple(params)
+
+    def states(self, criteria: persistence.Filter) -> StateCollection:
+        """Fetch a collection of states based on given criteria (i.e. file)
+        
+        @param  criteria Search criteria
+        @return StateCollection
+        """
+        
+        collection: StateCollection = StateCollection(criteria)
+
+        with self._pg.transaction() as t:
+            t.execute(*Persistence.states_sql(criteria))
+
+            for record in t:
+                self.log.debug(
+                    f"Adding {record} to collection"
+                )
+                collection += State.Warned.FromDBRecord(record)
+
+        return collection
 
     def files(self, criteria: persistence.Filter) -> _FileCollectionT:
         """

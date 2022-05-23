@@ -36,11 +36,12 @@ import core.mail
 import core.persistence
 from api.config import Executable
 from api.logging import Loggable
-from api.mail import Postman, NotificationEMail, GZippedFOFN
+from api.mail import GZippedFOFN, NotificationEMail, Postman
 from api.persistence.models import FileCollection, State
-from api.vault import Vault, Branch, VaultFile
+from api.vault import Branch, Vault, VaultFile
 from bin.common import generate_config
-from core import time, typing as T
+from core import time
+from core import typing as T
 from core.file import hardlinks, touch
 from core.vault import exception as VaultExc
 from . import walk
@@ -131,7 +132,8 @@ class Sweeper(Loggable):
                 warned = []
 
                 # Warned files that require notification
-                for tminus in config.deletion.warnings:
+                for tminus in (*config.deletion.warnings,
+                               config.sandman_run_interval):
                     to_warn = _files(State.Warned, tminus=tminus)
 
                     hours = int(time.seconds(tminus) / 3600)
@@ -321,6 +323,23 @@ class Sweeper(Loggable):
             if file.locked:
                 log.info(
                     f"Skipping: {file.path} has passed the soft-deletion threshold, but is locked by another process")
+                return
+
+            _warnings = self._persistence.states(
+                Filter(
+                    state=State.Warned(
+                        notified=True,
+                        tminus=core.persistence.Anything
+                    ),
+                    file=file
+                )
+            )
+
+            if len(_warnings) == 0:
+                log.info(
+                    f"{file.path} has passed the soft-deletion threshold, but hasn't been warned to anyone. We'll send a warning")
+                self._persistence.persist(file.to_persistence(), State.Warned(
+                    notified=False, tminus=config.sandman_run_interval))
                 return
 
             log.info(

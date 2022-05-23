@@ -19,7 +19,6 @@ You should have received a copy of the GNU General Public License along
 with this program. If not, see https://www.gnu.org/licenses/
 """
 
-import os
 import sys
 
 from api.config import Config, ExecutableNamespace
@@ -41,18 +40,18 @@ class version(T.SimpleNamespace):
 _configs: T.Dict[Executable, Config] = {}
 
 
-def generate_config(
-        executable: Executable, cache: bool = True) -> T.Tuple[Config, IdentityManager]:
+def clear_config_cache():
+    global _configs
+    _configs = {}
 
-    if cache:
-        if (_cfg := _configs.get(executable)):
-            return _cfg, IdentityManager(_cfg.identity)
+
+def generate_config(
+        executable: Executable) -> T.Tuple[Config, IdentityManager]:
+
+    if (_cfg := _configs.get(executable)):
+        return _cfg, IdentityManager(_cfg.identity)
 
     try:
-        if 'unittest' in sys.modules:
-            os.environ["VAULTRC"] = os.getenv("BADVAULTRC", "eg/.vaultrc")
-            os.environ["SANDMANRC"] = "eg/.sandmanrc"
-
         _cfg_path = utils.path("VAULTRC", T.Path(
             "~/.vaultrc"), T.Path("/etc/vaultrc"))
 

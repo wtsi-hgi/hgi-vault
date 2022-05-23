@@ -17,9 +17,12 @@ You should have received a copy of the GNU General Public License along
 with this program. If not, see https://www.gnu.org/licenses/
 """
 
+from __future__ import annotations
+
 from core import typing as T
 from core.config import base as ConfigBase
 from core.idm import base as IDMBase
+from core.persistence import base as PersistenceBase
 
 
 class DummyUser(IDMBase.User):
@@ -85,3 +88,12 @@ class DummyIDM(IDMBase.IdentityManager):
             num_grp_owners=self._num_grp_owners,
             owner=self._grp_owner,
             member=self._grp_member)
+
+
+
+class DummyState(PersistenceBase.State):
+    pass
+
+
+class DummyFile(PersistenceBase.File):
+    pass

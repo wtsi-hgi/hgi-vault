@@ -1,7 +1,9 @@
 """
 Copyright (c) 2022 Genome Research Limited
 
-Author: Sendu Bala <sb10@sanger.ac.uk>
+Authors:
+    - Sendu Bala <sb10@sanger.ac.uk>
+    - Michael Grace <mg38@sanger.ac.uk>
 
 This program is free software: you can redistribute it and/or modify it
 under the terms of the GNU General Public License as published by the
@@ -17,17 +19,21 @@ You should have received a copy of the GNU General Public License along
 with this program. If not, see https://www.gnu.org/licenses/
 """
 
-import unittest
 import os
-from api.idm.idm import LDAPIdentityManager
-from api.config import ExecutableNamespace
-from bin.common import generate_config
+import unittest
 from unittest import mock
+
+from api.config import ExecutableNamespace
+from api.idm.idm import LDAPIdentityManager
+from bin.common import clear_config_cache, generate_config
 
 Executable = ExecutableNamespace.Executable
 
 
 class TestGenerateConfig(unittest.TestCase):
+
+    def setUp(self) -> None:
+        clear_config_cache()
 
     def test_vault_config(self) -> None:
         config, idm = generate_config(Executable.VAULT)
@@ -35,7 +41,7 @@ class TestGenerateConfig(unittest.TestCase):
         self.assertIsInstance(idm, LDAPIdentityManager)
 
     def test_sandman_config(self) -> None:
-        config, idm = generate_config(Executable.SANDMAN)
+        config, _ = generate_config(Executable.SANDMAN)
         self.assertEqual(config.identity.ldap.host, "ldap.example.com")
         self.assertEqual(config.persistence.database, "sandman")
 
@@ -43,15 +49,19 @@ class TestGenerateConfig(unittest.TestCase):
         self.assertRaises(ExecutableNamespace.InvalidExecutable,
                           generate_config, "foo")
 
-    @mock.patch.dict(os.environ, {"BADVAULTRC": "eg/.nonexistant"})
+    @mock.patch.dict(os.environ, {"VAULTRC": "eg/.nonexistant"})
     def test_invalidpath_config(self) -> None:
-        self.assertRaises(SystemExit, generate_config, Executable.VAULT, False)
+        self.assertRaises(SystemExit, generate_config, Executable.VAULT)
 
-    @mock.patch.dict(os.environ, {"BADVAULTRC": "eg/.nonexistant"})
     def test_cached_config(self) -> None:
-        # the cached config from earlier tests means we don't see effect of the
-        # BADVAULTRC
-        config, idm = generate_config(Executable.VAULT, True)
+        # First generate the config using the eg version
+        generate_config(Executable.VAULT)
+
+        # Then "regenerate" it with a non existant one
+        with mock.patch.dict(os.environ, {"VAULTRC": "nonexistant"}):
+            config, _ = generate_config(Executable.VAULT)
+
+        # The cache should have held the original, so there'll still be values
         self.assertEqual(config.identity.ldap.host, "ldap.example.com")
 
 

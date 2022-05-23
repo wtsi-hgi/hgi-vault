@@ -21,9 +21,9 @@ with this program. If not, see https://www.gnu.org/licenses/
 
 from __future__ import annotations
 
-import os
 import fcntl
 import gzip
+import os
 import stat
 from abc import ABCMeta, abstractmethod
 from os.path import commonprefix
@@ -31,9 +31,10 @@ from os.path import commonprefix
 from api.config import Executable
 from api.logging import Loggable
 from api.persistence import models
-from api.vault import Vault, Branch
+from api.vault import Branch, Vault
 from bin.common import generate_config
-from core import file, time, typing as T
+from core import file, time
+from core import typing as T
 from core.idm import base as IDMBase
 from core.utils import base64
 from core.vault import exception as VaultExc
@@ -61,13 +62,15 @@ class File(file.BaseFile):
     _timestamp: T.DateTime
 
     def __init__(self, file: models.File,
-                 timestamp: T.Optional[T.DateTime] = None) -> None:
+                 timestamp: T.Optional[T.DateTime] = None,
+                 idm: IDMBase.IdentityManager = idm) -> None:
         """ Construct from filesystem """
         self._file = file
         self._timestamp = timestamp or time.now()
+        self._idm = idm
 
     @classmethod
-    def FromFS(cls, path: T.Path) -> File:
+    def FromFS(cls, path: T.Path, idm: IDMBase.IdentityManager = idm) -> File:
         """ Construct from filesystem """
         return cls(models.File.FromFS(path, idm))
 
@@ -123,7 +126,7 @@ class File(file.BaseFile):
         # None in the constructor with no way to override it
         if force or time.now() - self._timestamp > _RESTAT_AFTER:
             key = self._file.key
-            self._file = models.File.FromFS(self.path, idm)
+            self._file = models.File.FromFS(self.path, self._idm)
             self._file.key = key
 
             self._timestamp = time.now()
@@ -158,7 +161,8 @@ class BaseWalker(Loggable, metaclass=ABCMeta):
         """
 
     @staticmethod
-    def _fetch_vaults(*paths: T.Path, idm: IDMBase.IdentityManager = idm) -> T.Set[Vault]:
+    def _fetch_vaults(*paths: T.Path,
+                      idm: IDMBase.IdentityManager = idm) -> T.Set[Vault]:
         """
         Return the Vaults covered by the given paths
 
@@ -172,7 +176,8 @@ class BaseWalker(Loggable, metaclass=ABCMeta):
             given += 1
 
             try:
-                if (vault := Vault(path, idm=idm, autocreate=False, min_owners=config.min_group_owners)).root != path:
+                if (vault := Vault(path, idm=idm, autocreate=False,
+                                   min_owners=config.min_group_owners)).root != path:
                     # Safety feature: Only allow Vault root directories
                     raise InvalidVaultBases(
                         f"The Vault at {path} is rooted at {vault.root}; the Vault root directory must be provided")
@@ -184,7 +189,8 @@ class BaseWalker(Loggable, metaclass=ABCMeta):
                 raise InvalidVaultBases(f"No Vault at {path}: {e}")
 
             except VaultExc.MinimumNumberOfOwnersNotMet as e:
-                # Safety feature: Don't allow projects that don't meet min. number of owners
+                # Safety feature: Don't allow projects that don't meet min.
+                # number of owners
                 raise InvalidVaultBases(e)
 
         if len(vaults) == 0:
@@ -221,7 +227,8 @@ class FilesystemWalker(BaseWalker):
     """ Walk the filesystem directly: Expensive, but accurate """
     _vaults: T.Set[Vault]
 
-    def __init__(self, *bases: T.Path, idm: IDMBase.IdentityManager = idm) -> None:
+    def __init__(self, *bases: T.Path,
+                 idm: IDMBase.IdentityManager = idm) -> None:
         """
         Constructor: Set the base paths from which to start the walk.
         Note that any paths that are not directories, don't exist, or
@@ -230,10 +237,11 @@ class FilesystemWalker(BaseWalker):
         @param  bases  Base paths
         """
         self._vaults = self._fetch_vaults(*bases, idm=idm)
+        self._idm = idm
 
     @staticmethod
     def _walk_tree(
-            path: T.Path, vault: Vault) -> T.Iterator[T.Tuple[Vault, File, _VaultStatusT]]:
+            path: T.Path, vault: Vault, idm: IDMBase.IdentityManager = idm) -> T.Iterator[T.Tuple[Vault, File, _VaultStatusT]]:
         # Recursively walk the tree from the given path
         for f in path.iterdir():
             # NOTE Don't walk symlinked directories: if they're symlinks
@@ -245,12 +253,12 @@ class FilesystemWalker(BaseWalker):
             # We only care about regular files
             elif file.is_regular(f):
                 yield vault, \
-                    File.FromFS(f), \
+                    File.FromFS(f, idm=idm), \
                     FilesystemWalker._vault_status(vault, f)
 
     def files(self) -> T.Iterator[T.Tuple[Vault, File, _VaultStatusT]]:
         for vault in self._vaults:
-            yield from FilesystemWalker._walk_tree(vault.root, vault)
+            yield from FilesystemWalker._walk_tree(vault.root, vault, idm=self._idm)
 
 
 # mpistat field indices
