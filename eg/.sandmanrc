@@ -25,7 +25,9 @@ email:
     tls: No
 
   sender: vault@example.com
-
+  vault_documentation: "https://example.com/Vault+Reference+Manual+for+Users"
+  max_filelist_in_body: 3
+  
 # Archival/Downstream Control
 # - threshold   Minimum number of staged files to accumulate before
 #               draining the queue

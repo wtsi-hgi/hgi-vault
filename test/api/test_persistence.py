@@ -85,12 +85,12 @@ class TestPersistence(unittest.TestCase):
         """
 
         # 1. No Filters
-        self.assertEquals(_normalise(*Persistence.states_sql(Filter(
+        self.assertEqual(_normalise(*Persistence.states_sql(Filter(
             state=Anything
         ))), _normalise(_BASE_SQL, tuple([])))
 
         # 2. File Path Filter
-        self.assertEquals(_normalise(*Persistence.states_sql(Filter(
+        self.assertEqual(_normalise(*Persistence.states_sql(Filter(
             state=Anything, file=DummyFile(Path("file/path"))
         ))), _normalise(_BASE_SQL + "where files.path = %s", ("file/path",)))
 

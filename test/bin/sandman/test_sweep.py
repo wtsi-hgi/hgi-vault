@@ -31,6 +31,7 @@ from unittest import mock
 from unittest.mock import MagicMock
 
 import core.file
+from api.mail import MessageNamespace
 from api.persistence import models
 from api.persistence.engine import Persistence
 from api.vault import Branch, Vault
@@ -43,7 +44,6 @@ from core import time
 from core import typing as T
 from core.vault import exception as VaultExc
 from eg.mock_mailer import MockMailer
-
 
 config, idm = generate_config(Executable.SANDMAN)
 
@@ -94,7 +94,6 @@ dummy_idm = DummyIDM(config)
 
 
 class TestSweeper(unittest.TestCase):
-    _tmp: TemporaryDirectory
     _path: T.Path
 
     def setUp(self) -> None:
@@ -136,6 +135,7 @@ class TestSweeper(unittest.TestCase):
         # want
         Vault._find_root = MagicMock(return_value=self.parent)
         self.vault = Vault(relative_to=self.file_one, idm=dummy_idm)
+        MockMailer.file_path = T.Path(self._tmp.name).resolve() / "mail"
 
     def tearDown(self) -> None:
         self._tmp.cleanup()
@@ -565,39 +565,130 @@ class TestSweeper(unittest.TestCase):
         self.assertTrue(os.path.isfile(self.wrong_perms))
         self.assertFalse(os.path.isfile(vault_file_path))
 
-    def test_emails_stakeholders(self):
+
+class TestEmailStakeholders(unittest.TestCase):
+
+    def setUp(self) -> None:
+        self.config, _ = generate_config(Executable.SANDMAN)
+
+        self._tmp = TemporaryDirectory()
+        self.parent = path = T.Path(self._tmp.name).resolve() / "parent"
+        self.some = path / "some"
+        self.some.mkdir(parents=True, exist_ok=True)
+        self.file_one = path / "file1"
+
+        self.file_one.touch()
+
+        self.file_one.chmod(0o660)
+        self.parent.chmod(0o330)
+        self.some.chmod(0o330)
+
+        Vault._find_root = MagicMock(return_value=self.parent)
+        self.vault = Vault(relative_to=self.file_one, idm=dummy_idm)
+
+        MockMailer.file_path = T.Path(self._tmp.name).resolve() / "mail"
+
+    def tearDown(self) -> None:
+        clear_config_cache()
+        MockMailer.clean()
+
+    def test_emails_stakeholders_warnings(self):
         """We're going to get a file close to the threshold,
         and then check if the email that is generated mentions
         the right information
         """
-        config, _ = generate_config(Executable.SANDMAN)
-        new_time: T.DateTime = time.now() - config.deletion.threshold + \
-            max(config.deletion.warnings) - time.delta(seconds=1)
-        dummy_walker = _DummyWalker([(self.vault, _DummyFile.FromFS(
-            self.file_one, idm=DummyIDM(config), ctime=new_time, mtime=new_time, atime=new_time), None)])
-        MockMailer.file_path = T.Path(self._tmp.name).resolve() / "mail"
-        Sweeper(dummy_walker, Persistence(config.persistence, DummyIDM(config)), True,
+        new_time: T.DateTime = time.now() - self.config.deletion.threshold + \
+            max(self.config.deletion.warnings) - time.delta(seconds=1)
+        walker = _DummyWalker([(self.vault, _DummyFile.FromFS(
+            self.file_one, idm=DummyIDM(self.config), ctime=new_time, mtime=new_time, atime=new_time), None)])
+        Sweeper(walker, Persistence(self.config.persistence, DummyIDM(self.config)), True,
                 MockMailer)  # this will make the email
 
-        # Now we'll see what it says
-        # Nothing in all the thresholds except the largest
-        # Nothing staged for archival
-        def _search_file(file: T.Path, phrase: str) -> T.List[int]:
-            """returns first line number that the phrase was
-            found in the file"""
-            locations: T.List[int] = []
-            with open(file) as f:
-                for line_num, line in enumerate(f):
-                    if phrase in line:
-                        locations.append(line_num)
-            return locations
+        sent_emails = MockMailer.get_sent_mail(
+            subject=MessageNamespace.WarnedEmail.subject)
+        # the file should be in the emails of as many warnings as we get
+        self.assertEqual(len({x for x in sent_emails if str(
+            self.file_one) in x.body}), len(config.deletion.warnings) - 1)
 
-        # The filepath should only be listed once in the whole email
-        filepath_line_nums = _search_file(
-            MockMailer.file_path, str(self.file_one))
-        self.assertEquals(len(filepath_line_nums), 1)
+    def test_emails_stakeholders_archival(self):
+        """We're going to archive a file"""
+        self.vault.add(Branch.Archive, self.file_one)
+        walker = _DummyWalker([(self.vault, _DummyFile.FromFS(
+            self.file_one, idm=DummyIDM(self.config)), Branch.Archive)])
 
-        # That should be at the bottom of all the warnings
-        for _line_num in _search_file(
-                MockMailer.file_path, "Your files will be DELETED"):
-            self.assertLess(_line_num, filepath_line_nums[0])
+        Sweeper(walker, Persistence(self.config.persistence,
+                DummyIDM(self.config)), True, MockMailer)
+
+        sent_emails = MockMailer.get_sent_mail(
+            subject=MessageNamespace.StagedEmail.subject)
+        self.assertTrue(any(self.file_one.name in x.body for x in sent_emails))
+
+    def test_emails_stakeholders_urgent(self):
+        """We're going to get a file notified last minute"""
+        new_time: T.TimeDelta = time.now() - self.config.deletion.threshold - \
+            time.delta(days=1)
+        walker = _DummyWalker([(self.vault, _DummyFile.FromFS(self.file_one, idm=DummyIDM(
+            self.config), ctime=new_time, mtime=new_time, atime=new_time), None)])
+        Sweeper(walker, Persistence(self.config.persistence,
+                DummyIDM(self.config)), True, MockMailer)
+
+        sent_emails = MockMailer.get_sent_mail(
+            subject=MessageNamespace.UrgentEmail.subject)
+        self.assertTrue(any(self.file_one.name in x.body for x in sent_emails))
+
+    def test_emails_stakeholders_deletion(self):
+        """We're going to get some files deleted (need to run sweeper
+        twice for this - urgent email gets sent first time)"""
+        new_time: T.TimeDelta = time.now() - self.config.deletion.threshold - \
+            time.delta(days=1)
+        walker = _DummyWalker([(self.vault, _DummyFile.FromFS(self.file_one, idm=DummyIDM(
+            self.config), ctime=new_time, mtime=new_time, atime=new_time), None)])
+
+        # have to do this twice, cause the first time will send an urgent email
+        Sweeper(walker, Persistence(self.config.persistence,
+                DummyIDM(self.config)), True, MockMailer)
+        Sweeper(walker, Persistence(self.config.persistence,
+                DummyIDM(self.config)), True, MockMailer)
+
+        sent_emails = MockMailer.get_sent_mail(
+            subject=MessageNamespace.DeletedEmail.subject)
+        self.assertTrue(any(self.file_one.name in x.body for x in sent_emails))
+
+    def test_emails_stakeholders_many_files(self):
+        """we're going to put a lot of files in an urgent email,
+        and check they don't end up in the message body, but in
+        an attachment"""
+
+        _files = []
+        for i in range(int(self.config.email.max_filelist_in_body) + 1):
+            # create some files
+            _f = self.parent / f"file{i}"
+            _f.touch()
+            _f.chmod(0o660)
+            _files.append(_f)
+
+        new_time: T.TimeDelta = time.now() - self.config.deletion.threshold - \
+            time.delta(days=1)
+        walker = _DummyWalker([(self.vault, _DummyFile.FromFS(_file, idm=DummyIDM(
+            self.config), ctime=new_time, mtime=new_time, atime=new_time), None) for _file in _files])
+        Sweeper(walker, Persistence(self.config.persistence,
+                DummyIDM(self.config)), True, MockMailer)
+
+        # check its not in the body of the email
+        sent_emails = MockMailer.get_sent_mail(
+            subject=MessageNamespace.UrgentEmail.subject)
+        self.assertFalse(
+            any(self.file_one.name in x.body for x in sent_emails))
+
+        # check its in an attachment
+        _found_in_attachments = False
+        for email in sent_emails:
+            if email.attachments is not None:
+                for attachment in email.attachments:
+                    if self.file_one.name in attachment:
+                        _found_in_attachments = True
+                        break
+                else:
+                    break
+
+        self.assertTrue(_found_in_attachments)
