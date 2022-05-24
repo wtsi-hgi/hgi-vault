@@ -310,8 +310,9 @@ class Sweeper(Loggable):
                 # Check we'll actually be able to soft-delete the file
                 # This only needs to be here, as this is the only time
                 # we interact with untracked files automatically
-                raise core.file.exception.UnactionableFile(
-                    f"{file.path} can't be actioned")
+                log.info(
+                    f"Skipping: {file.path} has correctable permission issues")
+                return
         except core.vault.exception.VaultCorruption:
             # this will be handled when the file is added to the branch
             pass

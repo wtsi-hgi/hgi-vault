@@ -48,6 +48,7 @@ from eg.mock_mailer import MockMailer
 
 config, idm = generate_config(Executable.SANDMAN)
 
+
 class _DummyWalker(BaseWalker):
     def __init__(self, walk):
         self._walk = walk
@@ -59,7 +60,8 @@ class _DummyWalker(BaseWalker):
 class _DummyFile(models.File):
     @classmethod
     def FromFS(cls, path: T.Path, idm: IdM.base.IdentityManager,
-               ctime: datetime, atime: datetime, mtime: datetime) -> File:
+               ctime: datetime = time.now(), atime: datetime = time.now(),
+               mtime: datetime = time.now()) -> File:
         file = models.File.FromFS(path, idm)
         file.ctime = ctime
         file.atime = atime
@@ -80,13 +82,13 @@ def make_file_seem_old(path: T.Path) -> File:
 def make_file_seem_old_but_read_recently(path: T.Path) -> File:
     long_ago = after_deletion_threshold()
     return _DummyFile.FromFS(path, idm, ctime=long_ago,
-                             mtime=long_ago, atime=time.now())
+                             mtime=long_ago)
 
 
 def make_file_seem_modified_long_ago(path: T.Path) -> File:
     long_ago = after_deletion_threshold()
     return _DummyFile.FromFS(path, idm, ctime=time.now(),
-                             mtime=long_ago, atime=time.now())
+                             mtime=long_ago)
 
 
 _FileState = T.Tuple[PersistenceBase.File, PersistenceBase.State]
@@ -555,18 +557,42 @@ class TestSweeper(unittest.TestCase):
 
     def test_unactionable_file_wont_be_actioned(self):
         """Gets the Sweeper to try and action a file
-        with the wrong permissions. The file won't be actionable,
-        and it should throw the exception.
+        with issues that can't be corrected by wrstat. The file won't be
+        actionable, and it should throw the exception.
 
-        Anything in the file `can_add` criteria will throw this
-        exception.
-
+        `can_add`'s not regular and owned-by-root criteria will throw this
+        exception, though the not regular is picked up earlier so we get a
+        different exception.
         """
         dummy_walker = _DummyWalker(
-            [(self.vault, File.FromFS(self.wrong_perms), None)])
+            [(self.vault, File.FromFS(self.some), None)])
         dummy_persistence = MagicMock()
-        self.assertRaises(core.file.exception.UnactionableFile,
+        self.assertRaises(core.vault.exception.NotRegularFile,
                           lambda: Sweeper(dummy_walker, dummy_persistence, True))
+
+        with mock.patch('api.vault.VaultFile.source') as source:
+            source.stat.return_value.st_uid = 0
+            dummy_walker = _DummyWalker(
+                [(self.vault, File.FromFS(self.file_one), None)])
+            dummy_persistence = MagicMock()
+            self.assertRaises(core.file.exception.UnactionableFile,
+                              lambda: Sweeper(dummy_walker, dummy_persistence, True))
+
+    def test_bad_permissions_file_skipped(self):
+        """Gets the Sweeper to try and action a file
+        with the wrong permissions. The file won't be actionable,
+        and it should be skipped.
+        """
+        dummy_walker = _DummyWalker(
+            [(self.vault, make_file_seem_old(self.wrong_perms), None)])
+        dummy_persistence = MagicMock()
+        Sweeper(dummy_walker, dummy_persistence, True)
+
+        vault_file_path = self.determine_vault_path(
+            self.wrong_perms, Branch.Limbo)
+
+        self.assertTrue(os.path.isfile(self.wrong_perms))
+        self.assertFalse(os.path.isfile(vault_file_path))
 
     def test_emails_stakeholders(self):
         """We're going to get a file close to the threshold,

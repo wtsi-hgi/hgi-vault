@@ -31,6 +31,7 @@ from api.vault import Branch, Vault
 from api.vault.file import VaultExc, VaultFile
 from bin.common import Executable, generate_config
 from core import typing as T
+from core import file
 from core.vault import exception
 
 from .mock_file import MockOtherUserOwnedVaultFile, MockRootOwnedVaultFile
@@ -42,6 +43,7 @@ from .utils import VFK
 # * Vault owners
 
 config, _ = generate_config(Executable.VAULT)
+
 
 class TestVaultFile(unittest.TestCase):
 
@@ -186,8 +188,9 @@ class TestVaultFile(unittest.TestCase):
 
         To simulate this, we use a MockRootOwnedVaultFile (inherits from VaultFile)
         """
-        self.assertFalse(MockRootOwnedVaultFile(
-            self.vault, Branch.Keep, self.tmp_file_a).can_add)
+        self.assertRaises(file.exception.UnactionableFile,
+                          lambda: MockRootOwnedVaultFile(
+                              self.vault, Branch.Keep, self.tmp_file_a).can_add)
 
     def test_can_add_not_owner_or_in_group(self):
         """A file can't be added to the Vault if we're not the owner
