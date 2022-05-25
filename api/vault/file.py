@@ -181,8 +181,9 @@ class VaultFile(core.vault.base.VaultFile):
         # * A parent directory with at least ug+wx permissions
         # * A current user that is the owner or in the file's group
         # Raise an UnactionableFile exception if the file:
-        # * Isn't regular
         # * Is owned by the root user
+        # (non-regular files will have thrown a NotRegularFile exception during
+        #  instance construction)
         log = self.vault.log
         source = self.source
 
@@ -191,12 +192,8 @@ class VaultFile(core.vault.base.VaultFile):
             # than any user using this (including the batch process
             # user) will be the root user. We can't have this - the
             # batch process user needs full control over all files
-            raise core.file.exception.UnactionableFile(
+            raise file.exception.UnactionableFile(
                 f"{source} is owned by the root user")
-
-        if not file.is_regular(source):
-            raise core.file.exception.UnactionableFile(
-                f"{source} is not a regular file")
 
         source_mode = source.stat().st_mode
         ugrw = stat.S_IRUSR | stat.S_IWUSR | stat.S_IRGRP | stat.S_IWGRP

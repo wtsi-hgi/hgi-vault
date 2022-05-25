@@ -560,16 +560,8 @@ class TestSweeper(unittest.TestCase):
         with issues that can't be corrected by wrstat. The file won't be
         actionable, and it should throw the exception.
 
-        `can_add`'s not regular and owned-by-root criteria will throw this
-        exception, though the not regular is picked up earlier so we get a
-        different exception.
+        `can_add`'s owned-by-root criteria will throw this exception.
         """
-        dummy_walker = _DummyWalker(
-            [(self.vault, File.FromFS(self.some), None)])
-        dummy_persistence = MagicMock()
-        self.assertRaises(core.vault.exception.NotRegularFile,
-                          lambda: Sweeper(dummy_walker, dummy_persistence, True))
-
         with mock.patch('api.vault.VaultFile.source') as source:
             source.stat.return_value.st_uid = 0
             dummy_walker = _DummyWalker(
