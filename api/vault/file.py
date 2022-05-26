@@ -175,19 +175,25 @@ class VaultFile(core.vault.base.VaultFile):
 
     @property
     def can_add(self) -> bool:
-        # Check that the file is:
-        # * Regular
-        # * Has at least ug+rw permissions
-        # * Have equal user and group permissions
-        # * Has a parent directory with at least ug+wx permissions
-        # * The file isn't owned by the root user
-        # * Current user is the owner or in the file's group
+        # Return false if the file doesn't have:
+        # * At least ug+rw permissions
+        # * Equal user and group permissions
+        # * A parent directory with at least ug+wx permissions
+        # * A current user that is the owner or in the file's group
+        # Raise an UnactionableFile exception if the file:
+        # * Is owned by the root user
+        # (non-regular files will have thrown a NotRegularFile exception during
+        #  instance construction)
         log = self.vault.log
         source = self.source
 
-        if not file.is_regular(source):
-            log.info(f"{source} is not a regular file")
-            return False
+        if source.stat().st_uid == 0:
+            # Theoretically, the only user with higher priority
+            # than any user using this (including the batch process
+            # user) will be the root user. We can't have this - the
+            # batch process user needs full control over all files
+            raise file.exception.UnactionableFile(
+                f"{source} is owned by the root user")
 
         source_mode = source.stat().st_mode
         ugrw = stat.S_IRUSR | stat.S_IWUSR | stat.S_IRGRP | stat.S_IWGRP
@@ -208,14 +214,6 @@ class VaultFile(core.vault.base.VaultFile):
         if parent_mode & ugwx != ugwx:
             log.info(
                 f"The parent directory of {source} is not writable or executable for both its owner and group")
-            return False
-
-        if source.stat().st_uid == 0:
-            # Theoretically, the only user with higher priority
-            # than any user using this (including the batch process
-            # user) will be the root user. We can't have this - the
-            # batch process user needs full control over all files
-            log.info(f"{source} is owned by the root user")
             return False
 
         if os.getuid() != source.stat().st_uid and source.stat().st_gid not in os.getgroups():
