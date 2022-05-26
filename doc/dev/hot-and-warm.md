@@ -1,23 +1,8 @@
 # Hot and Warm Code Index
 
-## Hot Code
+The hot and warm code system described in the original design.md is no longer
+in place because it wasn't doing anything meaningful, and only provided a false
+sense of security.
 
-### [`hot.combinator`](/hot/combinator.py)
-
-The base combinator function and related exceptions that attempts to
-establish consensus amongst hot code functions.
-
-### `hot.*.can_delete`
-
-Check a file's age has met or exceeded a given threshold for deletion.
-
-## Warm Code
-
-### [`core.typing`](/core/typing.py)
-
-Convenience module that gathers together Python's standard types for
-annotations.
-
-### [`core.file.BaseFile`](/core/file.py)
-
-Abstract base class for files.
+We simply have to be careful and thorough in our reviews and testing, and
+carefully trial new locations that sandman will be used on in production.

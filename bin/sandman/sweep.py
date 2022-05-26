@@ -43,24 +43,24 @@ from bin.common import generate_config
 from core import time, typing as T
 from core.file import hardlinks, touch
 from core.vault import exception as VaultExc
-from hot import ch12, an12, gn5, pa11
-from hot.combinator import agreed
 from . import walk
 
 Filter = core.persistence.Filter
 
 config, _ = generate_config(Executable.SANDMAN)
 
-# Hot code implementations
-_hot = agreed(*(m.can_delete for m in (ch12, an12, gn5, pa11)))
+
+def _can_delete(file: core.file.BaseFile, threshold: T.TimeDelta) -> bool:
+    """ Check the file's age meets or exceeds the threshold """
+    return file.age >= threshold
 
 
 def _can_soft_delete(file: walk.File) -> bool:
-    return _hot(file, config.deletion.threshold)
+    return _can_delete(file, config.deletion.threshold)
 
 
 def _can_permanently_delete(file: walk.File) -> bool:
-    return _hot(file, config.deletion.limbo)
+    return _can_delete(file, config.deletion.limbo)
 
 
 class Sweeper(Loggable):
