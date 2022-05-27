@@ -22,20 +22,21 @@ with this program. If not, see https://www.gnu.org/licenses/
 
 from __future__ import annotations
 
+import getpass
 import os
 import unittest
 from datetime import datetime, timedelta
 from tempfile import TemporaryDirectory
-from api.persistence.engine import Persistence
 from test.common import DummyGroup, DummyIDM, DummyUser
 from unittest import mock
 from unittest.mock import MagicMock
 
 import core.file
 from api.persistence import models
+from api.persistence.engine import Persistence
 from api.vault import Branch, Vault
 from api.vault.key import VaultFileKey as VFK
-from bin.common import Executable, generate_config
+from bin.common import Executable, clear_config_cache, generate_config
 from bin.sandman.sweep import Sweeper
 from bin.sandman.walk import BaseWalker, File
 from core import idm as IdM
@@ -45,6 +46,8 @@ from core.vault import exception as VaultExc
 from eg.mock_mailer import MockMailer
 
 config, idm = generate_config(Executable.SANDMAN)
+
+_HGI_FARM_SANDMAN_CONFIG_LOCATION = "/software/hgi/installs/vault/etc"
 
 
 class _DummyWalker(BaseWalker):
@@ -106,6 +109,9 @@ class TestSweeper(unittest.TestCase):
                 |  +- file3
                 +- file1
         """
+
+        clear_config_cache()
+
         self._tmp = TemporaryDirectory()
         self.parent = path = T.Path(self._tmp.name).resolve() / "parent"
         self.some = path / "some"
@@ -382,8 +388,13 @@ class TestSweeper(unittest.TestCase):
     # Behavior: When a regular, untracked, non-vault file has been there for
     # more than the deletion threshold, and it has been notifed to somebody,
     # the source is deleted and a hardlink created in Limbo
+    @mock.patch.dict(os.environ, {
+        "SANDMANRC": f"{_HGI_FARM_SANDMAN_CONFIG_LOCATION}/sandmanrc.{getpass.getuser()}"
+        if os.getenv("SANDMAN_FARM_TEST") == "1"
+        else os.environ["SANDMANRC"]
+    })
     def test_deletion_threshold_passed_previously_notified(self):
-
+        config, _ = generate_config(Executable.SANDMAN)
         walker = _DummyWalker(
             ((self.vault, make_file_seem_old(self.file_one), None),)
         )
@@ -408,8 +419,13 @@ class TestSweeper(unittest.TestCase):
     # to someone, the file remains, is notified to someone, and then
     # on the next run is deleted, the source is deleted and a hardlink
     # created in Limbo
+    @mock.patch.dict(os.environ, {
+        "SANDMANRC": f"{_HGI_FARM_SANDMAN_CONFIG_LOCATION}/sandmanrc.{getpass.getuser()}"
+        if os.getenv("SANDMAN_FARM_TEST") == "1"
+        else os.environ["SANDMANRC"]
+    })
     def test_deletion_threshold_passed_never_notified(self):
-
+        config, _ = generate_config(Executable.SANDMAN)
         walker = _DummyWalker(
             ((self.vault, make_file_seem_old(self.file_one), None),))
         persistence = Persistence(config.persistence, DummyIDM(config))
@@ -561,15 +577,21 @@ class TestSweeper(unittest.TestCase):
         self.assertTrue(os.path.isfile(self.wrong_perms))
         self.assertFalse(os.path.isfile(vault_file_path))
 
+    @mock.patch.dict(os.environ, {
+        "SANDMANRC": f"{_HGI_FARM_SANDMAN_CONFIG_LOCATION}/sandmanrc.{getpass.getuser()}"
+        if os.getenv("SANDMAN_FARM_TEST") == "1"
+        else os.environ["SANDMANRC"]
+    })
     def test_emails_stakeholders(self):
         """We're going to get a file close to the threshold,
         and then check if the email that is generated mentions
         the right information
         """
+        config, _ = generate_config(Executable.SANDMAN)
         new_time: T.DateTime = time.now() - config.deletion.threshold + \
             max(config.deletion.warnings) - time.delta(seconds=1)
         dummy_walker = _DummyWalker([(self.vault, _DummyFile.FromFS(
-            self.file_one, idm, ctime=new_time, mtime=new_time, atime=new_time), None)])
+            self.file_one, idm=DummyIDM(config), ctime=new_time, mtime=new_time, atime=new_time), None)])
         MockMailer.file_path = T.Path(self._tmp.name).resolve() / "mail"
         Sweeper(dummy_walker, Persistence(config.persistence, DummyIDM(config)), True,
                 MockMailer)  # this will make the email
