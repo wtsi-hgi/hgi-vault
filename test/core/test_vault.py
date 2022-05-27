@@ -23,7 +23,6 @@ from tempfile import TemporaryDirectory
 from core import typing as T
 from core.vault import base, exception
 
-
 _DUMMY_VAULT = T.Path("dummy")
 
 

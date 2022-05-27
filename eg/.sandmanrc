@@ -6,12 +6,12 @@
 
 persistence:
   postgres:
-    host: postgres.example.com
+    host: localhost
     port: 5432
 
   database: sandman
-  user: a_db_user
-  password: abc123
+  user: postgres 
+  password: '' 
 
 # E-Mail Configuration
 # - smtp        Host (host), port (port) and whether to use a secure
@@ -37,3 +37,8 @@ email:
 archive:
   threshold: 1000
   handler: /path/to/executable
+
+# How often we run sandman (in hours)
+# this is the interval we tell users their file will
+# be acted on when no previous warnings have been sent
+sandman_run_interval: 24

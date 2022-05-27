@@ -23,7 +23,9 @@ with this program. If not, see https://www.gnu.org/licenses/
 import os
 import unittest
 from tempfile import TemporaryDirectory
-from core import file, time, typing as T
+
+from core import file, time
+from core import typing as T
 
 
 class TestFile(unittest.TestCase):

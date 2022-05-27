@@ -23,7 +23,6 @@ from unittest.mock import MagicMock, patch
 
 from core import logging
 
-
 _mock_logger = MagicMock()
 
 

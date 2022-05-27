@@ -25,6 +25,8 @@ import os.path
 from abc import ABCMeta, abstractmethod
 from dataclasses import dataclass
 
+from core.file import BaseFile
+
 from . import config, idm, typing as T
 
 
@@ -64,8 +66,9 @@ class Filter:
     # NOTE The parameters of the "state" object define the state search
     # criteria; the "Anything" sentinel can be used as a wildcard, both
     # in the state parameters and as the stakeholder (default)
-    state: _BaseState
+    state: T.Union[_BaseState, T.Type[Anything]]
     stakeholder: T.Union[idm.base.User, T.Type[Anything]] = Anything
+    file: T.Union[BaseFile, T.Type[Anything]] = Anything
 
 
 @dataclass
@@ -137,6 +140,27 @@ class _BaseFileCollection(
         """
 
 
+class _BaseStateCollection(
+    T.Collection[_BaseState]
+):
+    def __init__(self, criteria: Filter) -> None:
+        self._contents: T.List[_BaseState] = []
+
+    def __len__(self) -> int:
+        return len(self._contents)
+
+    def __contains__(self, state: object) -> bool:
+        return state in self._contents
+
+    def __iter__(self) -> T.Iterator[_BaseState]:
+        return iter(self._contents)
+
+    def __iadd__(self, state: _BaseState) -> _BaseStateCollection:
+        """ Overload += to append new files """
+        self._contents.append(state)
+        return self
+
+
 class _BasePersistence(metaclass=ABCMeta):
     @abstractmethod
     def __init__(self, config: config.base.Config,
@@ -167,6 +191,14 @@ class _BasePersistence(metaclass=ABCMeta):
         """
 
     @abstractmethod
+    def states(self, criteria: Filter) -> _BaseStateCollection:
+        """Get the persisted states by criteria such as the file
+
+        @param  criteria Filter object
+        @return Collection of states
+        """
+
+    @abstractmethod
     def clean(self, files: _BaseFileCollection) -> None:
         """
         Clean up persisted files
@@ -180,4 +212,5 @@ class base(T.SimpleNamespace):
     File = _BaseFile
     FileCollection = _BaseFileCollection
     State = _BaseState
+    StateCollection = _BaseStateCollection
     Persistence = _BasePersistence

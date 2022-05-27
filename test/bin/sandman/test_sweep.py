@@ -24,8 +24,9 @@ from __future__ import annotations
 
 import os
 import unittest
-from datetime import datetime
+from datetime import datetime, timedelta
 from tempfile import TemporaryDirectory
+from api.persistence.engine import Persistence
 from test.common import DummyGroup, DummyIDM, DummyUser
 from unittest import mock
 from unittest.mock import MagicMock
@@ -40,9 +41,6 @@ from bin.sandman.walk import BaseWalker, File
 from core import idm as IdM
 from core import time
 from core import typing as T
-from core.persistence import Filter as PersistenceFilter
-from core.persistence import GroupSummary
-from core.persistence import base as PersistenceBase
 from core.vault import exception as VaultExc
 from eg.mock_mailer import MockMailer
 
@@ -75,8 +73,8 @@ def after_deletion_threshold() -> datetime:
 
 def make_file_seem_old(path: T.Path) -> File:
     long_ago = after_deletion_threshold()
-    return _DummyFile.FromFS(path, idm, ctime=long_ago,
-                             mtime=long_ago, atime=long_ago)
+    return _DummyFile.FromFS(path, ctime=long_ago,
+                             mtime=long_ago, atime=long_ago, idm=DummyIDM(config))
 
 
 def make_file_seem_old_but_read_recently(path: T.Path) -> File:
@@ -89,63 +87,6 @@ def make_file_seem_modified_long_ago(path: T.Path) -> File:
     long_ago = after_deletion_threshold()
     return _DummyFile.FromFS(path, idm, ctime=time.now(),
                              mtime=long_ago)
-
-
-_FileState = T.Tuple[PersistenceBase.File, PersistenceBase.State]
-
-
-class _DummyPersistence(PersistenceBase.Persistence):
-
-    def __init__(self, *_) -> None:
-        self._files: T.List[_FileState] = []
-        self._user: IdM.base.User = DummyUser(
-            os.getuid(), name="Test User", email="testEmail@test.com")
-
-    def persist(self, file: PersistenceBase.File,
-                state: PersistenceBase.State) -> None:
-        self._files.append((file, state))
-
-    @property
-    def stakeholders(self) -> T.Iterator[IdM.base.User]:
-        return iter((self._user,))
-
-    def files(self, criteria: PersistenceFilter) -> PersistenceBase.FileCollection:
-        user = self._user
-
-        class _DummyFileCollection(PersistenceBase.FileCollection):
-
-            def __init__(self, files: T.List[_FileState]):
-                self._files = files
-
-            def __enter__(self):
-                return self
-
-            def __exit__(self, *_) -> bool:
-                return False
-
-            @property
-            def accumulator(self) -> T.Dict[IdM.base.Group, GroupSummary]:
-                acc: T.Dict[IdM.base.Group, GroupSummary] = {}
-                key = DummyGroup(os.getgid(), owner=user)
-                for file, _ in self._files:
-                    acc[key] = acc.get(key, GroupSummary(path=file.path, count=0, size=0)) \
-                        + GroupSummary(path=file.path, count=1, size=file.size)
-                return acc
-
-            def _accumulate(self, *_) -> None:
-                ...
-
-            def __len__(self):
-                return len(self._files)
-
-            def __iter__(self):
-                return iter(x[0] for x in self._files)
-
-        return _DummyFileCollection(
-            [x for x in self._files if x[1] == criteria.state])
-
-    def clean(self, *_) -> None:
-        ...
 
 
 dummy_idm = DummyIDM(config)
@@ -439,23 +380,57 @@ class TestSweeper(unittest.TestCase):
         self.assertTrue(os.path.isfile(vault_file_one_staged))
 
     # Behavior: When a regular, untracked, non-vault file has been there for
-    # more than the deletion threshold, the source is deleted and a hardlink
-    # created in Limbo
-    @mock.patch('bin.sandman.walk.idm', new=dummy_idm)
-    @mock.patch('bin.vault._create_vault')
-    def test_deletion_threshold_passed(self, vault_mock):
-        walk = [(self.vault, make_file_seem_old(self.file_one), None)]
-        dummy_walker = _DummyWalker(walk)
-        dummy_persistence = MagicMock()
+    # more than the deletion threshold, and it has been notifed to somebody,
+    # the source is deleted and a hardlink created in Limbo
+    def test_deletion_threshold_passed_previously_notified(self):
+
+        walker = _DummyWalker(
+            ((self.vault, make_file_seem_old(self.file_one), None),)
+        )
+        persistence = Persistence(config.persistence, DummyIDM(config))
 
         vault_file_path = self.determine_vault_path(
             self.file_one, Branch.Limbo)
 
-        Sweeper(dummy_walker, dummy_persistence, True)
+        # Add a previous notification
+        persistence.persist(models.File(self.file_one, 0, 0, 0, None, datetime.now(), datetime.now(), datetime.now(), DummyUser(0), DummyGroup(0)),
+                            models.State.Warned(notified=True, tminus=timedelta(days=1)))
+
+        Sweeper(walker, persistence, True, postman=MockMailer)
 
         # Check if the untracked file has been deleted
         self.assertFalse(os.path.isfile(self.file_one))
         # Check if the file has been added to Limbo
+        self.assertTrue(os.path.isfile(vault_file_path))
+
+    # Behavior: When a regular, untracked, non-vault file has been there for
+    # more than the deletion threshold, but it has never been notified
+    # to someone, the file remains, is notified to someone, and then
+    # on the next run is deleted, the source is deleted and a hardlink
+    # created in Limbo
+    def test_deletion_threshold_passed_never_notified(self):
+
+        walker = _DummyWalker(
+            ((self.vault, make_file_seem_old(self.file_one), None),))
+        persistence = Persistence(config.persistence, DummyIDM(config))
+
+        vault_file_path = self.determine_vault_path(
+            self.file_one, Branch.Limbo)
+
+        Sweeper(walker, persistence, True, postman=MockMailer)
+
+        # Check if the untracked file has been deleted (it shouldn't be)
+        self.assertTrue(os.path.isfile(self.file_one))
+        # Check if the file has been added to Limbo (it shouldn't be)
+        self.assertFalse(os.path.isfile(vault_file_path))
+
+        # Theoretically, that now "sends" the notification
+        # Let's run it again
+        Sweeper(walker, persistence, True, postman=MockMailer)
+
+        # Check untracked file has now been deleted
+        self.assertFalse(os.path.isfile(self.file_one))
+        # check the file has been added to limbo
         self.assertTrue(os.path.isfile(vault_file_path))
 
     # Behavior: When a regular, untracked, non-vault file has been modified
@@ -595,9 +570,8 @@ class TestSweeper(unittest.TestCase):
             max(config.deletion.warnings) - time.delta(seconds=1)
         dummy_walker = _DummyWalker([(self.vault, _DummyFile.FromFS(
             self.file_one, idm, ctime=new_time, mtime=new_time, atime=new_time), None)])
-        dummy_persistence = _DummyPersistence(config.persistence, idm)
         MockMailer.file_path = T.Path(self._tmp.name).resolve() / "mail"
-        Sweeper(dummy_walker, dummy_persistence, True,
+        Sweeper(dummy_walker, Persistence(config.persistence, DummyIDM(config)), True,
                 MockMailer)  # this will make the email
 
         # Now we'll see what it says

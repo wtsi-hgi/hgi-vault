@@ -1,7 +1,9 @@
 """
-Copyright (c) 2020 Genome Research Limited
+Copyright (c) 2020, 2022 Genome Research Limited
 
-Author: Christopher Harrison <ch12@sanger.ac.uk>
+Authors:
+    - Christopher Harrison <ch12@sanger.ac.uk>
+    - Michael Grace <mg38@sanger.ac.uk>
 
 This program is free software: you can redistribute it and/or modify it
 under the terms of the GNU General Public License as published by the
@@ -17,12 +19,15 @@ You should have received a copy of the GNU General Public License along
 with this program. If not, see https://www.gnu.org/licenses/
 """
 
+from __future__ import annotations
+
 from dataclasses import dataclass
 
-from core import idm, persistence, typing as T
 from api.persistence.postgres import Transaction
-from .file import File
+from core import idm, persistence
+from core import typing as T
 
+from .file import File
 
 # Convenience aliases for types we use regularly
 _Anything = persistence.Anything
@@ -70,14 +75,14 @@ class _PersistedState(persistence.base.State):
             values (%s, %s)
             returning id;
         """, (file.db_id, self.db_type))
-        state_id = t.fetchone().id
+        self.state_id = t.fetchone().id
 
         # Set the notification status for all stakeholders, if required
         # (this should never happen in production)
         if self.notified:
             self.mark_notified(t, file, _Anything)
 
-        return state_id
+        return self.state_id
 
     def mark_notified(self, t: Transaction, file: File,
                       stakeholder: _MaybeStakeholder) -> None:
@@ -89,7 +94,8 @@ class _PersistedState(persistence.base.State):
         @param   stakeholder  Stakeholder
         """
         if (state_id := self.exists(t, file)) is None:
-            state_id = self.persist(t, file)
+            state_id = self.persist(
+                t, file) if self.state_id is None else self.state_id
 
         query_params = (state_id, file.db_id)
         query_sql = """
@@ -162,6 +168,15 @@ class State(T.SimpleNamespace):
         """ File warned for deletion """
         db_type = "warned"
         tminus: T.Union[T.TimeDelta, T.Type[_Anything]]
+
+        @classmethod
+        def FromDBRecord(cls, record: T.NamedTuple) -> State.Warned:
+            state = cls(
+                tminus=persistence.Anything,
+                notified=persistence.Anything
+            )
+            state.db_id = record.id
+            return state
 
         def exists(self, t: Transaction, file: File) -> T.Optional[int]:
             # Warnings are special, so we override the superclass

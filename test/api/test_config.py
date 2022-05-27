@@ -107,12 +107,12 @@ class TestConfig(unittest.TestCase):
         self.assertEqual(config.identity.groups.attributes.members, "member")
 
         self.assertEqual(config.persistence.postgres.host,
-                         "postgres.example.com")
+                         "localhost")
         self.assertEqual(config.persistence.postgres.port, 5432)
 
         self.assertEqual(config.persistence.database, "sandman")
-        self.assertEqual(config.persistence.user, "a_db_user")
-        self.assertEqual(config.persistence.password, "abc123")
+        self.assertEqual(config.persistence.user, "postgres")
+        self.assertEqual(config.persistence.password, "")
 
         self.assertEqual(config.email.smtp.host, "mail.example.com")
         self.assertEqual(config.email.smtp.port, 25)

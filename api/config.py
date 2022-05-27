@@ -154,6 +154,7 @@ _schema: T.Dict[Executable, T.Any] = {
             "threshold": _Setting(cast=int),
             "handler": _Setting(cast=T.Path)
         },
+        "sandman_run_interval": _Setting(cast=_HoursLessThanThreeMonths, default=24)
     }
 }
 
