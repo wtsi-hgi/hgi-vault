@@ -77,8 +77,6 @@ def _existing_path_from_env_and_paths(env: str, *paths: T.Path) -> T.Path:
 
     return _existing_path_from_paths(*paths)
 
-    raise exception.ConfigurationNotFound("No configuration found")
-
 
 ValueT = T.Any
 NodeT = T.Mapping[str, ValueT]
