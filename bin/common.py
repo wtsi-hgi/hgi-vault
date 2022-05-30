@@ -48,11 +48,11 @@ _configs: T.Dict[Executable, Config] = {}
 # developers using their own postgres versions, or travis,
 # can use the eg/.sandmanrc file values
 _HGI_FARM_SANDMAN_CONFIG_LOCATION = "/software/hgi/installs/vault/etc"
-
-
-def sandman_env_config_location() -> T.Path:
-    return T.Path(f"{_HGI_FARM_SANDMAN_CONFIG_LOCATION}/sandmanrc.{getpass.getuser()}" if os.getenv("SANDMAN_FARM_TEST") == "1" else os.environ["SANDMANRC"])
-
+_SANDMAN_ENV_CONFIG_LOC = T.Path(
+    f"{_HGI_FARM_SANDMAN_CONFIG_LOCATION}/sandmanrc.{getpass.getuser()}" 
+    if os.getenv("SANDMAN_FARM_TEST") == "1" 
+    else os.environ["SANDMANRC"]
+)
 
 def clear_config_cache():
     global _configs
@@ -78,7 +78,7 @@ def generate_config(
             _cfg = Config(
                 _cfg_path,
                 utils.path(
-                    sandman_env_config_location(),
+                    _SANDMAN_ENV_CONFIG_LOC,
                     T.Path("~/.sandmanrc"),
                     T.Path("/etc/sandmanrc")
                 ),
