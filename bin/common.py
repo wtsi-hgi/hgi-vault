@@ -21,6 +21,9 @@ with this program. If not, see https://www.gnu.org/licenses/
 
 import sys
 
+import getpass
+import os
+
 from api.config import Config, ExecutableNamespace
 from api.idm import IdentityManager
 from api.logging import log
@@ -40,6 +43,17 @@ class version(T.SimpleNamespace):
 _configs: T.Dict[Executable, Config] = {}
 
 
+# this is used when SANDMAN_FARM_TEST is set to 1
+# so developers can use custom databases
+# developers using their own postgres versions, or travis,
+# can use the eg/.sandmanrc file values
+_HGI_FARM_SANDMAN_CONFIG_LOCATION = "/software/hgi/installs/vault/etc"
+
+
+def sandman_env_config_location() -> T.Path:
+    return T.Path(f"{_HGI_FARM_SANDMAN_CONFIG_LOCATION}/sandmanrc.{getpass.getuser()}" if os.getenv("SANDMAN_FARM_TEST") == "1" else os.environ["SANDMANRC"])
+
+
 def clear_config_cache():
     global _configs
     _configs = {}
@@ -52,7 +66,7 @@ def generate_config(
         return _cfg, IdentityManager(_cfg.identity)
 
     try:
-        _cfg_path = utils.path("VAULTRC", T.Path(
+        _cfg_path = utils.envpath("VAULTRC", T.Path(
             "~/.vaultrc"), T.Path("/etc/vaultrc"))
 
         # Vault Only Config
@@ -64,7 +78,7 @@ def generate_config(
             _cfg = Config(
                 _cfg_path,
                 utils.path(
-                    "SANDMANRC",
+                    sandman_env_config_location(),
                     T.Path("~/.sandmanrc"),
                     T.Path("/etc/sandmanrc")
                 ),

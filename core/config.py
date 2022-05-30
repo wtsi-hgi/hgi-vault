@@ -43,7 +43,26 @@ class exception(T.SimpleNamespace):
         """ Raised when the configuration file cannot be found """
 
 
-def _path(env: str, *paths: T.Path) -> T.Path:
+def _existing_path_from_paths(*paths: T.Path) -> T.Path:
+    """
+    Return the file path of the configuration file from a number of
+    options in the given precedence
+
+    @param   *paths  Any number of paths
+    @return  The existing configuration file path
+    """
+    for from_file in paths:
+        if (cfg := T.Path(from_file).expanduser()).is_file():
+
+            with open(cfg):
+                pass
+
+            return cfg.resolve()
+
+    raise exception.ConfigurationNotFound("No configuration found")
+
+
+def _existing_path_from_env_and_paths(env: str, *paths: T.Path) -> T.Path:
     """
     Return the file path of the configuration file from a number of
     options in the given precedence
@@ -56,13 +75,7 @@ def _path(env: str, *paths: T.Path) -> T.Path:
     if (from_environment := os.getenv(env)) is not None:
         paths = (from_environment,) + paths
 
-    for from_file in paths:
-        if (cfg := T.Path(from_file).expanduser()).is_file():
-
-            with open(cfg):
-                pass
-
-            return cfg.resolve()
+    return _existing_path_from_paths(*paths)
 
     raise exception.ConfigurationNotFound("No configuration found")
 
@@ -135,4 +148,5 @@ class base(T.SimpleNamespace):
 
 class utils(T.SimpleNamespace):
     """ Namespace of utilities to make importing easier """
-    path = _path
+    envpath = _existing_path_from_env_and_paths
+    path = _existing_path_from_paths

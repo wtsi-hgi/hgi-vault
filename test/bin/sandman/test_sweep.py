@@ -43,7 +43,6 @@ from core import time
 from core import typing as T
 from core.vault import exception as VaultExc
 from eg.mock_mailer import MockMailer
-from test.common import sandman_config_location
 
 
 config, idm = generate_config(Executable.SANDMAN)
@@ -387,7 +386,6 @@ class TestSweeper(unittest.TestCase):
     # Behavior: When a regular, untracked, non-vault file has been there for
     # more than the deletion threshold, and it has been notifed to somebody,
     # the source is deleted and a hardlink created in Limbo
-    @mock.patch.dict(os.environ, {"SANDMANRC": sandman_config_location()})
     def test_deletion_threshold_passed_previously_notified(self):
         config, _ = generate_config(Executable.SANDMAN)
         walker = _DummyWalker(
@@ -414,7 +412,6 @@ class TestSweeper(unittest.TestCase):
     # to someone, the file remains, is notified to someone, and then
     # on the next run is deleted, the source is deleted and a hardlink
     # created in Limbo
-    @mock.patch.dict(os.environ, {"SANDMANRC": sandman_config_location()})
     def test_deletion_threshold_passed_never_notified(self):
         config, _ = generate_config(Executable.SANDMAN)
         walker = _DummyWalker(
@@ -568,7 +565,6 @@ class TestSweeper(unittest.TestCase):
         self.assertTrue(os.path.isfile(self.wrong_perms))
         self.assertFalse(os.path.isfile(vault_file_path))
 
-    @mock.patch.dict(os.environ, {"SANDMANRC": sandman_config_location()})
     def test_emails_stakeholders(self):
         """We're going to get a file close to the threshold,
         and then check if the email that is generated mentions

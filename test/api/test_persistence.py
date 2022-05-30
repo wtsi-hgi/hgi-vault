@@ -33,7 +33,6 @@ from core import typing as T
 from core.file import BaseFile
 from core.persistence import Anything, Filter
 from core.persistence import base as PersistenceBase
-from test.common import sandman_config_location
 
 
 @dataclass
@@ -135,7 +134,6 @@ class TestPostgres(unittest.TestCase):
     def setUp(self) -> None:
         clear_config_cache()
 
-    @mock.patch.dict(os.environ, {"SANDMANRC": sandman_config_location()})
     def test_connection(self):
         try:
             config, _ = generate_config(Executable.SANDMAN)

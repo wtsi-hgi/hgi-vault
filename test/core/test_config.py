@@ -57,13 +57,13 @@ class TestUtils(unittest.TestCase):
     def test_path(self):
         cfg = self._cfg
 
-        self.assertEqual(utils.path("TEST_CONFIG"), cfg)
+        self.assertEqual(utils.envpath("TEST_CONFIG"), cfg)
         self.assertRaises(exception.ConfigurationNotFound,
-                          utils.path, "NO_SUCH_ENVVAR")
-        self.assertEqual(utils.path("NO_SUCH_ENVVAR", str(cfg)), cfg)
+                          utils.envpath, "NO_SUCH_ENVVAR")
+        self.assertEqual(utils.envpath("NO_SUCH_ENVVAR", str(cfg)), cfg)
         self.assertRaises(exception.ConfigurationNotFound,
-                          utils.path, "NO_SUCH_ENVVAR", "no/such/path")
-        self.assertEqual(utils.path("NO_SUCH_ENVVAR",
+                          utils.envpath, "NO_SUCH_ENVVAR", "no/such/path")
+        self.assertEqual(utils.envpath("NO_SUCH_ENVVAR",
                          "no/such/path", str(cfg)), cfg)
 
 
