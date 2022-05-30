@@ -19,10 +19,23 @@ with this program. If not, see https://www.gnu.org/licenses/
 
 from __future__ import annotations
 
+import getpass
+import os
+
 from core import typing as T
 from core.config import base as ConfigBase
 from core.idm import base as IDMBase
 from core.persistence import base as PersistenceBase
+
+# this is used when SANDMAN_FARM_TEST is set to 1
+# so developers can use custom databases
+# developers using their own postgres versions, or travis,
+# can use the eg/.sandmanrc file values
+_HGI_FARM_SANDMAN_CONFIG_LOCATION = "/software/hgi/installs/vault/etc"
+
+
+def sandman_config_location() -> str:
+    return f"{_HGI_FARM_SANDMAN_CONFIG_LOCATION}/sandmanrc.{getpass.getuser()}" if os.getenv            ("SANDMAN_FARM_TEST") == "1" else os.environ["SANDMANRC"]
 
 
 class DummyUser(IDMBase.User):
