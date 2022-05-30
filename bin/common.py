@@ -49,10 +49,11 @@ _configs: T.Dict[Executable, Config] = {}
 # can use the eg/.sandmanrc file values
 _HGI_FARM_SANDMAN_CONFIG_LOCATION = "/software/hgi/installs/vault/etc"
 _SANDMAN_ENV_CONFIG_LOC = T.Path(
-    f"{_HGI_FARM_SANDMAN_CONFIG_LOCATION}/sandmanrc.{getpass.getuser()}" 
-    if os.getenv("SANDMAN_FARM_TEST") == "1" 
+    f"{_HGI_FARM_SANDMAN_CONFIG_LOCATION}/sandmanrc.{getpass.getuser()}"
+    if os.getenv("SANDMAN_FARM_TEST") == "1"
     else os.environ["SANDMANRC"]
 )
+
 
 def clear_config_cache():
     global _configs
