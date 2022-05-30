@@ -17,7 +17,6 @@ You should have received a copy of the GNU General Public License along
 with this program. If not, see https://www.gnu.org/licenses/
 """
 
-import getpass
 import os
 import unittest
 from dataclasses import dataclass
@@ -34,12 +33,6 @@ from core import typing as T
 from core.file import BaseFile
 from core.persistence import Anything, Filter
 from core.persistence import base as PersistenceBase
-
-# this is used when SANDMAN_FARM_TEST is set to 1
-# so developers can use custom databases
-# developers using their own postgres versions, or travis,
-# can use the eg/.sandmanrc file values
-_HGI_FARM_SANDMAN_CONFIG_LOCATION = "/software/hgi/installs/vault/etc"
 
 
 @dataclass
@@ -141,11 +134,6 @@ class TestPostgres(unittest.TestCase):
     def setUp(self) -> None:
         clear_config_cache()
 
-    @mock.patch.dict(os.environ, {
-        "SANDMANRC": f"{_HGI_FARM_SANDMAN_CONFIG_LOCATION}/sandmanrc.{getpass.getuser()}"
-        if os.getenv("SANDMAN_FARM_TEST") == "1"
-        else os.environ["SANDMANRC"]
-    })
     def test_connection(self):
         try:
             config, _ = generate_config(Executable.SANDMAN)

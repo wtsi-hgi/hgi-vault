@@ -19,6 +19,7 @@ You should have received a copy of the GNU General Public License along
 with this program. If not, see https://www.gnu.org/licenses/
 """
 
+import getpass
 import os
 import unittest
 from unittest import mock
@@ -43,7 +44,11 @@ class TestGenerateConfig(unittest.TestCase):
     def test_sandman_config(self) -> None:
         config, _ = generate_config(Executable.SANDMAN)
         self.assertEqual(config.identity.ldap.host, "ldap.example.com")
-        self.assertEqual(config.persistence.database, "sandman")
+
+        if os.getenv("SANDMAN_FARM_TEST") == "1":
+            self.assertEqual(config.persistence.database, f"sandman_dev_{getpass.getuser()}")
+        else:
+            self.assertEqual(config.persistence.database, "sandman")
 
     def test_invalidexe_config(self) -> None:
         self.assertRaises(ExecutableNamespace.InvalidExecutable,
