@@ -30,13 +30,15 @@ with this program. If not, see https://www.gnu.org/licenses/
 
 from contextlib import ExitStack
 from functools import singledispatchmethod
+from pathlib import Path
 
 import core.file
 import core.mail
 import core.persistence
 from api.config import Executable
 from api.logging import Loggable
-from api.mail import GZippedFOFN, NotificationEMail, Postman
+from api.mail import GZippedFOFN, MessageNamespace, Postman
+from api.mail.message import MessageContext
 from api.persistence.models import FileCollection, State
 from api.vault import Branch, Vault, VaultFile
 from bin.common import generate_config
@@ -44,6 +46,7 @@ from core import time
 from core import typing as T
 from core.file import hardlinks, touch
 from core.vault import exception as VaultExc
+
 from . import walk
 
 Filter = core.persistence.Filter
@@ -101,6 +104,11 @@ class Sweeper(Loggable):
         """ E-mail stakeholders """
         log = self.log
         postman = self._postman(config.email)
+        # maximum number of files listed directly in e-mail body:
+        #   (otherwise, list of files is attached to email as fofn.txt.gz)
+        max_filelist_in_body = config.email.max_filelist_in_body
+        # communicate HGI end-user vault documentation web link in e-mails:
+        vault_documentation = config.email.vault_documentation
 
         # Create and send the e-mail for each stakeholder
         for stakeholder in self._persistence.stakeholders:
@@ -120,41 +128,99 @@ class Sweeper(Loggable):
                     return stack.enter_context(
                         self._persistence.files(criteria))
 
+                # E-mails are split below across 3 notification types, handled separately:
+                #   - E-mail notification for deleted files
+                #   - E-mail notification for staged (archived) files
+                #   - E-mail notification (warning) for upcoming file deletions
+
                 # Deleted and Staged files that require notification
                 attachments = {
                     "deleted": _files(State.Deleted),
                     "staged": _files(State.Staged)
                 }
 
-                # Convenience aliases for e-mail constructor
-                deleted = attachments["deleted"].accumulator
-                staged = attachments["staged"].accumulator
-                warned = []
+                group_summaries = {
+                    "deleted": _files(State.Deleted).accumulator,
+                    "staged": _files(State.Staged).accumulator
+                }
+
+                file_lists = {
+                    # only pass down file path for now,
+                    # but other file meta-data, e.g. exact deletion date, could
+                    # be added
+                    "deleted": {
+                        file.path: {"filepath": file.path}
+                        for file in _files(State.Deleted)
+                    },
+                    "staged": {
+                        file.path: {"filepath": file.path}
+                        for file in _files(State.Staged)
+                    }
+                }
+
+                n_files = {
+                    "deleted": len(file_lists["deleted"]),
+                    "staged": len(file_lists["staged"]),
+                }
+
+                tminuses: T.Dict[str, int] = {}
+                lustre_paths: T.Dict[str, Path] = {}
+
+                _email_constructors: T.Dict[str, T.Type[MessageNamespace.Message]] = {
+                    "deleted": MessageNamespace.DeletedEmail,
+                    "staged": MessageNamespace.StagedEmail
+                }
 
                 # Warned files that require notification
-                for tminus in (*config.deletion.warnings,
-                               config.sandman_run_interval):
+                _warn_type = "urgent"
+                for tminus in (config.sandman_run_interval, *config.deletion.warnings):
+
                     to_warn = _files(State.Warned, tminus=tminus)
-
                     hours = int(time.seconds(tminus) / 3600)
-                    attachments[f"delete-{hours}"] = to_warn
-                    warned.append((tminus, to_warn.accumulator))
 
-                # Construct e-mail and add non-trivial attachments
-                non_trivial = False
-                mail = NotificationEMail(stakeholder, deleted, staged, warned)
-                for filename, files in attachments.items():
-                    if len(files) > 0:
-                        non_trivial = True
-                        mail += GZippedFOFN(f"{filename}.fofn.gz",
-                                            [file.path for file in files])
-                if non_trivial:
+                    _key = f"delete-{hours}" if _warn_type != "urgent" else _warn_type
+                    attachments[_key] = to_warn
+                    group_summaries[_key] = to_warn.accumulator
+                    file_lists[_key] = {
+                        file.path: {"filepath": file.path} for file in to_warn
+                    }
+                    n_files[_key] = len(
+                        file_lists[_key])
+                    tminuses[_key] = time.seconds(tminus)
+                    lustre_paths[_key] = Path("")  # TODO
+                    _email_constructors[_key] = MessageNamespace.WarnedEmail if _warn_type != "urgent" else MessageNamespace.UrgentEmail
+
+                    # first one is urgent email, so now we can set it to "warning"
+                    _warn_type = "warning"
+
+                for key, cons in _email_constructors.items():
+                    if not attachments[key]:
+                        continue
+
+                    context = MessageContext(
+                        stakeholder=stakeholder,
+                        group_summary=group_summaries[key],
+                        n_files=n_files[key],
+                        file_list={},
+                        vault_documentation=vault_documentation,
+                        tminus=tminuses.get(key),
+                        filelist_lustre_path=lustre_paths.get(key)
+                    )
+
+                    _mail_attachments: T.List[core.mail.base.Attachment] = []
+                    if len(attachments[key]) <= max_filelist_in_body:
+                        context.file_list = file_lists[key]
+                    else:
+                        _mail_attachments.append(GZippedFOFN(
+                            f"{key}.txt.gz", {file.path for file in attachments[key]}))
+
+                    mail = cons(context)
+                    for _attachment in _mail_attachments:
+                        mail += _attachment
+
                     postman.send(mail, stakeholder)
                     log.info(
-                        f"Sent summary e-mail to {stakeholder.name} ({stakeholder.email})")
-
-                else:
-                    log.debug("Skipping: Trivial e-mail")
+                        f"Sent e-mail for {key} files to {stakeholder.name} ({stakeholder.email})")
 
         # TODO? The design states that an overall summary should be
         # logged at the end of the notification step and output to the

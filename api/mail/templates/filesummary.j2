@@ -1,0 +1,8 @@
+{# Copyright (c) 2020 - 2022 Genome Research Ltd. -#}
+{% if summary is defined and summary %}
+Size summary of affected files by farm Unix group:
+{% for group, summary in (summary or {}).items() %}
+* {{ group }} group in {{ summary.path }}:
+  {{ summary.size | human_size }}B across {{ summary.count }} files
+{% endfor %}
+{% endif -%}

@@ -1,0 +1,6 @@
+{# Copyright (c) 2020 - 2022 Genome Research Ltd. -#}
+{% if filelist_as_attachement is defined and filelist_as_attachement == 'no' -%}
+A full listing of affected files can be found at the bottom of this email.
+{% else %}
+A full listing (of {{n_files}} files) can be found in the attachment.
+{% endif -%}

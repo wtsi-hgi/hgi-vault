@@ -17,7 +17,7 @@ You should have received a copy of the GNU General Public License along
 with this program. If not, see https://www.gnu.org/licenses/
 """
 
-from jinja2 import Environment
+from jinja2 import Environment, FileSystemLoader
 
 from core import typing as T, utils
 
@@ -32,8 +32,12 @@ def render(template: str, context: T.Any) -> str:
     """
     # This inefficiently recompiles the template on each call...but it's
     # fast enough for it not to be a problem
-    env = Environment(trim_blocks=True)
+    env = Environment(trim_blocks=True,
+                      loader=FileSystemLoader([template.parent.absolute()]))
     env.filters["human_size"] = utils.human_size
     env.filters["human_time"] = utils.human_time
 
-    return env.from_string(template).render(context)
+    with open(template, "r") as f:
+        template_data = f.read()
+
+    return env.from_string(template_data).render(context)

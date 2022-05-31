@@ -1,0 +1,8 @@
+{# Copyright (c) 2020 - 2022 Genome Research Ltd. -#}
+{% if filelist_as_attachement is defined and filelist_as_attachement == 'no' -%}
+The file list ({{n_files}} files):
+
+{% for file, file_meta in filelist.items() -%}
+{{ file_meta.filepath}}
+{% endfor -%}
+{%- endif %}
