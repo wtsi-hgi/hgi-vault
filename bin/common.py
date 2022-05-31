@@ -36,8 +36,8 @@ Executable = ExecutableNamespace.Executable
 
 class version(T.SimpleNamespace):
     # Executable versioning
-    vault = "0.0.9"
-    sandman = "0.0.7"
+    vault = "1.0.0"
+    sandman = "1.0.0"
 
 
 _configs: T.Dict[Executable, Config] = {}
