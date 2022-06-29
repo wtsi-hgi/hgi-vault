@@ -1,7 +1,9 @@
 """
-Copyright (c) 2020 Genome Research Limited
+Copyright (c) 2020, 2022 Genome Research Limited
 
-Author: Christopher Harrison <ch12@sanger.ac.uk>
+Authors:
+    - Christopher Harrison <ch12@sanger.ac.uk>
+    - Michael Grace <mg38@sanger.ac.uk>
 
 This program is free software: you can redistribute it and/or modify it
 under the terms of the GNU General Public License as published by the
@@ -40,8 +42,16 @@ def main(argv: T.List[str] = sys.argv) -> None:
     # Cheery thoughts
     if args.weaponise:
         log.warning("Weaponised: Now I am become Death, "
-                    "the destroyer of worlds")
-    else:
+                    "the destroyer of worlds - I shall be "
+                    "deleting expired files and warning users")
+
+    if args.archive:
+        log.warning("Archiving: Files marked for archiving "
+                    "or stashing will be given to the drain "
+                    "phase, deleted as neccesary and users "
+                    "informed")
+
+    if not (args.weaponise or args.archive):
         log.info("Dry Run: The filesystem will not be affected "
                  "and the drain phase will not run")
 
@@ -66,10 +76,10 @@ def main(argv: T.List[str] = sys.argv) -> None:
         log.critical(e)
         sys.exit(1)
 
-    Sweeper(walker, persistence, args.weaponise)
+    Sweeper(walker, persistence, args.weaponise, args.archive)
 
     # Drain Phase
-    if args.weaponise:
+    if args.archive:
         log.info("Starting the drain phase")
         if (exit_code := drain(persistence, force=args.force_drain)) != 0:
             sys.exit(exit_code)
