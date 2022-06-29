@@ -78,22 +78,23 @@ class Sweeper(Loggable):
         walker: walk.BaseWalker,
         persistence: core.persistence.base.Persistence,
         weaponised: bool,
+        archive: bool,
         postman: T.Type[core.mail.base.Postman] = Postman
     ) -> None:
         self._walker = walker
         self._persistence = persistence
         self._weaponised = weaponised
+        self._archive = archive
         self._postman = postman
 
         # Run the phase steps
         self.sweep()
-        if self.Yes_I_Really_Mean_It_This_Time:
+        if not self.dry_run:
             self.notify()
 
     @property
-    def Yes_I_Really_Mean_It_This_Time(self) -> bool:
-        # Solemnisation :P
-        return self._weaponised
+    def dry_run(self) -> bool:
+        return not (self._weaponised or self._archive)
 
     def sweep(self) -> None:
         """ Walk the files and pass them off to be handled """
@@ -166,32 +167,40 @@ class Sweeper(Loggable):
                 tminuses: T.Dict[str, int] = {}
                 lustre_paths: T.Dict[str, Path] = {}
 
-                _email_constructors: T.Dict[str, T.Type[MessageNamespace.Message]] = {
-                    "deleted": MessageNamespace.DeletedEmail,
-                    "staged": MessageNamespace.StagedEmail
-                }
+                # Only create the emails we need, based on whether we're
+                # archiving or weaponised
+                _email_constructors: T.Dict[str,
+                                            T.Type[MessageNamespace.Message]] = {}
 
-                # Warned files that require notification
-                _warn_type = "urgent"
-                for tminus in (config.sandman_run_interval, *config.deletion.warnings):
+                if self._archive:
+                    _email_constructors["staged"] = MessageNamespace.StagedEmail
 
-                    to_warn = _files(State.Warned, tminus=tminus)
-                    hours = int(time.seconds(tminus) / 3600)
+                if self._weaponised:
+                    _email_constructors["deleted"] = MessageNamespace.DeletedEmail
 
-                    _key = f"delete-{hours}" if _warn_type != "urgent" else _warn_type
-                    attachments[_key] = to_warn
-                    group_summaries[_key] = to_warn.accumulator
-                    file_lists[_key] = {
-                        file.path: {"filepath": file.path} for file in to_warn
-                    }
-                    n_files[_key] = len(
-                        file_lists[_key])
-                    tminuses[_key] = time.seconds(tminus)
-                    lustre_paths[_key] = Path("")  # TODO
-                    _email_constructors[_key] = MessageNamespace.WarnedEmail if _warn_type != "urgent" else MessageNamespace.UrgentEmail
+                    # Warned files that require notification
+                    _warn_type = "urgent"
+                    for tminus in (config.sandman_run_interval,
+                                   *config.deletion.warnings):
 
-                    # first one is urgent email, so now we can set it to "warning"
-                    _warn_type = "warning"
+                        to_warn = _files(State.Warned, tminus=tminus)
+                        hours = int(time.seconds(tminus) / 3600)
+
+                        _key = f"delete-{hours}" if _warn_type != "urgent" else _warn_type
+                        attachments[_key] = to_warn
+                        group_summaries[_key] = to_warn.accumulator
+                        file_lists[_key] = {
+                            file.path: {"filepath": file.path} for file in to_warn
+                        }
+                        n_files[_key] = len(
+                            file_lists[_key])
+                        tminuses[_key] = time.seconds(tminus)
+                        lustre_paths[_key] = Path("")  # TODO
+                        _email_constructors[_key] = MessageNamespace.WarnedEmail if _warn_type != "urgent" else MessageNamespace.UrgentEmail
+
+                        # first one is urgent email, so now we can set it to
+                        # "warning"
+                        _warn_type = "warning"
 
                 for key, cons in _email_constructors.items():
                     if not attachments[key]:
@@ -276,7 +285,7 @@ class Sweeper(Loggable):
                 if _can_permanently_delete(file):
                     log.info(
                         f"Permanently Deleting: {file.path} has passed the hard-deletion threshold")
-                    if self.Yes_I_Really_Mean_It_This_Time:
+                    if self._weaponised:
                         try:
                             file.delete()  # DELETION WARNING
                         except PermissionError:
@@ -287,7 +296,11 @@ class Sweeper(Loggable):
                 if hardlinks(file.path) == 1:
                     log.warning(
                         f"Corruption detected: Physical vault file {file.path} does not link to any source")
-                    if self.Yes_I_Really_Mean_It_This_Time:
+                    if not self.dry_run:
+                        # NOTE: this is not `if self._weaponised` it's `if not self.dry_run`
+                        # because this is dealing with corruptions - we should be fixing corruptions
+                        # if we can, even if we're not out to delete original
+                        # files
                         try:
                             file.delete()  # DELETION WARNING
                             log.info(
@@ -337,9 +350,11 @@ class Sweeper(Loggable):
                     f"Skipping: {file.path} is marked for archival, but is locked by another process")
                 return
 
-            log.info(f"Staging {file.path} for archival")
+            if self._archive or self.dry_run:
+                log.info(f"Staging {file.path} for archival")
 
-            if self.Yes_I_Really_Mean_It_This_Time:
+            if self._archive:
+
                 # 1. Move the file to the staging branch
                 staged = vault.add(Branch.Staged, file.path)
 
@@ -350,14 +365,14 @@ class Sweeper(Loggable):
 
                 log.info(f"{file.path} has been staged for archival")
 
-            if status == Branch.Archive:
-                # 3. Delete source
-                assert hardlinks(file.path) > 1
-                try:
-                    file.delete()  # DELETION WARNING
-                except PermissionError:
-                    log.error(
-                        f"Could not hard-delete {file.path}: Permission denied")
+                if status == Branch.Archive:
+                    # 3. Delete source
+                    assert hardlinks(file.path) > 1
+                    try:
+                        file.delete()  # DELETION WARNING
+                    except PermissionError:
+                        log.error(
+                            f"Could not hard-delete {file.path}: Permission denied")
 
     ####################################################################
 
@@ -402,15 +417,19 @@ class Sweeper(Loggable):
             )
 
             if len(_warnings) == 0:
-                log.info(
-                    f"{file.path} has passed the soft-deletion threshold, but hasn't been warned to anyone. We'll send a warning")
-                self._persistence.persist(file.to_persistence(), State.Warned(
-                    notified=False, tminus=config.sandman_run_interval))
-                return
+                if self._weaponised or self.dry_run:
+                    log.info(
+                        f"{file.path} has passed the soft-deletion threshold, but hasn't been warned to anyone. We'll send a warning")
+                if self._weaponised:
+                    self._persistence.persist(file.to_persistence(), State.Warned(
+                        notified=False, tminus=config.sandman_run_interval))
+                    return
 
-            log.info(
-                f"Deleting: {file.path} has passed the soft-deletion threshold")
-            if self.Yes_I_Really_Mean_It_This_Time:
+            if self._weaponised or self.dry_run:
+                log.info(
+                    f"Deleting: {file.path} has passed the soft-deletion threshold")
+
+            if self._weaponised:
                 # 0. Instantiate the persisted file model before it's
                 #    deleted so we don't lose its stat information
                 to_persist = file.to_persistence()
@@ -434,7 +453,7 @@ class Sweeper(Loggable):
                 self._persistence.persist(
                     to_persist, State.Deleted(notified=False))
 
-        elif self.Yes_I_Really_Mean_It_This_Time:
+        elif self._weaponised:
             # Determine passed checkpoints, if any
             until_delete = config.deletion.threshold - file.age
             checkpoints = [

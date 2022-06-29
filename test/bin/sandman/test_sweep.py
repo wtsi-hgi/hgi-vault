@@ -141,9 +141,9 @@ class TestSweeper(unittest.TestCase):
         self._tmp.cleanup()
         del self.parent
 
-    def determine_vault_path(self, path, branch) -> T.Path:
+    def determine_vault_path(self, path: T.Path, branch: Branch) -> T.Path:
         inode_no = path.stat().st_ino
-        vault_relative_path = self.file_one.relative_to(self.parent)
+        vault_relative_path = path.relative_to(self.parent)
         root = self.parent / ".vault" / branch
         return root / VFK(vault_relative_path, inode_no).path
 
@@ -163,7 +163,7 @@ class TestSweeper(unittest.TestCase):
                 (self.vault, make_file_seem_old(self.file_three), None)]
         dummy_walker = _DummyWalker(walk)
         dummy_persistence = MagicMock()
-        Sweeper(dummy_walker, dummy_persistence, False)
+        Sweeper(dummy_walker, dummy_persistence, False, False)
 
         self.assertTrue(os.path.isfile(self.file_one))
         self.assertTrue(os.path.isfile(self.file_two))
@@ -183,7 +183,7 @@ class TestSweeper(unittest.TestCase):
             vault_file_one.path), VaultExc.PhysicalVaultFile())]
         dummy_walker = _DummyWalker(walk)
         dummy_persistence = MagicMock()
-        Sweeper(dummy_walker, dummy_persistence, True)
+        Sweeper(dummy_walker, dummy_persistence, False, True)
 
         self.assertFalse(os.path.isfile(self.file_one))
         self.assertTrue(os.path.isfile(vault_file_one.path))
@@ -204,7 +204,7 @@ class TestSweeper(unittest.TestCase):
                 (self.vault, File.FromFS(vault_file_three.path), VaultExc.PhysicalVaultFile())]
         dummy_walker = _DummyWalker(walk)
         dummy_persistence = MagicMock()
-        Sweeper(dummy_walker, dummy_persistence, False)
+        Sweeper(dummy_walker, dummy_persistence, False, False)
 
         self.assertFalse(os.path.isfile(self.file_one))
         self.assertTrue(os.path.isfile(vault_file_one.path))
@@ -229,7 +229,7 @@ class TestSweeper(unittest.TestCase):
                 (self.vault, File.FromFS(vault_file_three.path), VaultExc.PhysicalVaultFile())]
         dummy_walker = _DummyWalker(walk)
         dummy_persistence = MagicMock()
-        Sweeper(dummy_walker, dummy_persistence, True)
+        Sweeper(dummy_walker, dummy_persistence, True, False)
 
         self.assertFalse(os.path.isfile(self.file_one))
         self.assertFalse(os.path.isfile(vault_file_one.path))
@@ -255,7 +255,7 @@ class TestSweeper(unittest.TestCase):
                 (self.vault, File.FromFS(vault_file_three.path), VaultExc.PhysicalVaultFile())]
         dummy_walker = _DummyWalker(walk)
         dummy_persistence = MagicMock()
-        Sweeper(dummy_walker, dummy_persistence, False)
+        Sweeper(dummy_walker, dummy_persistence, False, False)
 
         self.assertTrue(os.path.isfile(self.file_one))
         self.assertTrue(os.path.isfile(vault_file_one.path))
@@ -284,7 +284,7 @@ class TestSweeper(unittest.TestCase):
         dummy_walker = _DummyWalker(walk)
         dummy_persistence = MagicMock()
 
-        Sweeper(dummy_walker, dummy_persistence, True)
+        Sweeper(dummy_walker, dummy_persistence, False, True)
 
         self.assertFalse(os.path.isfile(self.file_one))
         self.assertFalse(os.path.isfile(vault_file_one.path))
@@ -309,7 +309,7 @@ class TestSweeper(unittest.TestCase):
                 (self.vault, File.FromFS(vault_file_two.path), VaultExc.PhysicalVaultFile("File is in Limbo and has two hardlinks"))]
         dummy_walker = _DummyWalker(walk)
         dummy_persistence = MagicMock()
-        Sweeper(dummy_walker, dummy_persistence, True)
+        Sweeper(dummy_walker, dummy_persistence, True, True)
 
         self.assertTrue(os.path.isfile(self.file_one))
         self.assertTrue(os.path.isfile(vault_file_one.path))
@@ -332,7 +332,7 @@ class TestSweeper(unittest.TestCase):
             self.file_three), VaultExc.VaultCorruption(f"{self.file_three} is limboed in the vault in {self.vault.root}, but also exists outside the vault"))]
         dummy_walker = _DummyWalker(walk)
         dummy_persistence = MagicMock()
-        Sweeper(dummy_walker, dummy_persistence, True)
+        Sweeper(dummy_walker, dummy_persistence, True, True)
 
         self.assertTrue(os.path.isfile(self.file_one))
         self.assertTrue(os.path.isfile(vault_file_one.path))
@@ -356,7 +356,7 @@ class TestSweeper(unittest.TestCase):
 
         dummy_walker = _DummyWalker(walk)
         dummy_persistence = MagicMock()
-        Sweeper(dummy_walker, dummy_persistence, True)
+        Sweeper(dummy_walker, dummy_persistence, True, True)
 
         self.assertFalse(os.path.isfile(self.file_one))
         self.assertFalse(os.path.isfile(vault_file_one_archive.path))
@@ -377,7 +377,7 @@ class TestSweeper(unittest.TestCase):
 
         dummy_walker = _DummyWalker(walk)
         dummy_persistence = MagicMock()
-        Sweeper(dummy_walker, dummy_persistence, True)
+        Sweeper(dummy_walker, dummy_persistence, True, True)
 
         self.assertTrue(os.path.isfile(self.file_one))
         self.assertFalse(os.path.isfile(vault_file_one_stash.path))
@@ -400,7 +400,7 @@ class TestSweeper(unittest.TestCase):
         persistence.persist(models.File(self.file_one, 0, 0, 0, None, datetime.now(), datetime.now(), datetime.now(), DummyUser(0), DummyGroup(0)),
                             models.State.Warned(notified=True, tminus=timedelta(days=1)))
 
-        Sweeper(walker, persistence, True, postman=MockMailer)
+        Sweeper(walker, persistence, True, False, postman=MockMailer)
 
         # Check if the untracked file has been deleted
         self.assertFalse(os.path.isfile(self.file_one))
@@ -421,7 +421,7 @@ class TestSweeper(unittest.TestCase):
         vault_file_path = self.determine_vault_path(
             self.file_one, Branch.Limbo)
 
-        Sweeper(walker, persistence, True, postman=MockMailer)
+        Sweeper(walker, persistence, True, False, postman=MockMailer)
 
         # Check if the untracked file has been deleted (it shouldn't be)
         self.assertTrue(os.path.isfile(self.file_one))
@@ -430,7 +430,7 @@ class TestSweeper(unittest.TestCase):
 
         # Theoretically, that now "sends" the notification
         # Let's run it again
-        Sweeper(walker, persistence, True, postman=MockMailer)
+        Sweeper(walker, persistence, True, False, postman=MockMailer)
 
         # Check untracked file has now been deleted
         self.assertFalse(os.path.isfile(self.file_one))
@@ -451,7 +451,7 @@ class TestSweeper(unittest.TestCase):
         vault_file_path = self.determine_vault_path(
             self.file_one, Branch.Limbo)
 
-        Sweeper(dummy_walker, dummy_persistence, True)
+        Sweeper(dummy_walker, dummy_persistence, True, False)
 
         # Check if the untracked file has been deleted
         self.assertTrue(os.path.isfile(self.file_one))
@@ -475,7 +475,7 @@ class TestSweeper(unittest.TestCase):
         vault_file_path = self.determine_vault_path(
             self.file_one, Branch.Limbo)
 
-        Sweeper(dummy_walker, dummy_persistence, True)
+        Sweeper(dummy_walker, dummy_persistence, True, False)
 
         # Check if the untracked file has been deleted
         self.assertTrue(os.path.isfile(self.file_one))
@@ -494,7 +494,7 @@ class TestSweeper(unittest.TestCase):
                  VaultExc.PhysicalVaultFile("File is in Limbo"))]
         dummy_walker = _DummyWalker(walk)
         dummy_persistence = MagicMock()
-        Sweeper(dummy_walker, dummy_persistence, True)
+        Sweeper(dummy_walker, dummy_persistence, True, False)
 
         self.assertFalse(os.path.isfile(self.file_one))
         self.assertFalse(os.path.isfile(vault_file_one.path))
@@ -511,7 +511,7 @@ class TestSweeper(unittest.TestCase):
             vault_file_one.path), VaultExc.PhysicalVaultFile("File is in Limbo"))]
         dummy_walker = _DummyWalker(walk)
         dummy_persistence = MagicMock()
-        Sweeper(dummy_walker, dummy_persistence, True)
+        Sweeper(dummy_walker, dummy_persistence, True, False)
 
         self.assertFalse(os.path.isfile(self.file_one))
         self.assertTrue(os.path.isfile(vault_file_one.path))
@@ -529,7 +529,7 @@ class TestSweeper(unittest.TestCase):
                  mtime=new_time, atime=new_time), VaultExc.PhysicalVaultFile("File is in Limbo"))]
         dummy_walker = _DummyWalker(walk)
         dummy_persistence = MagicMock()
-        Sweeper(dummy_walker, dummy_persistence, True)
+        Sweeper(dummy_walker, dummy_persistence, True, False)
 
         self.assertFalse(os.path.isfile(self.file_one))
         self.assertTrue(os.path.isfile(vault_file_one.path))
@@ -547,7 +547,7 @@ class TestSweeper(unittest.TestCase):
                 [(self.vault, File.FromFS(self.file_one), None)])
             dummy_persistence = MagicMock()
             self.assertRaises(core.file.exception.UnactionableFile,
-                              lambda: Sweeper(dummy_walker, dummy_persistence, True))
+                              lambda: Sweeper(dummy_walker, dummy_persistence, True, True))
 
     def test_bad_permissions_file_skipped(self):
         """Gets the Sweeper to try and action a file
@@ -557,13 +557,95 @@ class TestSweeper(unittest.TestCase):
         dummy_walker = _DummyWalker(
             [(self.vault, make_file_seem_old(self.wrong_perms), None)])
         dummy_persistence = MagicMock()
-        Sweeper(dummy_walker, dummy_persistence, True)
+        Sweeper(dummy_walker, dummy_persistence, True, True)
 
         vault_file_path = self.determine_vault_path(
             self.wrong_perms, Branch.Limbo)
 
         self.assertTrue(os.path.isfile(self.wrong_perms))
         self.assertFalse(os.path.isfile(vault_file_path))
+
+    def test_only_archiving_doesnt_delete_expired_files(self):
+        """runs the sweeper with archving but not fully weaponised
+
+        files marked as archive or stashed should be dealt with, but
+        files that are simply expired shouldn't be touched"""
+
+        _archive_vault_file = self.vault.add(Branch.Archive, self.file_one)
+        _stash_vault_file = self.vault.add(Branch.Stash, self.file_two)
+
+        _archived_file_staged_path = self.determine_vault_path(
+            self.file_one, Branch.Staged)
+        _stashed_file_staged_path = self.determine_vault_path(
+            self.file_two, Branch.Staged)
+
+        _files = [
+            (self.vault, File.FromFS(self.file_one), Branch.Archive),
+            (self.vault, File.FromFS(self.file_two), Branch.Stash),
+            (self.vault, make_file_seem_old(self.file_three), None)
+        ]
+
+        # run twice to give deletion opportunity to files not previously warned
+        Sweeper(
+            _DummyWalker(_files),
+            MagicMock(),
+            weaponised=False,
+            archive=True)
+
+        # archived file gone by this point
+        Sweeper(_DummyWalker(_files[1:]), MagicMock(),
+                weaponised=False, archive=True)
+
+        self.assertFalse(os.path.isfile(self.file_one))
+        self.assertTrue(os.path.isfile(self.file_two))
+        self.assertTrue(os.path.isfile(self.file_three))
+
+        self.assertFalse(os.path.isfile(_archive_vault_file.path))
+        self.assertFalse(os.path.isfile(_stash_vault_file.path))
+
+        self.assertTrue(os.path.isfile(_archived_file_staged_path))
+        self.assertTrue(os.path.isfile(_stashed_file_staged_path))
+
+    def test_only_deleting_doesnt_touch_archive_files(self):
+        _archive_vault_file = self.vault.add(Branch.Archive, self.file_one)
+        _stash_vault_file = self.vault.add(Branch.Stash, self.file_two)
+
+        _archived_file_staged_path = self.determine_vault_path(
+            self.file_one, Branch.Staged)
+        _stashed_file_staged_path = self.determine_vault_path(
+            self.file_two, Branch.Staged)
+
+        _walker = _DummyWalker([
+            (self.vault, File.FromFS(self.file_one), Branch.Archive),
+            (self.vault, File.FromFS(self.file_two), Branch.Stash),
+            (self.vault, make_file_seem_old(self.file_three), None)
+        ])
+
+        _persistence = Persistence(config.persistence, DummyIDM(config))
+
+        # run twice to ensure deletion of files not previously warned
+        Sweeper(
+            _walker,
+            _persistence,
+            weaponised=True,
+            archive=False,
+            postman=MockMailer)
+        Sweeper(
+            _walker,
+            _persistence,
+            weaponised=True,
+            archive=False,
+            postman=MockMailer)
+
+        self.assertTrue(os.path.isfile(self.file_one))
+        self.assertTrue(os.path.isfile(self.file_two))
+        self.assertFalse(os.path.isfile(self.file_three))
+
+        self.assertTrue(os.path.isfile(_archive_vault_file.path))
+        self.assertTrue(os.path.isfile(_stash_vault_file.path))
+
+        self.assertFalse(os.path.isfile(_archived_file_staged_path))
+        self.assertFalse(os.path.isfile(_stashed_file_staged_path))
 
 
 class TestEmailStakeholders(unittest.TestCase):
@@ -601,7 +683,7 @@ class TestEmailStakeholders(unittest.TestCase):
             max(self.config.deletion.warnings) - time.delta(seconds=1)
         walker = _DummyWalker([(self.vault, _DummyFile.FromFS(
             self.file_one, idm=DummyIDM(self.config), ctime=new_time, mtime=new_time, atime=new_time), None)])
-        Sweeper(walker, Persistence(self.config.persistence, DummyIDM(self.config)), True,
+        Sweeper(walker, Persistence(self.config.persistence, DummyIDM(self.config)), True, False,
                 MockMailer)  # this will make the email
 
         sent_emails = MockMailer.get_sent_mail(
@@ -617,7 +699,7 @@ class TestEmailStakeholders(unittest.TestCase):
             self.file_one, idm=DummyIDM(self.config)), Branch.Archive)])
 
         Sweeper(walker, Persistence(self.config.persistence,
-                DummyIDM(self.config)), True, MockMailer)
+                DummyIDM(self.config)), False, True, MockMailer)
 
         sent_emails = MockMailer.get_sent_mail(
             subject=MessageNamespace.StagedEmail.subject)
@@ -630,7 +712,7 @@ class TestEmailStakeholders(unittest.TestCase):
         walker = _DummyWalker([(self.vault, _DummyFile.FromFS(self.file_one, idm=DummyIDM(
             self.config), ctime=new_time, mtime=new_time, atime=new_time), None)])
         Sweeper(walker, Persistence(self.config.persistence,
-                DummyIDM(self.config)), True, MockMailer)
+                DummyIDM(self.config)), True, False, MockMailer)
 
         sent_emails = MockMailer.get_sent_mail(
             subject=MessageNamespace.UrgentEmail.subject)
@@ -646,9 +728,9 @@ class TestEmailStakeholders(unittest.TestCase):
 
         # have to do this twice, cause the first time will send an urgent email
         Sweeper(walker, Persistence(self.config.persistence,
-                DummyIDM(self.config)), True, MockMailer)
+                DummyIDM(self.config)), True, False, MockMailer)
         Sweeper(walker, Persistence(self.config.persistence,
-                DummyIDM(self.config)), True, MockMailer)
+                DummyIDM(self.config)), True, False, MockMailer)
 
         sent_emails = MockMailer.get_sent_mail(
             subject=MessageNamespace.DeletedEmail.subject)
@@ -672,7 +754,7 @@ class TestEmailStakeholders(unittest.TestCase):
         walker = _DummyWalker([(self.vault, _DummyFile.FromFS(_file, idm=DummyIDM(
             self.config), ctime=new_time, mtime=new_time, atime=new_time), None) for _file in _files])
         Sweeper(walker, Persistence(self.config.persistence,
-                DummyIDM(self.config)), True, MockMailer)
+                DummyIDM(self.config)), True, False, MockMailer)
 
         # check its not in the body of the email
         sent_emails = MockMailer.get_sent_mail(
